@@ -3,28 +3,30 @@ import time
 import mss
 import numpy as np
 
-import test
+import os
 
-dota_shop = cv.imread('dota_shop.png')
+dota_shop = cv.imread('dota_pinned_items.png')
 
 
 def window_capture():
     # Define your Monitor
     x = 1520
-    y = 50
+    y = 707
     w = 400
-    h = 730
+    h = 70
 
     with mss.mss() as sct:
         # Part of the screen to capture
         monitor = {"left": x, "top": y, "width": w, "height": h}
         img = sct.grab(monitor)
         img = np.array(img)
-        cv.rectangle(img, (1300, 880), (1920, 30), (0, 255, 0), cv.LINE_4)
     return img
 
 
-def detect_shop() -> object:
+def detect_shop():
+    shop_on_is_renamed = False
+    shop_off_is_renamed = False
+
     while "Screen capturing":
         # Define Time
         last_time = time.time()
@@ -49,15 +51,19 @@ def detect_shop() -> object:
             break
 
         if max_val >= 0.25:
-            print('match found')
-            f = open("watched_folders/shop_on/watched_txt.txt", 'w')
-            f.write("this txt being modified triggers a Streamer.bot action !")
-            f.close()
+            if shop_on_is_renamed:
+                os.rename('watched_folder_shop_on/rename.txt', 'watched_folder_shop_on/rename.txt')
+                shop_on_is_renamed = False
+            else:
+                os.rename('watched_folder_shop_on/rename.txt', 'watched_folder_shop_on/rename.txt')
+                shop_on_is_renamed = True
         else:
-            print('match not found')
-            f = open("watched_folders/shop_off/watched_txt.txt", 'w')
-            f.write("this txt being modified triggers a Streamer.bot action !")
-            f.close()
+            if shop_off_is_renamed:
+                os.rename('watched_folder_shop_off/rename.txt', 'watched_folder_shop_off/rename.txt')
+                shop_off_is_renamed = False
+            else:
+                os.rename('watched_folder_shop_off/rename.txt', 'watched_folder_shop_off/rename.txt')
+                shop_off_is_renamed = True
 
 
 detect_shop()
