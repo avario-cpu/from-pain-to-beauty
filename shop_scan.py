@@ -3,6 +3,8 @@ import time
 import mss
 import numpy as np
 
+import test
+
 dota_shop = cv.imread('dota_shop.png')
 
 
@@ -22,28 +24,40 @@ def window_capture():
     return img
 
 
-while "Screen capturing":
-    # Define Time
-    last_time = time.time()
+def detect_shop() -> object:
+    while "Screen capturing":
+        # Define Time
+        last_time = time.time()
 
-    # Get the img
-    screenshot = window_capture()
+        # Get the img
+        screenshot = window_capture()
 
-    # Display the picture
-    cv.imshow('Computer Vision', screenshot)
+        # Display the picture
+        cv.imshow('Computer Vision', screenshot)
 
-    # See if the template matches
-    cv.imwrite('snapshot.jpg', screenshot)
-    snapshot = cv.imread('snapshot.jpg')
-    result = cv.matchTemplate(snapshot, dota_shop, cv.TM_CCOEFF_NORMED)
-    min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
+        # See if the template matches
+        cv.imwrite('snapshot.jpg', screenshot)
+        snapshot = cv.imread('snapshot.jpg')
+        result = cv.matchTemplate(snapshot, dota_shop, cv.TM_CCOEFF_NORMED)
+        min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
 
-    if max_val >= 0.2:
-        print('match found')
+        print(f'FPS {(1 / (time.time() - last_time))}')
 
-    print(f'FPS {(1 / (time.time() - last_time))}')
+        # Press "q" to quit
+        if cv.waitKey(1) == ord("q"):
+            cv.destroyAllWindows()
+            break
 
-    # Press "q" to quit
-    if cv.waitKey(1) == ord("q"):
-        cv.destroyAllWindows()
-        break
+        if max_val >= 0.25:
+            print('match found')
+            f = open("watched_folders/shop_on/watched_txt.txt", 'w')
+            f.write("this txt being modified triggers a Streamer.bot action !")
+            f.close()
+        else:
+            print('match not found')
+            f = open("watched_folders/shop_off/watched_txt.txt", 'w')
+            f.write("this txt being modified triggers a Streamer.bot action !")
+            f.close()
+
+
+detect_shop()
