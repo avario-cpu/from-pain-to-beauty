@@ -67,7 +67,7 @@ def detect_shop():
             cv.destroyAllWindows()
             break
 
-        if max_val >= 0.3:
+        if max_val >= 0.3:  # if successful match with openCV
             if shop_is_open:
                 print('shop was already open, continue.')
                 slowdown_script()
@@ -84,8 +84,9 @@ def detect_shop():
                     shop_shown_folder_is_renamed = True
                     slowdown_script()
 
-        else:  # if shop is closed (no match found with openCV)
+        else:  # if no successful match with openCV = shop is closed
             if shop_is_open:  # if the shop was open during the last check
+                shop_is_open = False
                 print('\n\nshop just closed, renaming file\n\n')
                 if shop_hidden_folder_is_renamed:
                     os.rename('watched_folder_shop_hidden/renamed.txt', 'watched_folder_shop_hidden/rename.txt')
