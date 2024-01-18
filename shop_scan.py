@@ -5,11 +5,11 @@ import numpy as np
 
 import os
 
-dota_shop = cv.imread('dota_pinned_items.png')
+dota_shop_template = cv.imread('dota_pinned_items.png')
 
 
-def slowdown_script():
-    # print(f'FPS {(1 / (time.time() - last_time))}')
+def wait():
+    # print(f'FPS {(1 / (time.time() - last_time))}')  # commented out, maybe useful maybe not
     time.sleep(1)
 
 
@@ -29,28 +29,19 @@ def window_capture():
 
 
 def detect_shop():
-    shop_is_open = False
-
-    if os.listdir('watched_folder_shop_shown')[0] == 'renamed.txt':
-        shop_shown_folder_is_renamed = True
-    else:
-        shop_shown_folder_is_renamed = False
+    shop_is_open = False  # True if openCV matches templates
 
     if os.listdir('watched_folder_shop_hidden')[0] == 'renamed.txt':
-        shop_hidden_folder_is_renamed = True
+        hidden_shop_txt_is_renamed = True  # weird variable, ik but necessary
     else:
-        shop_hidden_folder_is_renamed = False
+        hidden_shop_txt_is_renamed = False
 
-    print('listdir:', os.listdir('watched_folder_shop_shown')[0])
-
-    print('shown:', shop_shown_folder_is_renamed)
-    print('hidden:', shop_hidden_folder_is_renamed)
+    if os.listdir('watched_folder_shop_shown')[0] == 'renamed.txt':
+        shown_shop_txt_is_renamed = True
+    else:
+        shown_shop_txt_is_renamed = False
 
     while "Screen capturing":
-        # Define Time
-        last_time = time.time()
-
-        # Get the img
         screenshot = window_capture()
 
         # Display the picture
@@ -59,7 +50,7 @@ def detect_shop():
         # See if the template matches
         cv.imwrite('snapshot.jpg', screenshot)
         snapshot = cv.imread('snapshot.jpg')
-        result = cv.matchTemplate(snapshot, dota_shop, cv.TM_CCOEFF_NORMED)
+        result = cv.matchTemplate(snapshot, dota_shop_template, cv.TM_CCOEFF_NORMED)
         min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
 
         # Press "q" to quit
@@ -67,38 +58,38 @@ def detect_shop():
             cv.destroyAllWindows()
             break
 
-        if max_val >= 0.3:  # if successful match with openCV
+        if max_val >= 0.3:
             if shop_is_open:
                 print('shop was already open, continue.')
-                slowdown_script()
+                wait()
                 continue
             else:
-                shop_is_open = True
+                shop_is_open = True  # if shop wasn't open last check
                 print('\n\nshop just opened, renaming file\n\n')
-                if shop_shown_folder_is_renamed:
+                if shown_shop_txt_is_renamed:
                     os.rename('watched_folder_shop_shown/renamed.txt', 'watched_folder_shop_shown/rename.txt')
-                    shop_shown_folder_is_renamed = False
-                    slowdown_script()
+                    shown_shop_txt_is_renamed = False
+                    wait()
                 else:
                     os.rename('watched_folder_shop_shown/rename.txt', 'watched_folder_shop_shown/renamed.txt')
-                    shop_shown_folder_is_renamed = True
-                    slowdown_script()
+                    shown_shop_txt_is_renamed = True
+                    wait()
 
         else:  # if no successful match with openCV = shop is closed
-            if shop_is_open:  # if the shop was open during the last check
-                shop_is_open = False
+            if shop_is_open:  # if shop was open last check
+                shop_is_open = False  # change the state
                 print('\n\nshop just closed, renaming file\n\n')
-                if shop_hidden_folder_is_renamed:
+                if hidden_shop_txt_is_renamed:
                     os.rename('watched_folder_shop_hidden/renamed.txt', 'watched_folder_shop_hidden/rename.txt')
-                    shop_hidden_folder_is_renamed = False
-                    slowdown_script()
+                    hidden_shop_txt_is_renamed = False
+                    wait()
                 else:
                     os.rename('watched_folder_shop_hidden/rename.txt', 'watched_folder_shop_hidden/renamed.txt')
-                    shop_hidden_folder_is_renamed = True
-                    slowdown_script()
-            else:
+                    hidden_shop_txt_is_renamed = True
+                    wait()
+            else:  # if shop was already closed
                 print('Shop was already closed, continue')
-                slowdown_script()
+                wait()
                 continue
 
 
