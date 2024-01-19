@@ -5,10 +5,10 @@ import numpy as np
 
 import client
 
-dota_shop_template = cv.imread('dota_pinned_items.png')
+dota_shop_template = cv.imread('dota_pinned_items.png')  # image to match with for open/closed Dota2 shop detection
 
 
-def wait():
+def wait():  # to slow down the script so that it doesn't scan too many frames
     time.sleep(0.5)
 
 
@@ -26,14 +26,16 @@ def window_capture():
 
 
 def detect_shop():
-    shop_is_open = False  # True if openCV matches templates
+    shop_is_open = False  # will become True when openCV matches templates
+    print("scanning for shop...")
 
     while "Screen capturing":
+
         screenshot = window_capture()
         cv.imshow('Computer Vision', screenshot)
         cv.imwrite('snapshot.jpg', screenshot)
 
-        snapshot = cv.imread('snapshot.jpg')
+        snapshot = cv.imread('snapshot.jpg')  # last scanned frame of my screen
         result = cv.matchTemplate(snapshot, dota_shop_template, cv.TM_CCOEFF_NORMED)
         min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
 
@@ -42,26 +44,24 @@ def detect_shop():
             break
 
         if max_val >= 0.3:
-            if shop_is_open:
+            if shop_is_open:  # if shop was already open last check, don't change scene
                 print('shop was already open, continue.')
-                wait()  # slow down the script, no need to check 40 times per seconds.
+                wait()
                 continue
-            else:  # if shop wasn't open last check
+            else:  # if shop wasn't open last check ...
                 shop_is_open = True
                 print('\nshop just opened, change scene!\n')
-                client.go_to_shop_shown()
+                client.go_to_shop_shown()  # ... change OBS scene via Websocket
                 wait()
         else:  # if there is no successful match detected with openCV...
-            if shop_is_open:  # ...but the shop was open during the last check
+            if shop_is_open:  # ...but the shop was open during the last check...
                 shop_is_open = False
                 print('\nshop just closed, change scene!\n')
-                client.go_to_shop_hidden()
+                client.go_to_shop_hidden()  # ...change OBS scene via Websocket
                 wait()
-            else:  # if shop was already closed
+            else:  # if shop was already closed, don't change scene
                 print('Shop was already closed, continue.')
                 wait()
                 continue
 
 
-# detect_shop()
-client.ws.close()

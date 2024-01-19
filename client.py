@@ -1,14 +1,13 @@
 from websockets.sync.client import connect
 import re
 
-
 get_actions_json = """
 {
   "request": "GetActions",
   "id": "<id>"
 }
 """
-# Both using either the action name or id works, one can be left empty if the other is provided
+# Only needs either ID or name to be provided. ID will stay the same after renames.
 shop_hidden_json = """
 {
   "request": "DoAction",
@@ -38,14 +37,15 @@ shop_shown_json = """
 """
 
 ws = connect("ws://127.0.0.1:8080/")
+print("connected to websocket:", ws, "\n")
 
 
-def get_actions():
+def get_actions():  # gets a list of all my Streamer.bot actions
+    print("getting actions list...")
     ws.send(get_actions_json)
     message = ws.recv()
-    pattern = "},{"
-    message = re.sub(pattern, "},\n{", message)  # make it go at newline for readability
-    print(f"received:{message}\n")
+    action_list = pretty_action_list(message)
+    print(action_list, "\n")
 
 
 def go_to_shop_hidden():
@@ -60,4 +60,11 @@ def go_to_shop_shown():
     print(f"Received: {message}\n")
 
 
-get_actions()
+def pretty_action_list(msg):  # make the list more readable by adding new lines
+    pattern = "{"
+    msg = re.sub(pattern, "\n{", msg)
+    pattern = "}],"
+    msg = re.sub(pattern, "}],\n", msg)
+    return msg
+
+

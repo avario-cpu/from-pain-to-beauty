@@ -1,0 +1,4 @@
+{
+  "request": "GetActions",
+  "id": "<id>"
+}
