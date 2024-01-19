@@ -1,6 +1,7 @@
 from websockets.sync.client import connect
 import re
 
+
 get_actions_json = """
 {
   "request": "GetActions",

@@ -9,7 +9,6 @@ dota_shop_template = cv.imread('dota_pinned_items.png')
 
 
 def wait():
-    # print(f' FPS {(1 / (time.time() - last_time))}')  # commented out, maybe useful maybe not
     time.sleep(0.5)
 
 
@@ -49,13 +48,13 @@ def detect_shop():
                 continue
             else:  # if shop wasn't open last check
                 shop_is_open = True
-                print('\n\nshop just opened, change scene!\n\n')
+                print('\nshop just opened, change scene!\n')
                 client.go_to_shop_shown()
                 wait()
         else:  # if there is no successful match detected with openCV...
             if shop_is_open:  # ...but the shop was open during the last check
                 shop_is_open = False
-                print('\n\nshop just closed, change scene!\n\n')
+                print('\nshop just closed, change scene!\n')
                 client.go_to_shop_hidden()
                 wait()
             else:  # if shop was already closed
@@ -64,5 +63,5 @@ def detect_shop():
                 continue
 
 
-detect_shop()
+# detect_shop()
 client.ws.close()
