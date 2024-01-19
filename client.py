@@ -8,12 +8,12 @@ get_actions_json = """
 }
 """
 # Both using either the action name or id works, one can be left empty if the other is provided
-do_action_json = """
+shop_hidden_json = """
 {
   "request": "DoAction",
   "action": {
-    "id": "74041930-bd70-41e7-a9c8-e80c74384731",
-    "name": ""
+    "id": "6cba2fc5-205f-4e51-9b35-7b0d5331cc7b",
+    "name": "Shop Hidden"
   },
   "args": {
     "key": "value",
@@ -22,26 +22,41 @@ do_action_json = """
 }
 """
 
+shop_shown_json = """
+{
+  "request": "DoAction",
+  "action": {
+    "id": "e314b940-fe9f-4f30-8108-891826a98a06",
+    "name": "Shop Shown"
+  },
+  "args": {
+    "key": "value",
+  },
+  "id": "<id>"
+}
+"""
 
-def streamer_bot_connect():
-    websocket = connect("ws://127.0.0.1:8080/")
-
-
-def get_action():
-    with connect("ws://127.0.0.1:8080/") as websocket:
-        websocket.send(get_actions_json)
-        message = websocket.recv()
-        pattern = "},{"
-        message = re.sub(pattern, "},\n{", message)  # make it go at newline for readability
-        print(f"received:{message}\n")
-
-
-def do_action():
-    with connect("ws://127.0.0.1:8080/") as websocket:
-        websocket.send(do_action_json)
-        message = websocket.recv()
-        print(f"Received: {message}\n")
+client = connect("ws://127.0.0.1:8080/")
 
 
-get_action()
-do_action()
+def get_actions():
+    client.send(get_actions_json)
+    message = client.recv()
+    pattern = "},{"
+    message = re.sub(pattern, "},\n{", message)  # make it go at newline for readability
+    print(f"received:{message}\n")
+
+
+def go_to_shop_hidden():
+    client.send(shop_hidden_json)
+    message = client.recv()
+    print(f"Received: {message}\n")
+
+
+def go_to_shop_shown():
+    client.send(shop_shown_json)
+    message = client.recv()
+    print(f"Received: {message}\n")
+
+
+get_actions()
