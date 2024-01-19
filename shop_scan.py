@@ -65,4 +65,4 @@ def detect_shop():
 
 
 detect_shop()
-client.client.close()
+client.ws.close()

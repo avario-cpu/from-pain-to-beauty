@@ -1,2 +1,0 @@
-def trigger():
-    print('triggered')

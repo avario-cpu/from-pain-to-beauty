@@ -36,26 +36,26 @@ shop_shown_json = """
 }
 """
 
-client = connect("ws://127.0.0.1:8080/")
+ws = connect("ws://127.0.0.1:8080/")
 
 
 def get_actions():
-    client.send(get_actions_json)
-    message = client.recv()
+    ws.send(get_actions_json)
+    message = ws.recv()
     pattern = "},{"
     message = re.sub(pattern, "},\n{", message)  # make it go at newline for readability
     print(f"received:{message}\n")
 
 
 def go_to_shop_hidden():
-    client.send(shop_hidden_json)
-    message = client.recv()
+    ws.send(shop_hidden_json)
+    message = ws.recv()
     print(f"Received: {message}\n")
 
 
 def go_to_shop_shown():
-    client.send(shop_shown_json)
-    message = client.recv()
+    ws.send(shop_shown_json)
+    message = ws.recv()
     print(f"Received: {message}\n")
 
 
