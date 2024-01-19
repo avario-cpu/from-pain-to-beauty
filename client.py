@@ -1,12 +1,9 @@
 from websockets.sync.client import connect
 import re
 
-
-def establish_connection():
-    print('establishing connection...')
-    global ws
-    ws = connect("ws://127.0.0.1:8080/")
-    print("connected to websocket:", ws, "\n")
+print("establishing connection...")
+ws = connect("ws://127.0.0.1:8080/")
+print("connected to websocket:", ws)
 
 
 def get_actions():  # gets a list of all my Streamer.bot actions
@@ -16,7 +13,7 @@ def get_actions():  # gets a list of all my Streamer.bot actions
     ws.send(file_contents)
     message = ws.recv()
     message = make_pretty(message)
-    print(f"Received: {message}")
+    print(f"action list: {message}\n")
 
 
 def go_to_shop_hidden():
@@ -41,3 +38,6 @@ def make_pretty(msg):  # make the list more readable by adding new lines
     pattern = "}],"
     msg = re.sub(pattern, "}],\n", msg)
     return msg
+
+
+get_actions()

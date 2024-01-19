@@ -2,8 +2,8 @@ import cv2 as cv
 import time
 import mss
 import numpy as np
-
 import client
+import os
 
 dota_shop_template = cv.imread('dota_pinned_items.png')  # image to match with for open/closed Dota2 shop detection
 
@@ -43,6 +43,10 @@ def detect_shop():
             cv.destroyAllWindows()
             break
 
+        if os.path.isfile("temp/terminate.txt"):  # file created by a batch file indicated via the Elgato StreamDeck,
+            # this is the only way I've found to terminate the script with this interface as yet.
+            break
+
         if max_val >= 0.3:
             if shop_is_open:  # if shop was already open last check, don't change scene
                 print('shop was already open, continue.')
@@ -63,5 +67,3 @@ def detect_shop():
                 print('Shop was already closed, continue.')
                 wait()
                 continue
-
-
