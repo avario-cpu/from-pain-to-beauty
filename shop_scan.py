@@ -5,10 +5,10 @@ import numpy as np
 import client
 import os
 
-dota_shop_template = cv.imread('dota_pinned_items.png')  # image to match with for open/closed Dota2 shop detection
+dota_shop_template = cv.imread('dota_pinned_items.png')  # image used for matching an open, or closed, Dota2 shop
 
 
-def wait():  # to slow down the script so that it doesn't scan too many frames
+def wait():  # used to slow down the script (CPU hungry).
     time.sleep(0.5)
 
 
@@ -26,7 +26,7 @@ def window_capture():
 
 
 def detect_shop():
-    shop_is_open = False  # will become True when openCV matches templates
+    shop_is_open = False
     print("scanning for shop...")
 
     while "Screen capturing":
@@ -43,27 +43,27 @@ def detect_shop():
             cv.destroyAllWindows()
             break
 
-        if os.path.isfile("temp/terminate.txt"):  # file created by a batch file indicated via the Elgato StreamDeck,
-            # this is the only way I've found to terminate the script with this interface as yet.
+        if os.path.isfile("temp/terminate.txt"):  # this file is created by a batch file executed from an Elgato
+            # StreamDeck macro: this is the only way I've found to terminate the script using this device yet.
             break
 
         if max_val >= 0.3:
-            if shop_is_open:  # if shop was already open last check, don't change scene
+            if shop_is_open:
                 print('shop was already open, continue.')
                 wait()
                 continue
             else:  # if shop wasn't open last check ...
                 shop_is_open = True
                 print('\nshop just opened, change scene!\n')
-                client.go_to_shop_shown()  # ... change OBS scene via Websocket
+                client.go_to_shop_shown()  # ...send a request to the Websocket server to trigger a Streamer.bot Action
                 wait()
-        else:  # if there is no successful match detected with openCV...
+        else:  # if there is no open shop detected with openCV...
             if shop_is_open:  # ...but the shop was open during the last check...
                 shop_is_open = False
                 print('\nshop just closed, change scene!\n')
-                client.go_to_shop_hidden()  # ...change OBS scene via Websocket
+                client.go_to_shop_hidden()  # ...send a request to the Websocket server to trigger a Streamer.bot Action
                 wait()
-            else:  # if shop was already closed, don't change scene
+            else:
                 print('Shop was already closed, continue.')
                 wait()
                 continue

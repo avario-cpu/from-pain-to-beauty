@@ -11,8 +11,8 @@ def startup():
     exit_script()
 
 
-def exit_script():  # this is the exit used upon normal termination of the script. (which is basically, for now, having
-    # the "shop_scan" module's loop broken.)
+def exit_script():  # this is the exit used upon normal termination of the script: which is basically, for now, having
+    # the "shop_scan.py" module's loop broken.
     print("exiting script...")
     disconnect_client()  # disconnect from websocket.
     delete_lock()  # remove the lock file to allow for next singular script to run.
@@ -20,8 +20,7 @@ def exit_script():  # this is the exit used upon normal termination of the scrip
 
 
 def disconnect_client():
-    client.ws.close()  # to close the established websocket connection. When main script is ran, the client
-    # immediately connects, regardless of whether the rest of the scrip runs or not.
+    client.ws.close()  # necessary to close the immediate websocket connection that happens on attempt to run the script
     print(f"disconnected from websocket: {client.ws}")
 
 
@@ -37,14 +36,14 @@ def delete_lock():
 
 def check_lock_file():
     lock = os.path.isfile("temp/myapp.lock")
-    if lock:  # if a lock file is there, do not run script further and disconnect client.
+    if lock:
         print("locked into single instance")
         disconnect_client()
         exit()
 
 
 def rm_terminate_file():
-    os.remove("temp/terminate.txt")  # allows for the shop_scan loop to run again.
+    os.remove("temp/terminate.txt")  # allows for the "shop_scan.py" module's main loop to run again.
 
 
 startup()
