@@ -43,7 +43,9 @@ def check_lock_file():
 
 
 def rm_terminate_file():
-    os.remove("temp/terminate.txt")  # allows for the "shop_scan.py" module's main loop to run again.
+    terminate = os.path.isfile("temp/terminate.txt")
+    if terminate:
+        os.remove("temp/terminate.txt")  # allows for the "shop_scan.py" module's main loop to run again.
 
 
 startup()

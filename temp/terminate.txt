@@ -1,1 +1,0 @@
-This txt will break the "shop_scan.py" module's loop 
