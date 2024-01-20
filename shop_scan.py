@@ -4,14 +4,20 @@ import time
 import mss
 import client
 import os
-import keyboard
+import threading
 
 dota_shop_template = cv.imread('dota_shop_top_right.jpg')  # image used for template matching the Dota2 shop UI
-break_loop = False
+stop_event = threading.Event()
+
+
+def stop_detect_shop():
+    stop_event.set()
+    print('stopping scan')
+    # cv.destroyAllWindows()
 
 
 def wait():  # used to slow down the script.
-    time.sleep(0.01)
+    time.sleep(1)
     pass
 
 
@@ -31,7 +37,7 @@ def window_capture():
 def detect_shop():
     shop_is_open = False
 
-    while "Screen capturing":
+    while not stop_event.is_set():
 
         screenshot = window_capture()
         cv.imshow('Computer Vision', screenshot)
@@ -51,9 +57,6 @@ def detect_shop():
             # StreamDeck macro: this is the only way I've found to terminate the script using this device yet.
             break
 
-        if break_loop:
-            break
-
         if max_val <= 0.4:
             if shop_is_open:
                 wait()
@@ -71,6 +74,14 @@ def detect_shop():
                 wait()
                 continue
 
+    cv.destroyAllWindows()
 
-# if __name__ == "__main__":
-#     detect_shop()
+
+def thread_shop_scan():
+    scan_thread = threading.Thread(target=detect_shop)
+    scan_thread.start()
+
+# thread_shop_scan()
+# while True:
+#     print("running at same time as loop")
+#     time.sleep(1)
