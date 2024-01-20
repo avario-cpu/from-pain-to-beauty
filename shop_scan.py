@@ -9,7 +9,8 @@ dota_shop_template = cv.imread('dota_pinned_items.png')  # image used for matchi
 
 
 def wait():  # used to slow down the script (CPU hungry).
-    time.sleep(0.5)
+    time.sleep(0.01)
+    pass
 
 
 def window_capture():
@@ -36,34 +37,34 @@ def detect_shop():
         cv.imwrite('snapshot.jpg', screenshot)
 
         snapshot = cv.imread('snapshot.jpg')  # last scanned frame of my screen
-        result = cv.matchTemplate(snapshot, dota_shop_template, cv.TM_CCOEFF_NORMED)
+        result = cv.matchTemplate(snapshot, dota_shop_template, cv.TM_SQDIFF_NORMED)
         min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
 
         if cv.waitKey(1) == ord("q"):
             cv.destroyAllWindows()
             break
 
+        print(max_val)
+
         if os.path.isfile("temp/terminate.txt"):  # this file is created by a batch file executed from an Elgato
             # StreamDeck macro: this is the only way I've found to terminate the script using this device yet.
             break
 
-        if max_val >= 0.3:
+        if max_val <= 0.3:
             if shop_is_open:
-                print('shop was already open, continue.')
                 wait()
                 continue
             else:  # if shop wasn't open last check ...
                 shop_is_open = True
-                print('\nshop just opened, change scene!\n')
+                print('>> shop just opened, change scene!')
                 client.go_to_shop_shown()  # ...send a request to the Websocket server to trigger a Streamer.bot Action
                 wait()
         else:  # if there is no open shop detected with openCV...
             if shop_is_open:  # ...but the shop was open during the last check...
                 shop_is_open = False
-                print('\nshop just closed, change scene!\n')
+                print('>> shop just closed, change scene!')
                 client.go_to_shop_hidden()  # ...send a request to the Websocket server to trigger a Streamer.bot Action
                 wait()
             else:
-                print('Shop was already closed, continue.')
                 wait()
                 continue

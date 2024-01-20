@@ -26,12 +26,12 @@ def disconnect_client():
 
 def create_lock_file():  # create a lock file to prevent multiple instances of this script.
     open("temp/myapp.lock", 'x')
-    print(">>>>>>>>>> created lock <<<<<<<<<<<")
+    print(">> created lock")
 
 
 def delete_lock():
     os.remove("temp/myapp.lock")
-    print('>>>>>>>>>> removed lock <<<<<<<<<<<')
+    print(">> removed lock")
 
 
 def check_lock_file():
