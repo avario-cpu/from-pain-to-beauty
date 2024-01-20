@@ -1,0 +1,11 @@
+{
+  "request": "DoAction",
+  "action": {
+    "id": "034bf207-4a9c-4797-8173-65462b519d2e",
+    "name": "Hide/Show DSLR"
+  },
+  "args": {
+    "key": "value",
+  },
+  "id": "<id>"
+}

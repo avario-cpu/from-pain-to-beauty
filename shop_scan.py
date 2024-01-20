@@ -5,10 +5,10 @@ import numpy as np
 import client
 import os
 
-dota_shop_template = cv.imread('dota_pinned_items.png')  # image used for matching an open, or closed, Dota2 shop
+dota_shop_template = cv.imread('dota_pinned_items.png')  # image used for matching Dota2 shop UI
 
 
-def wait():  # used to slow down the script (CPU hungry).
+def wait():  # used to slow down the script.
     time.sleep(0.01)
     pass
 
@@ -28,7 +28,6 @@ def window_capture():
 
 def detect_shop():
     shop_is_open = False
-    print("scanning for shop...")
 
     while "Screen capturing":
 
@@ -50,20 +49,18 @@ def detect_shop():
             # StreamDeck macro: this is the only way I've found to terminate the script using this device yet.
             break
 
-        if max_val <= 0.3:
+        if max_val <= 0.4:
             if shop_is_open:
                 wait()
                 continue
             else:  # if shop wasn't open last check ...
                 shop_is_open = True
-                print('>> shop just opened, change scene!')
-                client.go_to_shop_shown()  # ...send a request to the Websocket server to trigger a Streamer.bot Action
+                client.toggle_dslr()  # ...send a request to the Websocket server to trigger a Streamer.bot Action
                 wait()
         else:  # if there is no open shop detected with openCV...
             if shop_is_open:  # ...but the shop was open during the last check...
                 shop_is_open = False
-                print('>> shop just closed, change scene!')
-                client.go_to_shop_hidden()  # ...send a request to the Websocket server to trigger a Streamer.bot Action
+                client.toggle_dslr()  # ...send a request to the Websocket server to trigger a Streamer.bot Action
                 wait()
             else:
                 wait()
