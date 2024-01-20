@@ -24,8 +24,16 @@ def make_pretty(msg):  # makes the list of actions more readable by adding new l
     return msg
 
 
-def toggle_dslr():
-    with open("ws_requests/toggle_DSLR.json", 'r') as file:
+def show_dslr():
+    with open("ws_requests/show_dslr.json", 'r') as file:
+        file_contents = file.read()
+    ws.send(file_contents)
+    message = ws.recv()
+    print(f"Received: {message}")
+
+
+def hide_dslr():
+    with open("ws_requests/hide_dslr.json", 'r') as file:
         file_contents = file.read()
     ws.send(file_contents)
     message = ws.recv()

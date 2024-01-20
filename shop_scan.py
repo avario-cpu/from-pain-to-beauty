@@ -1,11 +1,13 @@
 import cv2 as cv
+import numpy as np
 import time
 import mss
-import numpy as np
 import client
 import os
+import keyboard
 
-dota_shop_template = cv.imread('dota_pinned_items.png')  # image used for matching Dota2 shop UI
+dota_shop_template = cv.imread('dota_shop_top_right.jpg')  # image used for template matching the Dota2 shop UI
+break_loop = False
 
 
 def wait():  # used to slow down the script.
@@ -14,10 +16,10 @@ def wait():  # used to slow down the script.
 
 
 def window_capture():
-    x = 1520
-    y = 707
-    w = 400
-    h = 70
+    x = 1883
+    y = 50
+    w = 37
+    h = 35
 
     with mss.mss() as sct:
         monitor = {"left": x, "top": y, "width": w, "height": h}  # screen part to capture
@@ -49,19 +51,26 @@ def detect_shop():
             # StreamDeck macro: this is the only way I've found to terminate the script using this device yet.
             break
 
+        if break_loop:
+            break
+
         if max_val <= 0.4:
             if shop_is_open:
                 wait()
                 continue
-            else:  # if shop wasn't open last check ...
+            else:  # if the shop just opened ...
                 shop_is_open = True
-                client.toggle_dslr()  # ...send a request to the Websocket server to trigger a Streamer.bot Action
+                client.hide_dslr()  # ...send a request to the Websocket server to trigger a Streamer.bot Action
                 wait()
-        else:  # if there is no open shop detected with openCV...
-            if shop_is_open:  # ...but the shop was open during the last check...
+        else:
+            if shop_is_open:  # if the shop just closed
                 shop_is_open = False
-                client.toggle_dslr()  # ...send a request to the Websocket server to trigger a Streamer.bot Action
+                client.show_dslr()  # ...send a request to the Websocket server to trigger a Streamer.bot Action
                 wait()
             else:
                 wait()
                 continue
+
+
+# if __name__ == "__main__":
+#     detect_shop()
