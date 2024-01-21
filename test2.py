@@ -1,9 +1,23 @@
-import time
+with open("terminal_loc/amount_of_windows", 'r') as f:
+    content = f.read()
+    new_content = int(content)
+    print(content)
 
-i = 0.5
+
+with open("terminal_loc/amount_of_windows", 'w') as f:
+    new_content = new_content + 1
+    f.write(str(new_content))
+    print(new_content)
 
 
-while i < 51:
-    i += 1
-    print(i)
-    time.sleep(0.5)
+input("any key")
+
+with open("terminal_loc/amount_of_windows", 'r') as f:
+    content = f.read()
+    new_content = int(content)
+    print(content)
+
+with open("terminal_loc/amount_of_windows", 'w') as f:
+    new_content = (new_content - 1)
+    f.write(str(new_content))
+    print(new_content)

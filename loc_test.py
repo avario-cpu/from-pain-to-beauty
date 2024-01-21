@@ -1,5 +1,42 @@
 import pygetwindow as gw
-import csv
+import time
+
+print('hello')
+
+with open("terminal_loc/amount_of_windows", 'r') as f:
+    content = f.read()
+    numbers_of_windows = int(content)
+
+numbers_of_windows += 1  # the window we just opened
+print(f'there is/are {numbers_of_windows} window(s) displayed')
+
+with open("terminal_loc/amount_of_windows", 'r') as f:
+    content = f.read()
+    new_content = int(content)
+    print(content)
+
+with open("terminal_loc/amount_of_windows", 'w') as f:
+    new_content = new_content + 1
+    f.write(str(new_content))
+    print(new_content)
+
+
+def define_y_pos():
+    if numbers_of_windows <= 3:
+        dynamic_y_pos = (numbers_of_windows - 1) * 350
+        return dynamic_y_pos
+    elif 3 < numbers_of_windows <= 6:
+        dynamic_y_pos = (numbers_of_windows - 3) * 350
+        return dynamic_y_pos
+
+
+def define_x_pos():
+    if numbers_of_windows <= 3:
+        dynamic_x_pos = -600
+        return dynamic_x_pos
+    elif 3 < numbers_of_windows <= 6:
+        dynamic_x_pos = -1200
+        return dynamic_x_pos
 
 
 def resize_and_move_window(window_title, new_width, new_height, new_x, new_y):
@@ -9,30 +46,34 @@ def resize_and_move_window(window_title, new_width, new_height, new_x, new_y):
         window.resizeTo(new_width, new_height)
         window.moveTo(new_x, new_y)
 
-        params_list = [window_title, new_width, new_height, new_x, new_y]
-        with open("terminal_loc/locations.csv", mode='w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(params_list)
+    # params_list = [window_title, new_width, new_height, new_x, new_y]
+    # with open("terminal_loc/locations.csv", mode='a', newline='') as file:
+    #     csv_writer = csv.writer(file)
+    #     csv_writer.writerow(params_list)
     else:
         print(f"Window with title '{window_title}' not found.")
 
 
-target_row_number = 2
+cmd_title = "C:\WINDOWS\system32\cmd.exe"
+x_size = 600
+y_size = 350
+x_pos = define_x_pos()
+y_pos = define_y_pos()
 
-with open("terminal_loc/locations.csv", mode='r', newline='') as file:
-    csv_reader = csv.reader(file)
+print("x_pos:", define_x_pos())
+print("y_pos:", define_y_pos())
 
-    for _ in range(target_row_number - 1):
-        next(csv_reader)
+time.sleep(2)
+resize_and_move_window(cmd_title, x_size, y_size, x_pos, y_pos)
 
-    target_row = next(csv_reader, None)
-    if target_row is not None:
-        print(target_row)
+input("any key")
 
-    y_pos = int(target_row[4]) + 360  # move 360 pixels to the bottom (1080/3) to fit cmd size
-    x_pos = int(target_row[3])
-    y_size = int(target_row[2])
-    x_size = int(target_row[1])
+with open("terminal_loc/amount_of_windows", 'r') as f:
+    content = f.read()
+    new_content = int(content)
+    print(content)
 
-    resize_and_move_window(target_row[0], x_size, y_size, x_pos, y_pos)
-
+with open("terminal_loc/amount_of_windows", 'w') as f:
+    new_content = (new_content - 1)
+    f.write(str(new_content))
+    print(new_content)

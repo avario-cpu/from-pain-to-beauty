@@ -8,6 +8,8 @@ def disconnect_client():
 
 
 def create_lock_file():
+    if not os.path.exists("temp"):
+        os.makedirs("temp")
     open("temp/myapp.lock", 'x')
     print("created lock file")
 
