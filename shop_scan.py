@@ -3,7 +3,6 @@ import numpy as np
 import time
 import mss
 import client
-import os
 import threading
 
 dota_shop_template = cv.imread('dota_shop_top_right.jpg')  # image used for template matching the Dota2 shop UI
@@ -12,12 +11,8 @@ stop_event = threading.Event()
 
 def stop_detect_shop():
     stop_event.set()
+    scan_thread.join()
     print('stopped shop_scan thread')
-    module_thread.join()
-
-
-# def start_scan():
-#     module_thread.start()
 
 
 def wait():  # used to slow down the script.
@@ -76,4 +71,4 @@ def detect_shop():
     cv.destroyAllWindows()
 
 
-module_thread = threading.Thread(target=detect_shop)
+scan_thread = threading.Thread(target=detect_shop)
