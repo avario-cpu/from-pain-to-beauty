@@ -8,13 +8,24 @@ import keyboard
 def main():
     # single_instance.startup()
     print("Function started!")
-    shop_scan.thread_shop_scan()
-    # shop_scan.detect_shop()
+    shop_scan.start_scan()
 
 
-keyboard.add_hotkey('Ctrl+Alt+Shift+P', main)
-keyboard.add_hotkey('Ctrl+Alt+Shift+S', shop_scan.stop_detect_shop)
+def print_test():
+    print('test')
 
-# main()
-# time.sleep(5)
-# shop_scan.stop_detect_shop()
+
+keyboard.add_hotkey('Ctrl+Alt+Shift+F6', main)
+keyboard.add_hotkey('Ctrl+Alt+Shift+F7', shop_scan.stop_detect_shop)
+
+try:
+    while True:
+        print('main running...')
+        time.sleep(1)
+        pass
+except KeyboardInterrupt:
+    # Handle KeyboardInterrupt (Ctrl+C)
+    print("Program interrupted by user.")
+finally:
+    # Unregister the hotkey before exiting
+    keyboard.remove_all_hotkeys()

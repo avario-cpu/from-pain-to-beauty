@@ -13,7 +13,11 @@ stop_event = threading.Event()
 def stop_detect_shop():
     stop_event.set()
     print('stopping scan')
-    # cv.destroyAllWindows()
+    module_thread.join()
+
+
+def start_scan():
+    module_thread.start()
 
 
 def wait():  # used to slow down the script.
@@ -47,15 +51,10 @@ def detect_shop():
         result = cv.matchTemplate(snapshot, dota_shop_template, cv.TM_SQDIFF_NORMED)
         min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
 
-        if cv.waitKey(1) == ord("q"):
-            cv.destroyAllWindows()
+        if cv.waitKey(1) == ord("q"):  # if Q is pressed while having openCV window on focus
             break
 
         print(max_val)
-
-        if os.path.isfile("temp/terminate.txt"):  # this file is created by a batch file executed from an Elgato
-            # StreamDeck macro: this is the only way I've found to terminate the script using this device yet.
-            break
 
         if max_val <= 0.4:
             if shop_is_open:
@@ -77,11 +76,4 @@ def detect_shop():
     cv.destroyAllWindows()
 
 
-def thread_shop_scan():
-    scan_thread = threading.Thread(target=detect_shop)
-    scan_thread.start()
-
-# thread_shop_scan()
-# while True:
-#     print("running at same time as loop")
-#     time.sleep(1)
+module_thread = threading.Thread(target=detect_shop)

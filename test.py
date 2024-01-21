@@ -1,36 +1,35 @@
-import keyboard
+import threading
 import time
-import test2
 
-exit_bool = False
-
-
-def start_function():
-    print("Function started!")
-    # Add your function logic here
+func1_event = threading.Event()
+func2_event = threading.Event()
 
 
-def exit_script():
-    print("exit called!")
-    global exit_bool
-    exit_bool = True
+def print_func1():
+    while not func1_event.is_set():
+        print("func1 running...")
+        time.sleep(0.3)
+    print('\nfunc1 loop stopped.\n')
 
 
-# Set the hotkey (e.g., Ctrl+Alt+F)
-keyboard.add_hotkey('Ctrl+Alt+F', start_function)
-keyboard.add_hotkey('Ctrl+Alt+;', exit_script)
-keyboard.add_hotkey('Ctrl+Alt+/', test2.test_call)
+def print_func2():
+    while not func2_event.is_set():
+        print("func 2 running...")
+        time.sleep(0.3)
+    print('\nfunc2 loop stopped\n')
 
 
-def main():
-    while True:
-        # Your main program logic goes here
-        if exit_bool:
-            break
-        else:
-            time.sleep(1)  # Add a short delay to reduce CPU usage
-            print('running')
+func1 = threading.Thread(target=print_func1)
+func2 = threading.Thread(target=print_func2)
 
+func1.start()
+func2.start()
 
-# if __name__ == '__main__':
-main()
+time.sleep(2)
+
+func1_event.set()
+func1.join()
+
+time.sleep(2)
+
+func1.start()

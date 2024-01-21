@@ -1,10 +1,7 @@
 import time
 import threading
+import keyboard
 
-# Shared variable
-shared_variable = 0
-
-# Event to signal when to break the loop
 stop_event = threading.Event()
 
 
@@ -27,22 +24,25 @@ def main():
 def stop_loop():
     print("Stopping the loop.")
     stop_event.set()
-
-
-if __name__ == "__main__":
-    # Start the loop in a separate thread
-    loop_thread = threading.Thread(target=main)
-    loop_thread.start()
-
-    # Simulate changing the variable from outside the loop
-    for _ in range(5):
-        change_variable()
-        time.sleep(1)
-
-    # Stop the loop from outside
-    stop_loop()
-
-    # Wait for the loop thread to finish
     loop_thread.join()
 
-    print("Loop ended.")
+
+def start_thread():
+    loop_thread.start()
+
+
+loop_thread = threading.Thread(target=main)
+
+keyboard.add_hotkey('Ctrl+Alt+H', stop_loop)
+keyboard.add_hotkey('Ctrl+Alt+J', start_thread)
+
+# try:
+#     while True:
+#         # Your main program logic goes here
+#         time.sleep(1)
+# except KeyboardInterrupt:
+#     # Handle KeyboardInterrupt (Ctrl+C)
+#     print("Program interrupted by user.")
+# finally:
+#     # Unregister the hotkey before exiting
+#     keyboard.remove_hotkey('Ctrl+Alt+H')

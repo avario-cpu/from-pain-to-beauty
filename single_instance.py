@@ -25,14 +25,7 @@ def check_lock_file():
         exit()
 
 
-def rmv_terminate_file():
-    terminate = os.path.isfile("temp/terminate.txt")
-    if terminate:
-        os.remove("temp/terminate.txt")  # allows for the "shop_scan.py" module's main loop to run again.
-
-
 def startup():
-    rmv_terminate_file()
     check_lock_file()
     create_lock_file()
 
