@@ -12,16 +12,16 @@ stop_event = threading.Event()
 
 def stop_detect_shop():
     stop_event.set()
-    print('stopping scan')
+    print('stopped shop_scan thread')
     module_thread.join()
 
 
-def start_scan():
-    module_thread.start()
+# def start_scan():
+#     module_thread.start()
 
 
 def wait():  # used to slow down the script.
-    time.sleep(1)
+    time.sleep(0.1)
     pass
 
 

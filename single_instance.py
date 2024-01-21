@@ -7,32 +7,28 @@ def disconnect_client():
     print(f"disconnected from websocket: {client.ws}")
 
 
-def create_lock_file():  # create a lock file to prevent multiple instances of this script.
+def create_lock_file():
     open("temp/myapp.lock", 'x')
     print(">> created lock")
 
 
-def delete_lock():  # remove lock file, done on exit, via this module exit function
+def delete_lock():
     os.remove("temp/myapp.lock")
     print(">> removed lock")
 
 
-def check_lock_file():
+def lock_exists():
     lock = os.path.isfile("temp/myapp.lock")
     if lock:
-        print("locked into single instance")
-        disconnect_client()
-        exit()
-
-
-def startup():
-    check_lock_file()
-    create_lock_file()
+        print("locked file is present.")
+        return True
+    else:
+        create_lock_file()
 
 
 def exit_script():  # this is the exit used upon normal termination of the script: which is basically, for now, having
     # the "shop_scan.py" module's loop broken.
-    print("exiting script...")
+    print("exiting script... goodbye capt'n....")
     disconnect_client()  # disconnect from websocket.
-    delete_lock()  # remove the lock file to allow for next singular script to run.
-    exit()
+    if lock_exists():
+        delete_lock()  # remove the lock file to allow for next singular script to run.
