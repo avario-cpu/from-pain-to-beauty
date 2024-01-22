@@ -68,6 +68,6 @@ def scan_for_shop():
                 wait()
                 continue
 
-    # when the loop breaks: destroy openCV windows, disconnect client, and remove the single instance lock.
+    # when the loop breaks: destroy openCV windows
     cv.destroyAllWindows()
 

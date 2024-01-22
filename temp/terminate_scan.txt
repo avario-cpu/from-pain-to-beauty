@@ -1,0 +1,1 @@
+This txt created by a batch file will break the "shop_scanner.py" module's loop when detected.
