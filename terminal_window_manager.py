@@ -3,31 +3,37 @@ import time
 import pygetwindow as gw
 import os
 
+# read from file how many windows are open
 with open("cmd_windows_info/amount_of_windows.txt", "r") as file:
     amount_of_terminals_open = int(file.read())
 print(f"amount_of_windows already displayed is: {amount_of_terminals_open}")
 
 
-def increase_amount_of_windows_by_one():
-    with open("cmd_windows_info/amount_of_windows.txt", "r+") as f:
-        f.write(str(amount_of_terminals_open + 1))
-        new_amount = f.read()
-
-    # with open("cmd_windows_info/amount_of_windows.txt", "r") as f:
-
-    print(f"amount_of_windows new amount: {new_amount}")
-
-
-def lower_amount_of_windows_by_one():
-    with open("cmd_windows_info/amount_of_windows.txt", "w") as f:
-        f.write(str(amount_of_terminals_open - 1))
-
+# show the value of the variable for the number of windows detected
+def print_amount_of_windows():
     with open("cmd_windows_info/amount_of_windows.txt", "r") as f:
-        new_amount = int(f.read())
-    print(f"amount_of_windows new amount: {new_amount}")
+        current_amount_of_terminals_open = int(f.read())
+    print(f"current amount of windows: {current_amount_of_terminals_open}")
 
 
-def get_all_windows_name_list():  # this is used only for debugging purposes
+# raise the value written in the file by 1
+def increase_amount_of_windows_by_one():
+    with open("cmd_windows_info/amount_of_windows.txt", "w") as f:
+        f.write(str(amount_of_terminals_open + 1))
+    print_amount_of_windows()
+
+
+# lower the value written in the file by 1
+def lower_amount_of_windows_by_one():
+    with open("cmd_windows_info/amount_of_windows.txt", "r") as f:
+        last_amount = int(f.read())
+    with open("cmd_windows_info/amount_of_windows.txt", "w") as f:
+        f.write(str(last_amount - 1))
+    print_amount_of_windows()
+
+
+# this is used only for debugging purposes
+def get_all_windows_name_list():
     windows = gw.getAllWindows()
     print('list of windows:\n----------------------------------------------')
     for win in windows:
@@ -35,14 +41,23 @@ def get_all_windows_name_list():  # this is used only for debugging purposes
     print('--------------------------------------------------------')
 
 
+# transform the terminal window so that it fits my screen nicely, on a second monitor
 def resize_and_move_window(window_title, new_width, new_height, new_x, new_y):
-    window = gw.getWindowsWithTitle(window_title)
-    if window:
-        window = window[0]  # in case of multiple title match.
-        window.resizeTo(new_width, new_height)
-        window.moveTo(new_x, new_y)
-    else:
-        print(f"Window with title '{window_title}' not found.")
+    timeout = 3
+    start_time = time.time()
+    while True:  # keep trying to get a window title match, cause the os takes a bit of time to rename it
+        if time.time() - start_time > timeout:
+            print("Window Search timed out.")
+            break
+        window = gw.getWindowsWithTitle(window_title)
+        if window:
+            window = window[0]  # in case of multiple match for the same title.
+            window.resizeTo(new_width, new_height)
+            window.moveTo(new_x, new_y)
+            break
+        else:
+            print(f"Window with title '{window_title}' not found. trying again")
+            time.sleep(0.01)
 
 
 def adjust_terminal_window():
@@ -52,9 +67,8 @@ def adjust_terminal_window():
     y_pos = 300 * (amount_of_terminals_open % 3)
 
     # change the terminal window title relative to the number of windows open to allow for unique identification.
-    new_terminal_title = f"MYNAME WINDOW ({amount_of_terminals_open})"
-    os.system(f"title {new_terminal_title}")
+    new_window_title = f"MY TERMINAL NAME ({amount_of_terminals_open})"
+    os.system(f"title {new_window_title}")
 
-    time.sleep(0.5)
-    resize_and_move_window(new_terminal_title, width, height, x_pos, y_pos)
+    resize_and_move_window(new_window_title, width, height, x_pos, y_pos)
     increase_amount_of_windows_by_one()

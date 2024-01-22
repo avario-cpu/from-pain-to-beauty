@@ -70,4 +70,5 @@ def scan_for_shop():
 
     # when the loop breaks: destroy openCV windows
     cv.destroyAllWindows()
+    print("loop terminated")
 

@@ -13,8 +13,10 @@ def remove_lock():
 
 def lock_exists():
     lock = os.path.isfile("temp/myapp.lock")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    script_dir_name = os.path.basename(script_dir)
     if lock:
-        print("lock file is present.")
+        print(f"lock file for is present for << {script_dir_name} >>")
         return True
 
 

@@ -6,16 +6,16 @@ import client
 
 
 def exit_countdown():
-    for seconds in reversed(range(1, 5)):
+    for seconds in reversed(range(1, 10)):
         print("\r" + f'cmd will close in {seconds} seconds...', end="\r")
         time.sleep(1)
     pass  # "pass" is left here for debugging purposes, for when I comment out the function contents.
 
 
 def exit_procedure():
-    terminal_window_manager.lower_amount_of_windows_by_one()
-    exit_countdown()  # used to give me a bit of time in order to read a few print messages in the terminal
     client.disconnect()
+    terminal_window_manager.lower_amount_of_windows_by_one()
+    # input("press enter")
     exit()
 
 
@@ -23,6 +23,7 @@ def main():
     terminal_window_manager.adjust_terminal_window()
 
     if single_instance.lock_exists():  # if the lock file is here, don't run the script.
+        exit_countdown()  # allow for a bit of time to read terminal feedback
         exit_procedure()
     else:
         import atexit  # makes sure we disconnect the client and remove the lock file when the script exits
