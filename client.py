@@ -3,7 +3,11 @@ import re
 
 print("establishing connection...")
 ws = connect("ws://127.0.0.1:8080/")
-print("connected to websocket:", ws)
+
+
+def disconnect():
+    ws.close()
+    print(f"disconnected from websocket: {ws}")
 
 
 def get_actions():  # gets a list of all my Streamer.bot actions
@@ -12,8 +16,8 @@ def get_actions():  # gets a list of all my Streamer.bot actions
         file_contents = file.read()
     ws.send(file_contents)
     message = ws.recv()
-    message = make_pretty(message)
-    print(f"action list: {message}\n")
+    pretty_message = make_pretty(message)
+    print(f"action list: {pretty_message}\n")
 
 
 def make_pretty(msg):  # makes the list of actions more readable by adding new lines
@@ -24,7 +28,7 @@ def make_pretty(msg):  # makes the list of actions more readable by adding new l
     return msg
 
 
-def show_dslr():
+def request_show_dslr():
     with open("ws_requests/show_dslr.json", 'r') as file:
         file_contents = file.read()
     ws.send(file_contents)
@@ -32,7 +36,7 @@ def show_dslr():
     print(f"Received: {message}")
 
 
-def hide_dslr():
+def request_hide_dslr():
     with open("ws_requests/hide_dslr.json", 'r') as file:
         file_contents = file.read()
     ws.send(file_contents)

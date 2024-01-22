@@ -3,19 +3,19 @@ import time
 
 print('hello')
 
-with open("terminal_loc/amount_of_windows", 'r') as f:
+with open("../cmd_windows_info/amount_of_windows", 'r') as f:
     content = f.read()
     numbers_of_windows = int(content)
 
 numbers_of_windows += 1  # the window we just opened
 print(f'there is/are {numbers_of_windows} window(s) displayed')
 
-with open("terminal_loc/amount_of_windows", 'r') as f:
+with open("../cmd_windows_info/amount_of_windows", 'r') as f:
     content = f.read()
     new_content = int(content)
     print(content)
 
-with open("terminal_loc/amount_of_windows", 'w') as f:
+with open("../cmd_windows_info/amount_of_windows", 'w') as f:
     new_content = new_content + 1
     f.write(str(new_content))
     print(new_content)
@@ -47,7 +47,7 @@ def resize_and_move_window(window_title, new_width, new_height, new_x, new_y):
         window.moveTo(new_x, new_y)
 
     # params_list = [window_title, new_width, new_height, new_x, new_y]
-    # with open("terminal_loc/locations.csv", mode='a', newline='') as file:
+    # with open("cmd_windows_info/locations.csv", mode='a', newline='') as file:
     #     csv_writer = csv.writer(file)
     #     csv_writer.writerow(params_list)
     else:
@@ -68,12 +68,12 @@ resize_and_move_window(cmd_title, x_size, y_size, x_pos, y_pos)
 
 input("any key")
 
-with open("terminal_loc/amount_of_windows", 'r') as f:
+with open("../cmd_windows_info/amount_of_windows", 'r') as f:
     content = f.read()
     new_content = int(content)
     print(content)
 
-with open("terminal_loc/amount_of_windows", 'w') as f:
+with open("../cmd_windows_info/amount_of_windows", 'w') as f:
     new_content = (new_content - 1)
     f.write(str(new_content))
     print(new_content)
