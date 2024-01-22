@@ -11,19 +11,21 @@ def atexit_attest():
 
 
 def exit_countdown():
-    for seconds in reversed(range(1, 6)):
+    for seconds in reversed(range(1, 10)):
         print("\r" + f'cmd will close in {seconds} seconds...', end="\r")
         time.sleep(1)
 
 
 def exit_procedure():
-    exit_countdown()
     client.disconnect()
+    exit_countdown()
     terminal_window_manager.lower_amount_of_windows_by_one()
+    exit()
 
 
 def main():
     terminal_window_manager.adjust_terminal_window_placement()
+
     if single_instance.lock_exists():  # if the lock file is here, don't run the script.
         exit_procedure()
     else:
@@ -32,15 +34,15 @@ def main():
         atexit.register(single_instance.remove_lock)
         atexit.register(client.disconnect)
         atexit.register(atexit_attest)  # just for testing, to check it did its job. Cause I don't trust it.
+        print("atexit imported")
         try:
             single_instance.create_lock_file()
             shop_scanner.scan_for_shop()
+            print("loop terminated")
             exit_procedure()  # reached once the shop_scanner loop is broken
-            # exit()
         except KeyboardInterrupt:
             print("KeyboardInterrupt detected !")
             exit_procedure()
-            # exit()
 
 
 if __name__ == "__main__":
