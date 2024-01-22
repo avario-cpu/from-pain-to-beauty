@@ -1,1 +1,1 @@
-This txt created by a batch file will break the "shop_scan.py" module's loop when detected 
+This txt created by a batch file will break the "shop_scan.py" module's loop when detected

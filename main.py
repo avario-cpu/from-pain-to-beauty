@@ -16,25 +16,31 @@ def exit_countdown():
         time.sleep(1)
 
 
-def clean_exit():
-    import atexit
-    atexit.register(single_instance.remove_lock)
-    atexit.register(atexit_attest)
+def exit_procedure():
+    exit_countdown()
     client.disconnect()
-    exit()
+    terminal_window_manager.lower_amount_of_windows_by_one()
 
 
 def main():
     terminal_window_manager.adjust_terminal_window_placement()
-    if single_instance.lock_exists():
-        client.disconnect()
-        exit_countdown()
-        terminal_window_manager.lower_amount_of_windows_by_one()
+    if single_instance.lock_exists():  # if the lock file is here, don't run the script.
+        exit_procedure()
     else:
-        single_instance.create_lock_file()
-        shop_scanner.scan_for_shop()
-        clean_exit()
-        print("reached")
+        import atexit  # makes sure we disconnect and remove the lock file upon any termination of a successfully
+        # started script
+        atexit.register(single_instance.remove_lock)
+        atexit.register(client.disconnect)
+        atexit.register(atexit_attest)  # just for testing, to check it did its job. Cause I don't trust it.
+        try:
+            single_instance.create_lock_file()
+            shop_scanner.scan_for_shop()
+            exit_procedure()  # reached once the shop_scanner loop is broken
+            # exit()
+        except KeyboardInterrupt:
+            print("KeyboardInterrupt detected !")
+            exit_procedure()
+            # exit()
 
 
 if __name__ == "__main__":

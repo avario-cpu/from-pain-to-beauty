@@ -30,7 +30,7 @@ def resize_and_move_window(window_title, new_width, new_height, new_x, new_y):
 
 
 def adjust_terminal_window_placement():
-    title = "C:\WINDOWS\system32\cmd.exe - py  main.py "
+    title = "C:\WINDOWS\system32\cmd.exe - py  main.py"
     width = 600  # fixed
     height = 300
     x_pos = -600 * ((amount_of_windows // 3) + 1)
