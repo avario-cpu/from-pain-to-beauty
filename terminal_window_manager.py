@@ -3,10 +3,13 @@ import time
 import pygetwindow as gw
 import os
 
+
 # read from file how many windows are open
-with open("cmd_windows_info/amount_of_windows.txt", "r") as file:
-    amount_of_terminals_open = int(file.read())
-print(f"amount_of_windows already displayed is: {amount_of_terminals_open}")
+def get_amount_of_terminals():
+    with open("cmd_windows_info/amount_of_windows.txt", "r") as file:
+        terminals = int(file.read())
+    print(f"amount_of_windows already displayed is: {terminals}")
+    return terminals
 
 
 # show the value of the variable for the number of windows detected
@@ -72,3 +75,6 @@ def adjust_terminal_window():
 
     resize_and_move_window(new_window_title, width, height, x_pos, y_pos)
     increase_amount_of_windows_by_one()
+
+
+amount_of_terminals_open = get_amount_of_terminals()

@@ -1,8 +1,11 @@
 from websockets.sync.client import connect
 import re
 
-print("establishing connection...")
-ws = connect("ws://127.0.0.1:8080/")
+
+def init_ws():
+    print("establishing connection...")
+    web_socket = connect("ws://127.0.0.1:8080/")
+    return web_socket
 
 
 def disconnect():
@@ -44,4 +47,5 @@ def request_hide_dslr():
     print(f"Received: {message}")
 
 
+ws = init_ws()
 get_actions()
