@@ -30,23 +30,30 @@ def resize_and_move_window(window_title, new_width, new_height, new_x, new_y):
 
 def adjust_terminal_window():
     # assign a slot to the cmd window that just spawned and rename it accordingly.
-    slot = get_first_free_slot_in_dict()
-    my_dict[slot] = "MY TERMINAL NAME - " + str(slot)
-    new_window_title = my_dict[slot]  # take the value of the key as a name for the window
+    taken_slot = get_first_free_slot_in_dict()
+    print(taken_slot, "was the first open slot available")
+    my_dict[taken_slot] = "MYNAME:" + str(taken_slot)
+    new_window_title = my_dict[taken_slot]  # take the value of the key as a name for the window
     os.system(f"title {new_window_title}")  # renames the window with a shell command
 
     # transform and replace the window according to it's occupied slot number, obtained by removing non-digits char.
-    slot_number = int(re.sub(r'\D', "", slot))
+    slot_number = int(re.sub(r'\D', "", taken_slot))
 
     width = 600
     height = 300
-    x_pos = -600
-    y_pos = 300 * slot_number
+    x_pos = -600 * (1 + slot_number // 3)
+    y_pos = 300 * (slot_number % 3)
 
     resize_and_move_window(new_window_title, width, height, x_pos, y_pos)
 
+    write_dict()
     time.sleep(0.1)
-    free_dict_value(slot)
+    input("press enter to close and free the dict entry")
+
+    # free up the slot in the dictionary
+    my_dict[taken_slot] = "FREE"
+    write_dict()
+    time.sleep(0.5)
 
 
 def create_dict():
@@ -58,7 +65,6 @@ def create_dict():
 def get_first_free_slot_in_dict():
     for slot, status in my_dict.items():
         if status == "FREE":
-            print(slot, f"was the first open slot available")
             return slot
 
 
@@ -67,10 +73,11 @@ def write_dict():
         json.dump(my_dict, file)
 
 
-def free_dict_value(key):
-    my_dict[key] = "FREE"
-    input("press enter to close and free the dict entry")
+def free_all_dict_values():
+    for key in my_dict:
+        my_dict[key] = "FREE"
+    write_dict()
 
 
+# free_all_dict_values()
 adjust_terminal_window()
-write_dict()
