@@ -1,54 +1,82 @@
+"""
+Transform the terminal window so that it fits my screen nicely on my second
+monitor, in accordance with  the amount of windows already present
+"""
+
 import time
 import pygetwindow as gw
 import os
-import re
 import slots_db_handler
 
 
-# transform the terminal window so that it fits my screen nicely, on a second monitor
-def resize_and_move_window(window_title, new_width, new_height, new_x, new_y):
+def resize_and_move_window(window_title, new_properties):
+    new_width, new_height, new_x, new_y = new_properties
+
+    # Set a time-out time for the loop to exist
     timeout = 3
     start_time = time.time()
-    while True:  # keep trying to get a window title match, cause the os takes a bit of time to rename it
+
+    # Poll for the window recently renamed.
+    while True:
         if time.time() - start_time > timeout:
             print("Window Search timed out.")
             break
+
+        # Obtain a list with the matching title windows
         window = gw.getWindowsWithTitle(window_title)
         if window:
-            window = window[0]  # in case of multiple match for the same title.
+            window = window[0]
             window.resizeTo(new_width, new_height)
             window.moveTo(new_x, new_y)
             break
         else:
-            print(f"Window with title '{window_title}' not found. trying again")
-            time.sleep(0.01)  # so the loop doesn't go too fucking fast, but I still like it FAST.
+            print(f"Window "'{window_title}'" not found. trying again")
+            time.sleep(0.01)  # limit the speed of the loop
 
 
-def adjust_terminal_window():
-    # assign a slot to the cmd window that just spawned and rename it accordingly.
+def assign_slot_and_rename_window() -> (int, str):
+    """assign a slot to the cmd window that just spawned
+    and rename it accordingly."""
+
+    # Assign a slot number to the terminal window
     occupied_slot = slots_db_handler.populate_first_free_slot()
     new_window_title = "MYNAME" + str(occupied_slot)
-    os.system(f"title {new_window_title}")  # "title" is the cli command that renames its window title
 
-    # remove non digit characters to get the slot number (i.e. "2" rather than "slot2")
-    slot_number = int(re.sub(r'\D', "", occupied_slot))
+    # Rename the terminal window
+    os.system(f"title {new_window_title}")
 
-    # use that number to do the math used to transform the window
+    return occupied_slot, new_window_title,
+
+
+def calculate_new_window_properties(slot_number) -> tuple:
+    # Check that the parameter is an integer
+    if not isinstance(slot_number, int):
+        raise TypeError("slot_number must be an integer")
+
+    # Use the slot number to calculate the desired new position and size
     width = 600
     height = 260
     x_pos = -600 * (1 + slot_number // 4)
     y_pos = 300 * (slot_number % 4)
 
-    resize_and_move_window(new_window_title, width, height, x_pos, y_pos)
+    return width, height, x_pos, y_pos
 
-    time.sleep(0.1)
 
-    # free up the slot when the window is closed.
+def free_slot(slot):
+    # Free up the occupied slot when the window is closed
+    slots_db_handler.free_occupied_slot(slot)
+
+
+def main():
+    slot, title = assign_slot_and_rename_window()
+    properties = calculate_new_window_properties(slot)
+    resize_and_move_window(title, properties)
     input("press enter to close and free the slot")
-    slots_db_handler.free_occupied_slot(occupied_slot)
-    time.sleep(0.5)
+    free_slot(slot)
 
 
-# free_all_dict_values()
+if __name__ == '__main__':
+    main()
+
 slots_db_handler.free_all_occupied_slots()
 # adjust_terminal_window()

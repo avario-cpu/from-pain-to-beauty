@@ -9,7 +9,7 @@ def exit_countdown():
     for seconds in reversed(range(1, 10)):
         print("\r" + f'cmd will close in {seconds} seconds...', end="\r")
         time.sleep(1)
-    pass  # "pass" is left here for debugging purposes, for when I comment out the function contents.
+    pass  # "pass" is left here for debugging purposes
 
 
 def exit_procedure():
@@ -22,16 +22,20 @@ def exit_procedure():
 def main():
     # terminal_window_manager.adjust_terminal_window()
 
-    if single_instance.lock_exists():  # if the lock file is here, don't run the script.
+    # If the lock file is here, don't run the script.
+    if single_instance.lock_exists():
         exit_countdown()  # allow for a bit of time to read terminal feedback
         exit_procedure()
     else:
-        import atexit  # makes sure we disconnect the client and remove the lock file when the script exits
+        # Use the atexit library to disconnect the ws client module, and remove
+        # the lock file whenever the script exits
+        import atexit
         atexit.register(single_instance.remove_lock)
         atexit.register(client.disconnect)
         try:
             single_instance.create_lock_file()
-            shop_scanner.scan_for_shop()
+            shop_scanner.run("ws")  # pass any for using websocket, or None
+            # to just run without communicating with the client
             exit_procedure()  # reached once the shop_scanner loop is broken
         except KeyboardInterrupt:
             print("KeyboardInterrupt detected !")

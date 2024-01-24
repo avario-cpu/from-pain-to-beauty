@@ -2,18 +2,19 @@ from websockets.sync.client import connect
 import re
 
 
-def init_ws():
+def init():
     print("establishing connection...")
-    web_socket = connect("ws://127.0.0.1:8080/")
-    return web_socket
+    ws = connect("ws://127.0.0.1:8080/")
+    return ws
 
 
-def disconnect():
+def disconnect(ws):
     ws.close()
     print(f"disconnected from websocket: {ws}")
 
 
-def get_actions():  # gets a list of all my Streamer.bot actions
+def get_actions(ws):
+    """gets a list of all my Streamerbot actions"""
     print("getting actions list...")
     with open("ws_requests/get_actions.json", 'r') as file:
         file_contents = file.read()
@@ -23,7 +24,8 @@ def get_actions():  # gets a list of all my Streamer.bot actions
     print(f"action list: {pretty_message}\n")
 
 
-def make_pretty(msg):  # makes the list of actions more readable by adding new lines
+def make_pretty(msg):
+    """makes the list of actions more readable by adding new lines"""
     pattern = "{"
     msg = re.sub(pattern, "\n{", msg)
     pattern = "}],"
@@ -31,7 +33,7 @@ def make_pretty(msg):  # makes the list of actions more readable by adding new l
     return msg
 
 
-def request_show_dslr():
+def request_show_dslr(ws):
     with open("ws_requests/show_dslr.json", 'r') as file:
         file_contents = file.read()
     ws.send(file_contents)
@@ -39,7 +41,7 @@ def request_show_dslr():
     print(f"Received: {message}")
 
 
-def request_hide_dslr():
+def request_hide_dslr(ws):
     with open("ws_requests/hide_dslr.json", 'r') as file:
         file_contents = file.read()
     ws.send(file_contents)
@@ -47,5 +49,10 @@ def request_hide_dslr():
     print(f"Received: {message}")
 
 
-ws = init_ws()
-get_actions()
+def main():
+    ws = init()
+    get_actions(ws)
+
+
+if __name__ == "__main__":
+    main()

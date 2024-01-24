@@ -1,14 +1,21 @@
-import cv2 as cv
-import numpy as np
-import time
-import mss
-import client
 import os
+import time
 
-dota_shop_template = cv.imread('opencv/dota_shop_top_right_icon.jpg')  # image used for template matching the Dota2 shop UI
+import cv2 as cv
+import mss
+import numpy as np
 
-if os.path.exists("temp/terminate_scan.txt"):  # remove the previous existing file that terminated the loop.
-    os.remove("temp/terminate_scan.txt")
+import client
+
+
+def init():
+    # Remove the previous existing file that terminated the loop.
+    if os.path.exists("temp/terminate_scan.txt"):
+        os.remove("temp/terminate_scan.txt")
+
+    # Define the image to look for when template matching
+    template = cv.imread('opencv/dota_shop_top_right_icon.jpg')
+    return template
 
 
 def wait():  # used to slow down the script.
@@ -17,54 +24,80 @@ def wait():  # used to slow down the script.
 
 
 def window_capture():
+    """Capture a specific part of the screen and returns it as a numpy
+    array."""
     x = 1883
     y = 50
     w = 37
     h = 35
 
     with mss.mss() as sct:
-        monitor = {"left": x, "top": y, "width": w, "height": h}  # screen part to capture
+        # Define a screen part to capture
+        monitor = {"left": x, "top": y, "width": w, "height": h}
+
+        # Capture the screen region and store it as a mss Class
         img = sct.grab(monitor)
+
+        # Convert it to a numpy array: necessary to be treated with openCV
         img = np.array(img)
     return img
 
 
-def scan_for_shop():
-    shop_is_open = False
+def scan_for_shop(template, ws=None):
+    shop_is_currently_open = False
 
     while True:
 
         screenshot = window_capture()
         cv.imshow('Computer Vision', screenshot)
-        cv.imwrite('opencv/snapshot.jpg', screenshot)
+        cv.imwrite('opencv/last_frame.jpg', screenshot)
 
-        snapshot = cv.imread('opencv/snapshot.jpg')  # most recent scanned frame of my screen
-        result = cv.matchTemplate(snapshot, dota_shop_template, cv.TM_SQDIFF_NORMED)
+        snapshot = cv.imread('opencv/last_frame.jpg')
+        result = cv.matchTemplate(snapshot,
+                                  template,
+                                  cv.TM_SQDIFF_NORMED)
         min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
 
-        if cv.waitKey(1) == ord("q"):  # if Q is pressed while having openCV window on focus
+        # End loop if Q is pressed while having the openCV window on focus
+        if cv.waitKey(1) == ord("q"):
             break
 
-        if os.path.isfile("temp/terminate_scan.txt"):  # this loop is manually stopped by creating a file with a batch
+        # End loop if the file "terminate" (created by a bat file) is detected
+        if os.path.isfile("temp/terminate_scan.txt"):
             # script via my StreamDeck HID.
             break
 
         print(max_val)
 
+        # Detect, according to a threshold value, whether the shop is open.
         if max_val <= 0.4:
-            if shop_is_open:
+
+            if shop_is_currently_open:
+                # If the shop was already open at the last check, do nothing
+                # and keep the loop running.
                 wait()
                 continue
-            else:  # if the shop just opened ...
-                shop_is_open = True
-                client.request_hide_dslr()  # ...send a request to the Websocket server to trigger a Streamer.bot Action
+            else:
+                # Else, if the shop just opened: send a request to the
+                # websocket server
+                shop_is_currently_open = True
+                if ws:
+                    client.request_hide_dslr(ws)
+                print('opened shop')
                 wait()
-        else:
-            if shop_is_open:  # if the shop just closed
-                shop_is_open = False
-                client.request_show_dslr()  # ...send a request to the Websocket server to trigger a Streamer.bot Action
+
+        else:  # If the shop is detected as closed...
+
+            if shop_is_currently_open:
+                # Send a request to the WS server, and set shop as closed
+                shop_is_currently_open = False
+                if ws:
+                    client.request_show_dslr(ws)
+                print('closed shop')
                 wait()
             else:
+                # If the shop was already closed at the last check, do nothing
+                # and keep the loop running.
                 wait()
                 continue
 
@@ -72,3 +105,28 @@ def scan_for_shop():
     cv.destroyAllWindows()
     print("loop terminated")
 
+
+def run(ws=None):
+    template = init()
+    if ws:
+        ws = client.init()
+        scan_for_shop(template, ws)
+    else:
+        scan_for_shop(template)
+
+
+def main():
+    """This function is only used for testing when using this script as a main
+    module """
+
+    # decide if you want to connect to the websocket client
+    ws = input("run with websocket client ?: [w/any]")
+    if ws == "W" or "w":
+        run(ws)
+    else:
+        run()
+    pass
+
+
+if __name__ == "__main__":
+    main()

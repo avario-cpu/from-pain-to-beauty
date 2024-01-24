@@ -59,7 +59,7 @@ def check_slots():
         print(e)
 
 
-def populate_first_free_slot():
+def populate_first_free_slot() -> int:
     try:
         # Start a transaction
         conn.execute("BEGIN")
@@ -73,11 +73,11 @@ def populate_first_free_slot():
             slot_id = row[0]
 
             # Update the status of the identified slot to 'not open'
-            cur.execute("UPDATE slots SET is_open = False WHERE id = ?", (slot_id,))
+            cur.execute("UPDATE slots SET is_open = False WHERE id = ?",
+                        (slot_id,))
             conn.commit()
 
             print(f"Slot {slot_id} is now populated.")
-            slot_id = str(slot_id)
             return slot_id
         else:
             print("No free slots available.")
@@ -100,7 +100,8 @@ def free_occupied_slot(slot_id: int):
 
         if row and not row[0]:  # Ensure the slot is not already open
             # Update the status of the identified slot to 'open'
-            cur.execute("UPDATE slots SET is_open = True WHERE id = ?", (slot_id,))
+            cur.execute("UPDATE slots SET is_open = True WHERE id = ?",
+                        (slot_id,))
             conn.commit()
 
             print(f"Slot {slot_id} is now free.")
@@ -126,7 +127,8 @@ def free_all_occupied_slots():
             for row in rows:
                 slot_id = row[0]
                 # Update the status of the identified slot to 'open'
-                cur.execute("UPDATE slots SET is_open = True WHERE id = ?", (slot_id,))
+                cur.execute("UPDATE slots SET is_open = True WHERE id = ?",
+                            (slot_id,))
                 print(f"Slot {slot_id} is now free.")
 
             conn.commit()
@@ -152,7 +154,6 @@ def recreate_table():
         print("Error! Cannot create the database connection.")
     if conn:
         conn.close()
-
 
 # recreate_table()
 # populate_first_free_slot()
