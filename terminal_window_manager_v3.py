@@ -1,6 +1,6 @@
 """
 Transform the terminal window so that it fits my screen nicely on my second
-monitor, in accordance with  the amount of windows already present
+monitor, in accordance with the amount of windows already present
 """
 
 import time
@@ -51,13 +51,13 @@ def assign_slot_and_rename_window() -> (int, str):
 def calculate_new_window_properties(slot_number) -> tuple:
     # Check that the parameter is an integer
     if not isinstance(slot_number, int):
-        raise TypeError("slot_number must be an integer")
+        raise TypeError("slot_number must be of type int")
 
     # Use the slot number to calculate the desired new position and size
     width = 600
     height = 260
     x_pos = -600 * (1 + slot_number // 4)
-    y_pos = 300 * (slot_number % 4)
+    y_pos = 260 * (slot_number % 4)
 
     return width, height, x_pos, y_pos
 
@@ -78,5 +78,5 @@ def main():
 if __name__ == '__main__':
     main()
 
-slots_db_handler.free_all_occupied_slots()
+# slots_db_handler.free_all_occupied_slots()
 # adjust_terminal_window()
