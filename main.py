@@ -34,8 +34,7 @@ def main():
         atexit.register(client.disconnect)
         try:
             single_instance.create_lock_file()
-            shop_scanner.run("ws")  # pass any for using websocket, or None
-            # to just run without communicating with the client
+            shop_scanner.run("ws")  # pass "ws" string for using websocket
             exit_procedure()  # reached once the shop_scanner loop is broken
         except KeyboardInterrupt:
             print("KeyboardInterrupt detected !")

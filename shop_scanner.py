@@ -101,18 +101,27 @@ def scan_for_shop(template, ws=None):
                 wait()
                 continue
 
-    # when the loop breaks: destroy openCV windows
-    cv.destroyAllWindows()
+    # when the loop breaks: destroy openCV windows, disconnect client
     print("loop terminated")
-
-
-def run(ws=None):
-    template = init()
+    cv.destroyAllWindows()
     if ws:
+        client.disconnect(ws)
+
+
+def run(ws_mode=""):
+    template = init()
+    if ws_mode == "ws":
         ws = client.init()
-        scan_for_shop(template, ws)
+        try:
+            scan_for_shop(template, ws)
+        except KeyboardInterrupt:
+            client.disconnect(ws)
+            print("KeyboardInterrupt")
     else:
-        scan_for_shop(template)
+        try:
+            scan_for_shop(template)
+        except KeyboardInterrupt:
+            print("KeyboardInterrupt")
 
 
 def main():
@@ -120,12 +129,11 @@ def main():
     module """
 
     # decide if you want to connect to the websocket client
-    ws = input("run with websocket client ?: [w/any]")
-    if ws == "W" or "w":
-        run(ws)
+    ws_mode = input("run with websocket client ?: [w/any]")
+    if ws_mode == "w":
+        run("ws")
     else:
         run()
-    pass
 
 
 if __name__ == "__main__":
