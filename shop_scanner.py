@@ -5,7 +5,7 @@ import mss
 import client
 import os
 
-dota_shop_template = cv.imread('dota_shop_top_right.jpg')  # image used for template matching the Dota2 shop UI
+dota_shop_template = cv.imread('opencv/dota_shop_top_right_icon.jpg')  # image used for template matching the Dota2 shop UI
 
 if os.path.exists("temp/terminate_scan.txt"):  # remove the previous existing file that terminated the loop.
     os.remove("temp/terminate_scan.txt")
@@ -36,9 +36,9 @@ def scan_for_shop():
 
         screenshot = window_capture()
         cv.imshow('Computer Vision', screenshot)
-        cv.imwrite('snapshot.jpg', screenshot)
+        cv.imwrite('opencv/snapshot.jpg', screenshot)
 
-        snapshot = cv.imread('snapshot.jpg')  # most recent scanned frame of my screen
+        snapshot = cv.imread('opencv/snapshot.jpg')  # most recent scanned frame of my screen
         result = cv.matchTemplate(snapshot, dota_shop_template, cv.TM_SQDIFF_NORMED)
         min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
 

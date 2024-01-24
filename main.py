@@ -1,7 +1,7 @@
 import single_instance
 import shop_scanner
 import time
-import terminal_window_manager
+# import terminal_window_manager
 import client
 
 
@@ -14,13 +14,13 @@ def exit_countdown():
 
 def exit_procedure():
     client.disconnect()
-    terminal_window_manager.lower_amount_of_windows_by_one()
+    # terminal_window_manager.lower_amount_of_windows_by_one()
     # input("press enter")
     exit()
 
 
 def main():
-    terminal_window_manager.adjust_terminal_window()
+    # terminal_window_manager.adjust_terminal_window()
 
     if single_instance.lock_exists():  # if the lock file is here, don't run the script.
         exit_countdown()  # allow for a bit of time to read terminal feedback
