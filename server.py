@@ -10,6 +10,7 @@ import websockets
 from websockets import WebSocketServerProtocol
 import subprocess
 import os
+import terminal_window_manager_v3 as twm_v3
 
 venv_python_path = "venv/Scripts/python.exe"
 print("Hi, Welcome to the server, bro. You know what to do.")
@@ -46,10 +47,16 @@ async def handler(websocket: WebSocketServerProtocol, path: str):
                 f"Unknown path: {path}. Message not recognized.")
 
 
-start_server = websockets.serve(handler, "localhost", 8765)
+def main():
+    start_server = websockets.serve(handler, "localhost", 8765)
+    twm_v3.adjust_window("SERVER")
 
-try:
-    asyncio.get_event_loop().run_until_complete(start_server)
-    asyncio.get_event_loop().run_forever()
-except KeyboardInterrupt:
-    print('KeyboardInterrupt')
+    try:
+        asyncio.get_event_loop().run_until_complete(start_server)
+        asyncio.get_event_loop().run_forever()
+    except KeyboardInterrupt:
+        print('KeyboardInterrupt')
+
+
+if __name__ == "__main__":
+    main()

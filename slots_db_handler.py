@@ -108,7 +108,7 @@ def occupy_all_free_slots():
         conn.rollback()
 
 
-def populate_first_free_slot() -> int:
+def populate_first_free_slot() -> int | None:
     try:
         conn.execute("BEGIN")
 
@@ -127,6 +127,7 @@ def populate_first_free_slot() -> int:
         else:
             print("No free slots available.")
             conn.commit()
+            return None
     except sqlite3.Error as e:
         print(e)
         conn.rollback()

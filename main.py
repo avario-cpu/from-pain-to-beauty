@@ -6,6 +6,7 @@ import atexit
 
 
 def exit_countdown():
+    """Give a bit of time to read terminal exit statements"""
     for seconds in reversed(range(1, 10)):
         print("\r" + f'cmd will close in {seconds} seconds...', end="\r")
         time.sleep(1)
@@ -13,21 +14,23 @@ def exit_countdown():
 
 
 def main():
-    window = twm_v3.adjust_window()
+    window = twm_v3.adjust_window("running_script")
 
     # If the lock file is here, don't run the script
     if single_instance.lock_exists():
-        # Make sure the window is closed by the manager at the script exit
+        # Make sure the window is closed by the manager at exit
         atexit.register(twm_v3.close_window, window)
-        # exit_countdown()  # gives a bit of time to read terminal
+        # exit_countdown()
         input('enter to quit')
     else:
-        # If the lock file is not there, make sure it will be removed after
-        # one instance of the program is allowed to run
+        # Make sure the lock file will be removed at exit
         atexit.register(single_instance.remove_lock)
+        # Make sure the window is closed by the manager at exit
         atexit.register(twm_v3.close_window, window)
+
+        # Go and run and the script !
         single_instance.create_lock_file()
-        shop_scanner.run("ws")  # pass "ws" str arg to use the websocket client
+        shop_scanner.run("ws")  # pass "ws" arg to use the websocket client
         # exit_countdown()
         input('enter to quit')
 

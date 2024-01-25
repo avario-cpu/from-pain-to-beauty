@@ -43,13 +43,14 @@ def window_capture():
 
 def scan_for_shop(template: numpy.ndarray, ws: any = None):
     """
-    Look for an indication on the screen that the dota Shop is open
-    and react whenever it switches from closed to open and inversely.
+    Look for an indication on the screen that the dota Shop is open,
+    and react whenever it toggles between open/closed.
 
     :param template: the template image used to look for a match with the
     shop UI, converted into a numpy array.
     :param ws: any "ws" parameter passed will trigger the use of the
-    client to send websocket requests in reaction to the image detection.
+    client to send websocket requests in reaction to the image detection. If
+    None, the script will run without client communication.
     :return: None
     """
     shop_is_currently_open = False
