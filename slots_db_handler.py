@@ -59,63 +59,8 @@ def check_slots():
         print(e)
 
 
-def populate_first_free_slot() -> int:
-    try:
-        # Start a transaction
-        conn.execute("BEGIN")
-
-        # Find the first open slot
-        cur = conn.cursor()
-        cur.execute("SELECT id FROM slots WHERE is_open = True LIMIT 1")
-        row = cur.fetchone()
-
-        if row:
-            slot_id = row[0]
-
-            # Update the status of the identified slot to 'not open'
-            cur.execute("UPDATE slots SET is_open = False WHERE id = ?",
-                        (slot_id,))
-            conn.commit()
-
-            print(f"Slot {slot_id} is now populated.")
-            return slot_id
-        else:
-            print("No free slots available.")
-            conn.commit()
-
-    except sqlite3.Error as e:
-        print(e)
-        conn.rollback()
-
-
-def free_occupied_slot(slot_id: int):
-    try:
-        # Start a transaction
-        conn.execute("BEGIN")
-
-        # Check if the slot is currently occupied
-        cur = conn.cursor()
-        cur.execute("SELECT is_open FROM slots WHERE id = ?", (slot_id,))
-        row = cur.fetchone()
-
-        if row and not row[0]:  # Ensure the slot is not already open
-            # Update the status of the identified slot to 'open'
-            cur.execute("UPDATE slots SET is_open = True WHERE id = ?",
-                        (slot_id,))
-            conn.commit()
-
-            print(f"Slot {slot_id} is now free.")
-        else:
-            print(f"Slot {slot_id} is already free or does not exist.")
-
-    except sqlite3.Error as e:
-        print(e)
-        conn.rollback()
-
-
 def free_all_occupied_slots():
     try:
-        # Start a transaction
         conn.execute("BEGIN")
 
         # Fetch all occupied slots
@@ -130,11 +75,80 @@ def free_all_occupied_slots():
                 cur.execute("UPDATE slots SET is_open = True WHERE id = ?",
                             (slot_id,))
                 print(f"Slot {slot_id} is now free.")
-
             conn.commit()
         else:
             print("No occupied slots found.")
+    except sqlite3.Error as e:
+        print(e)
+        conn.rollback()
 
+
+def occupy_all_free_slots():
+    """Used only for debugging"""
+    try:
+        conn.execute("BEGIN")
+
+        # Fetch all free slots
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM slots WHERE is_open = True")
+        rows = cur.fetchall()
+
+        if rows:
+            for row in rows:
+                slot_id = row[0]
+                # Update the status of the identified slot to 'closed'
+                cur.execute("UPDATE slots SET is_open = False WHERE id = ?",
+                            (slot_id,))
+                print(f"Slot {slot_id} is now occupied.")
+            conn.commit()
+        else:
+            print("No free slots found.")
+    except sqlite3.Error as e:
+        print(e)
+        conn.rollback()
+
+
+def populate_first_free_slot() -> int:
+    try:
+        conn.execute("BEGIN")
+
+        # Find the first open slot
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM slots WHERE is_open = True LIMIT 1")
+        row = cur.fetchone()
+
+        if row:
+            slot_id = row[0]
+            cur.execute("UPDATE slots SET is_open = False WHERE id = ?",
+                        (slot_id,))
+            conn.commit()
+            print(f"Slot {slot_id} is now populated.")
+            return slot_id
+        else:
+            print("No free slots available.")
+            conn.commit()
+    except sqlite3.Error as e:
+        print(e)
+        conn.rollback()
+
+
+def free_occupied_slot(slot_id: int):
+    try:
+        conn.execute("BEGIN")
+
+        # Check if the slot is currently occupied
+        cur = conn.cursor()
+        cur.execute("SELECT is_open FROM slots WHERE id = ?", (slot_id,))
+        row = cur.fetchone()
+
+        if row and not row[0]:  # Ensure the slot is not already open
+            # Update the status of the identified slot to 'open'
+            cur.execute("UPDATE slots SET is_open = True WHERE id = ?",
+                        (slot_id,))
+            conn.commit()
+            print(f"Slot {slot_id} is now free.")
+        else:
+            print(f"Slot {slot_id} is already free or does not exist.")
     except sqlite3.Error as e:
         print(e)
         conn.rollback()
@@ -157,3 +171,5 @@ def recreate_table():
 
 # recreate_table()
 # populate_first_free_slot()
+# occupy_all_free_slots()
+# free_all_occupied_slots()

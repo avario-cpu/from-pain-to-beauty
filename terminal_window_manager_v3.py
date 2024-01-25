@@ -47,7 +47,7 @@ def assign_slot_and_rename_window() -> (int, str):
         os.system(f"title {new_window_title}")
         return slot_assigned, new_window_title,
     else:
-        raise ValueError(f"{slot_assigned} was {type(slot_assigned)}. "
+        raise ValueError(f"slot assigned was {type(slot_assigned)}. "
                          f"Could not assign to a slot.")
 
 
@@ -78,6 +78,7 @@ def adjust_window() -> int:
         return slot
     except ValueError as e:
         print(e)
+        input('enter to quit')
 
 
 def close_window(slot):
@@ -95,4 +96,4 @@ def main():
 if __name__ == '__main__':
     main()
 
-# slots_db_handler.free_all_occupied_slots()
+

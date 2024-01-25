@@ -18,18 +18,18 @@ def main():
     # If the lock file is here, don't run the script
     if single_instance.lock_exists():
         # Make sure the window is closed by the manager at the script exit
-        atexit.register(twm_v3.close_window(window))
-        exit_countdown()  # gives a bit of time to read terminal
-        exit()
+        atexit.register(twm_v3.close_window, window)
+        # exit_countdown()  # gives a bit of time to read terminal
+        input('enter to quit')
     else:
         # If the lock file is not there, make sure it will be removed after
         # one instance of the program is allowed to run
         atexit.register(single_instance.remove_lock)
-        atexit.register(twm_v3.close_window(window))
+        atexit.register(twm_v3.close_window, window)
         single_instance.create_lock_file()
         shop_scanner.run("ws")  # pass "ws" str arg to use the websocket client
-        exit_countdown()
-        exit()
+        # exit_countdown()
+        input('enter to quit')
 
 
 if __name__ == "__main__":
