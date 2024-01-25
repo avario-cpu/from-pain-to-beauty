@@ -1,6 +1,7 @@
 """
-Transform the terminal window so that it fits my screen nicely on my second
-monitor, in accordance with the amount of windows already present
+Module used to transform the terminal windows of running scripts so that they
+fit my screen nicely on my second monitor, in accordance with the amount of
+windows already present
 """
 
 import time
@@ -39,13 +40,15 @@ def assign_slot_and_rename_window() -> (int, str):
     and rename it accordingly."""
 
     # Assign a slot number to the terminal window
-    occupied_slot = slots_db_handler.populate_first_free_slot()
-    new_window_title = "MYNAME" + str(occupied_slot)
-
-    # Rename the terminal window
-    os.system(f"title {new_window_title}")
-
-    return occupied_slot, new_window_title,
+    slot_assigned = slots_db_handler.populate_first_free_slot()
+    if slot_assigned:
+        # Rename the terminal window if a slot was found
+        new_window_title = "MYNAME" + str(slot_assigned)
+        os.system(f"title {new_window_title}")
+        return slot_assigned, new_window_title,
+    else:
+        raise ValueError(f"{slot_assigned} was {type(slot_assigned)}. "
+                         f"Could not assign to a slot.")
 
 
 def calculate_new_window_properties(slot_number) -> tuple:
@@ -67,6 +70,20 @@ def free_slot(slot):
     slots_db_handler.free_occupied_slot(slot)
 
 
+def adjust_window() -> int:
+    try:
+        slot, title = assign_slot_and_rename_window()
+        properties = calculate_new_window_properties(slot)
+        resize_and_move_window(title, properties)
+        return slot
+    except ValueError as e:
+        print(e)
+
+
+def close_window(slot):
+    free_slot(slot)
+
+
 def main():
     slot, title = assign_slot_and_rename_window()
     properties = calculate_new_window_properties(slot)
@@ -79,4 +96,3 @@ if __name__ == '__main__':
     main()
 
 # slots_db_handler.free_all_occupied_slots()
-# adjust_terminal_window()

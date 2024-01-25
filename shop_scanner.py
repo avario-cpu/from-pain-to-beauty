@@ -96,10 +96,9 @@ def scan_for_shop(template: numpy.ndarray, ws: any = None):
                 wait()
                 continue
 
-    # When the loop breaks: disconnect, destroy cv windows, etc.
+    # When the loop breaks...
     print("loop terminated")
     cv.destroyAllWindows()
-
     if ws:
         client.disconnect(ws)
     try:

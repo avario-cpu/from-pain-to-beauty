@@ -1,8 +1,8 @@
 import single_instance
 import shop_scanner
 import time
-# import terminal_window_manager
-import client
+import terminal_window_manager_v3 as twm_v3
+import atexit
 
 
 def exit_countdown():
@@ -12,33 +12,24 @@ def exit_countdown():
     pass  # "pass" is left here for debugging purposes
 
 
-def exit_procedure():
-    client.disconnect()
-    # terminal_window_manager.lower_amount_of_windows_by_one()
-    # input("press enter")
-    exit()
-
-
 def main():
-    # terminal_window_manager.adjust_terminal_window()
+    window = twm_v3.adjust_window()
 
-    # If the lock file is here, don't run the script.
+    # If the lock file is here, don't run the script
     if single_instance.lock_exists():
-        exit_countdown()  # allow for a bit of time to read terminal feedback
-        exit_procedure()
+        # Make sure the window is closed by the manager at the script exit
+        atexit.register(twm_v3.close_window(window))
+        exit_countdown()  # gives a bit of time to read terminal
+        exit()
     else:
-        # Use the atexit library to disconnect the ws client module, and remove
-        # the lock file whenever the script exits
-        import atexit
+        # If the lock file is not there, make sure it will be removed after
+        # one instance of the program is allowed to run
         atexit.register(single_instance.remove_lock)
-        atexit.register(client.disconnect)
-        try:
-            single_instance.create_lock_file()
-            shop_scanner.run("ws")  # pass "ws" string for using websocket
-            exit_procedure()  # reached once the shop_scanner loop is broken
-        except KeyboardInterrupt:
-            print("KeyboardInterrupt detected !")
-            exit_procedure()
+        atexit.register(twm_v3.close_window(window))
+        single_instance.create_lock_file()
+        shop_scanner.run("ws")  # pass "ws" str arg to use the websocket client
+        exit_countdown()
+        exit()
 
 
 if __name__ == "__main__":
