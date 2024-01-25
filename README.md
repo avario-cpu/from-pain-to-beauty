@@ -1,2 +1,2 @@
-# Obs-Automated-Scene-change
+# Python-Mega-Script
 hopefully it's going to work someday.

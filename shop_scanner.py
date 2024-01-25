@@ -3,6 +3,7 @@ import time
 
 import cv2 as cv
 import mss
+import numpy
 import numpy as np
 
 import client
@@ -32,39 +33,40 @@ def window_capture():
     h = 35
 
     with mss.mss() as sct:
-        # Define a screen part to capture
-        monitor = {"left": x, "top": y, "width": w, "height": h}
+        monitor_area = {"left": x, "top": y, "width": w, "height": h}
+        img = sct.grab(monitor_area)
 
-        # Capture the screen region and store it as a mss Class
-        img = sct.grab(monitor)
-
-        # Convert it to a numpy array: necessary to be treated with openCV
+        # Convert the mss object to a numpy array: needed for openCV methods.
         img = np.array(img)
     return img
 
 
-def scan_for_shop(template, ws=None):
+def scan_for_shop(template: numpy.ndarray, ws: any = None):
+    """
+    Look for an indication on the screen that the dota Shop is open
+    and react whenever it switches from closed to open and inversely.
+
+    :param template: the template image used to look for a match with the
+    shop UI, converted into a numpy array.
+    :param ws: any "ws" parameter passed will trigger the use of the
+    client to send websocket requests in reaction to the image detection.
+    :return: None
+    """
     shop_is_currently_open = False
 
-    while True:
+    while not os.path.exists("temp/stop.flag"):
+        frame = window_capture()
+        cv.imshow('Computer Vision', frame)
+        cv.imwrite('opencv/last_frame.jpg', frame)
 
-        screenshot = window_capture()
-        cv.imshow('Computer Vision', screenshot)
-        cv.imwrite('opencv/last_frame.jpg', screenshot)
-
+        # Compare that frame with a pre-established template
         snapshot = cv.imread('opencv/last_frame.jpg')
         result = cv.matchTemplate(snapshot,
                                   template,
                                   cv.TM_SQDIFF_NORMED)
         min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
 
-        # End loop if Q is pressed while having the openCV window on focus
         if cv.waitKey(1) == ord("q"):
-            break
-
-        # End loop if the file "terminate" (created by a bat file) is detected
-        if os.path.isfile("temp/terminate_scan.txt"):
-            # script via my StreamDeck HID.
             break
 
         print(max_val)
@@ -72,14 +74,10 @@ def scan_for_shop(template, ws=None):
         # Detect, according to a threshold value, whether the shop is open.
         if max_val <= 0.4:
 
-            if shop_is_currently_open:
-                # If the shop was already open at the last check, do nothing
-                # and keep the loop running.
+            if shop_is_currently_open:  # if the shop was already open...
                 wait()
                 continue
             else:
-                # Else, if the shop just opened: send a request to the
-                # websocket server
                 shop_is_currently_open = True
                 if ws:
                     client.request_hide_dslr(ws)
@@ -89,26 +87,30 @@ def scan_for_shop(template, ws=None):
         else:  # If the shop is detected as closed...
 
             if shop_is_currently_open:
-                # Send a request to the WS server, and set shop as closed
                 shop_is_currently_open = False
                 if ws:
                     client.request_show_dslr(ws)
                 print('closed shop')
                 wait()
-            else:
-                # If the shop was already closed at the last check, do nothing
-                # and keep the loop running.
+            else:  # if the shop was already closed
                 wait()
                 continue
 
-    # when the loop breaks: destroy openCV windows, disconnect client
+    # When the loop breaks: disconnect, destroy cv windows, etc.
     print("loop terminated")
     cv.destroyAllWindows()
+
     if ws:
         client.disconnect(ws)
+    try:
+        os.remove("temp/stop.flag")
+    except OSError as e:
+        print(e)
 
 
-def run(ws_mode=""):
+def run(ws_mode: str = ""):
+    """Runs the main loop, either with or without using the client module to
+     connect to the Streamerbot websocket"""
     template = init()
     if ws_mode == "ws":
         ws = client.init()
