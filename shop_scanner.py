@@ -70,7 +70,7 @@ def scan_for_shop(template: numpy.ndarray, ws: any = None):
         if cv.waitKey(1) == ord("q"):
             break
 
-        print(max_val)
+        # print(max_val)
 
         # Detect, according to a threshold value, whether the shop is open.
         if max_val <= 0.4:

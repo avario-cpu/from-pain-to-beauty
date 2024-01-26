@@ -15,7 +15,8 @@ def create_table():
     try:
         sql = '''CREATE TABLE IF NOT EXISTS slots (
                     id integer PRIMARY KEY,
-                    is_open boolean NOT NULL
+                    is_open boolean NOT NULL,
+                    name TEXT
                 );'''
         cur = conn.cursor()
         cur.execute(sql)
@@ -26,7 +27,7 @@ def create_table():
 def delete_table():
     try:
         cursor = conn.cursor()
-        sql = f"DROP TABLE IF EXISTS"
+        sql = f"DROP TABLE IF EXISTS slots"
         cursor.execute(sql)
         conn.commit()
         print(f"The table has been deleted successfully.")
@@ -133,7 +134,25 @@ def populate_first_free_slot() -> int | None:
         conn.rollback()
 
 
-def free_occupied_slot(slot_id: int):
+def name_slot(slot_id: int, name: str):
+    try:
+        conn.execute("BEGIN")
+
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM slots WHERE id = ?", (slot_id,))
+        row = cur.fetchone()
+
+        if row:
+            cur.execute("UPDATE slots SET name = ? WHERE id = ?",
+                        (name, slot_id))
+            conn.commit()
+            print(f"Slot {slot_id} named {name}.")
+    except sqlite3.Error as e:
+        print(e)
+        conn.rollback()
+
+
+def free_slot(slot_id: int):
     try:
         conn.execute("BEGIN")
 
@@ -145,6 +164,9 @@ def free_occupied_slot(slot_id: int):
         if row and not row[0]:  # Ensure the slot is not already open
             # Update the status of the identified slot to 'open'
             cur.execute("UPDATE slots SET is_open = True WHERE id = ?",
+                        (slot_id,))
+            # Set the name of the slot back to null
+            cur.execute("UPDATE slots SET name = null WHERE id = ?",
                         (slot_id,))
             conn.commit()
             print(f"Slot {slot_id} is now free.")
@@ -170,7 +192,12 @@ def recreate_table():
     if conn:
         conn.close()
 
+
+# delete_table()
+# create_table()
 # recreate_table()
 # populate_first_free_slot()
 # occupy_all_free_slots()
 # free_all_occupied_slots()
+# initialize_slots()
+name_slot(2, "lol")

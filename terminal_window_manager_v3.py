@@ -19,13 +19,10 @@ class WindowType(Enum):
     SERVER = auto()
 
 
-running_script_windows = []
-hi = "hi"
-
-
 def assign_slot_and_rename_window(name: str) -> (int, str):
     """Assign a slot in the database to the cmd window that just spawned
-    and rename it accordingly."""
+    and rename it accordingly. Then, update the database with the new window
+    name assigned to the slot"""
 
     # Assign a slot number to the terminal window
     slot_assigned = slots_db_handler.populate_first_free_slot()
@@ -33,7 +30,9 @@ def assign_slot_and_rename_window(name: str) -> (int, str):
         # Rename the terminal window if a slot was found
         new_window_title = name + str(slot_assigned)
         os.system(f"title {new_window_title}")
-        return slot_assigned, new_window_title,
+        # Register that new name in the database
+        slots_db_handler.name_slot(slot_assigned, new_window_title)
+        return slot_assigned, new_window_title
     else:
         raise ValueError(f"slot assigned was {type(slot_assigned)}. "
                          f"Could not assign to a slot.")
@@ -86,10 +85,10 @@ def resize_and_move_window(window_title: str,
             time.sleep(0.01)  # limit the speed of the loop
 
 
-def bring_windows_on_top():
+def bring_windows_on_top(running_scripts):
     """Bring all the terminals of the running scripts to the front"""
     # print('reached')
-    for window_title in running_script_windows:
+    for window_title in running_scripts:
         window = gw.getWindowsWithTitle(window_title)
         if window:
             window[0].activate()
@@ -97,7 +96,7 @@ def bring_windows_on_top():
 
 def close_window(slot):
     # Free up the occupied slot when the window is closed
-    slots_db_handler.free_occupied_slot(slot)
+    slots_db_handler.free_slot(slot)
 
 
 def adjust_window(window_type: WindowType, window_name: str) -> int:
@@ -110,7 +109,6 @@ def adjust_window(window_type: WindowType, window_name: str) -> int:
 
     And adjust the terminal window accordingly.
     """
-    global running_script_windows
 
     if window_type == WindowType.DENIED_SCRIPT:
         pass
@@ -120,7 +118,6 @@ def adjust_window(window_type: WindowType, window_name: str) -> int:
             slot, title = assign_slot_and_rename_window(window_name)
             properties = calculate_new_window_properties(slot)
             resize_and_move_window(title, properties)
-            running_script_windows.append(title)
             return slot
         except ValueError as e:
             print(e)
@@ -135,12 +132,12 @@ def adjust_window(window_type: WindowType, window_name: str) -> int:
         # location, a transform it to a predefined size.
         win32gui.SetWindowPos(server_window,
                               win32con.HWND_TOPMOST,
-                              -1920, 840, 400, 200,
+                              -1920, 740, 400, 200,
                               0)
 
 
 def main():
-    slot, title = assign_slot_and_rename_window()
+    slot, title = assign_slot_and_rename_window("test")
     properties = calculate_new_window_properties(slot)
     resize_and_move_window(title, properties)
     input("press enter to close and free the slot")

@@ -13,10 +13,6 @@ import os
 import terminal_window_manager_v3 as twm_v3
 
 venv_python_path = "venv/Scripts/python.exe"
-print("Welcome to the server, bro. You know what to do.")
-
-if not os.path.exists("temp"):
-    os.makedirs("temp")
 
 
 async def handler(websocket: WebSocketServerProtocol, path: str):
@@ -46,8 +42,6 @@ async def handler(websocket: WebSocketServerProtocol, path: str):
             print('on windows path')
             if message == "bring to top":
                 # print('reached')
-                print(twm_v3.hi)
-                print(twm_v3.running_script_windows)
                 twm_v3.bring_windows_on_top()
 
         else:
@@ -55,7 +49,13 @@ async def handler(websocket: WebSocketServerProtocol, path: str):
 
 
 def main():
+    print("Welcome to the server, bro. You know what to do.")
+
+    if not os.path.exists("temp"):
+        os.makedirs("temp")
+
     start_server = websockets.serve(handler, "localhost", 8765)
+
     twm_v3.adjust_window(twm_v3.WindowType.SERVER, 'SERVER')
 
     try:
