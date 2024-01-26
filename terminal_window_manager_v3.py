@@ -103,6 +103,7 @@ def adjust_window(window_type: str) -> int:
         time.sleep(0.5)
         server_window = win32gui.FindWindow(None, "SERVER")
         # set the server to be always on top, do not move it or resize it.
+        # Yes it needs all those arguments passed apparently
         win32gui.SetWindowPos(server_window, win32con.HWND_TOPMOST, 0, 0, 0, 0,
                               win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
         # Now remove and resize the server, with pygetwindow instead.

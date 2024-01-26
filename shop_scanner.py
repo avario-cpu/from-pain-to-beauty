@@ -20,7 +20,7 @@ def init():
 
 
 def wait():  # used to slow down the script.
-    time.sleep(0.5)
+    time.sleep(0.01)
     pass
 
 

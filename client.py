@@ -1,11 +1,19 @@
+import websockets
 from websockets.sync.client import connect
 import re
 
 
 def init():
-    print("establishing connection...")
-    ws = connect("ws://127.0.0.1:8080/")
-    return ws
+    try:
+        print("establishing connection...")
+        ws = connect("ws://127.0.0.1:8080/")
+        return ws
+    except websockets.WebSocketException as e:
+        print(e)
+        input('enter to quit')
+    except ConnectionError as e:
+        print(e)
+        input('enter to quit')
 
 
 def disconnect(ws):
