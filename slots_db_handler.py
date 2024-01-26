@@ -152,6 +152,21 @@ def name_slot(slot_id: int, name: str):
         conn.rollback()
 
 
+def get_all_names():
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM slots")
+        rows = cur.fetchall()
+
+        # Extracting the names from each row
+        names = [row[0] for row in rows if row[0] is not None]
+
+        return names
+    except sqlite3.Error as e:
+        print(e)
+        return []
+
+
 def free_slot(slot_id: int):
     try:
         conn.execute("BEGIN")

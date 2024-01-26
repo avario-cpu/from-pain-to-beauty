@@ -30,8 +30,7 @@ def main():
 
         # Go and run and the script !
         single_instance.create_lock_file()
-        shop_scanner.run("ws")  # pass the "ws" string arg to use the
-        # websocket client, or pass any other arg to not use it
+        shop_scanner.start(shop_scanner.ConnectionType.WEBSOCKET)
         # exit_countdown()
         input('enter to quit')
 

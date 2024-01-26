@@ -15,31 +15,36 @@ import terminal_window_manager_v3 as twm_v3
 venv_python_path = "venv/Scripts/python.exe"
 
 
+def control_scanner(message):
+    if message == "start scanner":
+        # remove the stop flag that stopped the previous scanner loop
+        if os.path.exists("temp/stop.flag"):
+            os.remove("temp/stop.flag")
+        # Open the process in a new separate cmd window
+        subprocess.Popen(["cmd.exe", "/c", "start",
+                          venv_python_path, "main.py"])
+    elif message == "stop scanner":
+        with open("temp/stop.flag", "w") as f:
+            pass
+
+
+def operate_launcher(message):
+    if message in ["start scanner", "stop scanner"]:
+        control_scanner(message)
+    else:
+        print('not a suitable launcher path message')
+
+
 async def handler(websocket: WebSocketServerProtocol, path: str):
     print(f"Connection established on path: {path}")
 
     async for message in websocket:
         print(f"Received: message {message} on path: {path}")
 
-        # Perform different actions based on the path
-        if path == "/launcher":
+        if path == "/launcher":  # Path to start and end scripts
+            operate_launcher(message)
 
-            if message == "start scanner":
-                if os.path.exists("temp/stop.flag"):
-                    os.remove("temp/stop.flag")
-                # Open the process in a new separate cmd window
-                subprocess.Popen(["cmd.exe", "/c", "start",
-                                  venv_python_path, "main.py"])
-
-            elif message == "stop scanner":
-                with open("temp/stop.flag", "w") as f:
-                    pass
-
-            else:
-                print('test')
-
-        elif path == "/windows":
-            print('on windows path')
+        elif path == "/windows":  # Path to manipulate windows properties
             if message == "bring to top":
                 # print('reached')
                 twm_v3.bring_windows_on_top()

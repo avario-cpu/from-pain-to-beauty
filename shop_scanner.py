@@ -7,21 +7,16 @@ import numpy
 import numpy as np
 
 import client
+from enum import Enum, auto
 
 
-def init():
-    # Remove the previous existing file that terminated the loop.
-    if os.path.exists("temp/terminate_scan.txt"):
-        os.remove("temp/terminate_scan.txt")
-
-    # Define the image to look for when template matching
-    template = cv.imread('opencv/dota_shop_top_right_icon.jpg')
-    return template
+class ConnectionType(Enum):
+    WEBSOCKET = auto()
+    NONE = auto()
 
 
 def wait():  # used to slow down the script.
     time.sleep(0.01)
-    pass
 
 
 def window_capture():
@@ -35,13 +30,26 @@ def window_capture():
     with mss.mss() as sct:
         monitor_area = {"left": x, "top": y, "width": w, "height": h}
         img = sct.grab(monitor_area)
-
-        # Convert the mss object to a numpy array: needed for openCV methods.
-        img = np.array(img)
+        img = np.array(img)  # necessary for openCV methods.
     return img
 
 
-def scan_for_shop(template: numpy.ndarray, ws: any = None):
+def react_to_shop_just_opened(ws):
+    if ws:
+        client.request_hide_dslr(ws)
+    print('opened shop')
+    pass
+
+
+def react_to_shop_just_closed(ws):
+    if ws:
+        client.request_show_dslr(ws)
+    print('closed shop')
+    wait()
+    pass
+
+
+def scan_for_shop(template: numpy.ndarray, ws=None):
     """
     Look for an indication on the screen that the dota Shop is open,
     and react whenever it toggles between open/closed.
@@ -75,67 +83,58 @@ def scan_for_shop(template: numpy.ndarray, ws: any = None):
         # Detect, according to a threshold value, whether the shop is open.
         if max_val <= 0.4:
 
-            if shop_is_currently_open:  # if the shop was already open...
+            # If the shop is detected as open...
+            if shop_is_currently_open:
+                # ... But already was at the last check, do nothing
                 wait()
                 continue
             else:
+                # ... But was closed at the last check, react
                 shop_is_currently_open = True
-                if ws:
-                    client.request_hide_dslr(ws)
-                print('opened shop')
+                react_to_shop_just_closed(ws)
                 wait()
-
-        else:  # If the shop is detected as closed...
-
+        else:
+            # If the shop is detected as closed...
             if shop_is_currently_open:
+                # ... But was open at the last check, react
                 shop_is_currently_open = False
-                if ws:
-                    client.request_show_dslr(ws)
-                print('closed shop')
-                wait()
-            else:  # if the shop was already closed
+                react_to_shop_just_closed(ws)
+            else:
+                # ... But was already closed at the last check, do nothing
                 wait()
                 continue
 
     # When the loop breaks...
     print("loop terminated")
     cv.destroyAllWindows()
+    os.remove("temp/stop.flag")
     if ws:
         client.disconnect(ws)
-    try:
-        os.remove("temp/stop.flag")
-    except OSError as e:
-        print(e)
 
 
-def run(ws_mode: str = ""):
+def start(connection_type: ConnectionType = ConnectionType.NONE):
     """Runs the main loop, either with or without using the client module to
      connect to the Streamerbot websocket"""
-    template = init()
-    if ws_mode == "ws":
-        ws = client.init()
-        try:
-            scan_for_shop(template, ws)
-        except KeyboardInterrupt:
+
+    cv_template = cv.imread('opencv/dota_shop_top_right_icon.jpg')
+    ws = None
+    try:
+        if connection_type == ConnectionType.WEBSOCKET:
+            ws = client.init()
+        scan_for_shop(cv_template, ws)
+    except KeyboardInterrupt:
+        if connection_type == ConnectionType.WEBSOCKET:
             client.disconnect(ws)
-            print("KeyboardInterrupt")
-    else:
-        try:
-            scan_for_shop(template)
-        except KeyboardInterrupt:
-            print("KeyboardInterrupt")
+        print("KeyboardInterrupt")
 
 
 def main():
-    """This function is only used for testing when using this script as a main
-    module """
-
     # decide if you want to connect to the websocket client
     ws_mode = input("run with websocket client ?: [w/any]")
     if ws_mode == "w":
-        run("ws")
+        start(ConnectionType.WEBSOCKET)
     else:
-        run()
+        start()
 
 
 if __name__ == "__main__":

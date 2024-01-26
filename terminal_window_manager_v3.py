@@ -85,11 +85,13 @@ def resize_and_move_window(window_title: str,
             time.sleep(0.01)  # limit the speed of the loop
 
 
-def bring_windows_on_top(running_scripts):
+def bring_windows_on_top():
     """Bring all the terminals of the running scripts to the front"""
-    # print('reached')
-    for window_title in running_scripts:
-        window = gw.getWindowsWithTitle(window_title)
+
+    # get list of named occupied spots from db
+    windows_names_list = slots_db_handler.get_all_names()
+    for name in windows_names_list:
+        window = gw.getWindowsWithTitle(name)
         if window:
             window[0].activate()
 
@@ -129,10 +131,11 @@ def adjust_window(window_type: WindowType, window_name: str) -> int:
         server_window = win32gui.FindWindow(None, "SERVER")
 
         # set the server to be always on top, move it to a predefined
-        # location, a transform it to a predefined size.
+        # location, a transform it to a predefined size. (args in order:
+        # x_pos, y_pos, width, height
         win32gui.SetWindowPos(server_window,
                               win32con.HWND_TOPMOST,
-                              -1920, 740, 400, 200,
+                              -1920, 640, 700, 400,
                               0)
 
 
