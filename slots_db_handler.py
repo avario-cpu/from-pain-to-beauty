@@ -109,10 +109,10 @@ def occupy_all_free_slots():
 
 
 def populate_first_free_slot() -> int | None:
+    """Find the first free open slot in the database and return the slot id
+    number as an integer. If there are no free slots, return None"""
     try:
         conn.execute("BEGIN")
-
-        # Find the first open slot
         cur = conn.cursor()
         cur.execute("SELECT id FROM slots WHERE is_open = True LIMIT 1")
         row = cur.fetchone()

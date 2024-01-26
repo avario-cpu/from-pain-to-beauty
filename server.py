@@ -13,7 +13,7 @@ import os
 import terminal_window_manager_v3 as twm_v3
 
 venv_python_path = "venv/Scripts/python.exe"
-print("Hi, Welcome to the server, bro. You know what to do.")
+print("Welcome to the server, bro. You know what to do.")
 
 if not os.path.exists("temp"):
     os.makedirs("temp")
@@ -40,16 +40,23 @@ async def handler(websocket: WebSocketServerProtocol, path: str):
                     pass
 
             else:
-                await websocket.send(
-                    "This is the /launcher path. Used to launch/exit scripts")
+                print('test')
+
+        elif path == "/windows":
+            print('on windows path')
+            if message == "bring to top":
+                # print('reached')
+                print(twm_v3.hi)
+                print(twm_v3.running_script_windows)
+                twm_v3.bring_windows_on_top()
+
         else:
-            await websocket.send(
-                f"Unknown path: {path}. Message not recognized.")
+            print(f"Unknown path: {path}.")
 
 
 def main():
     start_server = websockets.serve(handler, "localhost", 8765)
-    twm_v3.adjust_window("SERVER")
+    twm_v3.adjust_window(twm_v3.WindowType.SERVER, 'SERVER')
 
     try:
         asyncio.get_event_loop().run_until_complete(start_server)

@@ -14,7 +14,7 @@ def exit_countdown():
 
 
 def main():
-    window = twm_v3.adjust_window("running_script")
+    window = twm_v3.adjust_window(twm_v3.WindowType.RUNNING_SCRIPT, "test")
 
     # If the lock file is here, don't run the script
     if single_instance.lock_exists():
