@@ -85,15 +85,33 @@ def resize_and_move_window(window_title: str,
             time.sleep(0.01)  # limit the speed of the loop
 
 
-def bring_windows_on_top():
-    """Bring all the terminals of the running scripts to the front"""
-
-    # get list of named occupied spots from db
+def set_windows_to_topmost():
+    """Set all the cmd windows of the running scripts to be topmost"""
     windows_names_list = slots_db_handler.get_all_names()
+    windows_names_list.append("SERVER")
     for name in windows_names_list:
-        window = gw.getWindowsWithTitle(name)
+        window = win32gui.FindWindow(None, name)
         if window:
-            window[0].activate()
+            win32gui.SetWindowPos(window,
+                                  win32con.HWND_TOPMOST,
+                                  0, 0, 0, 0,
+                                  win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
+
+
+def unset_windows_to_topmost():
+    """Set terminal windows focus behavior back to normal"""
+    windows_names_list = slots_db_handler.get_all_names()
+    windows_names_list.append("SERVER")
+    print(gw.getAllWindows())
+    print(gw.getAllTitles())
+
+    for name in windows_names_list:
+        window = win32gui.FindWindow(None, name)
+        if window:
+            win32gui.SetWindowPos(window,
+                                  win32con.HWND_NOTOPMOST,
+                                  0, 0, 0, 0,
+                                  win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
 
 
 def close_window(slot):
@@ -134,7 +152,7 @@ def adjust_window(window_type: WindowType, window_name: str) -> int:
         # location, a transform it to a predefined size. (args in order:
         # x_pos, y_pos, width, height
         win32gui.SetWindowPos(server_window,
-                              win32con.HWND_TOPMOST,
+                              None,
                               -1920, 640, 700, 400,
                               0)
 

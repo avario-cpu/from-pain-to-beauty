@@ -10,6 +10,8 @@ import websockets
 from websockets import WebSocketServerProtocol
 import subprocess
 import os
+
+import slots_db_handler
 import terminal_window_manager_v3 as twm_v3
 
 venv_python_path = "venv/Scripts/python.exe"
@@ -35,6 +37,21 @@ def operate_launcher(message):
         print('not a suitable launcher path message')
 
 
+def manage_windows(message):
+    if message == "bring to top":
+        twm_v3.set_windows_to_topmost()
+        twm_v3.unset_windows_to_topmost()
+    elif message == "set topmost":
+        twm_v3.set_windows_to_topmost()
+    elif message == "unset topmost":
+        twm_v3.unset_windows_to_topmost()
+
+
+def manipulate_database(message):
+    if message == "free all slots":
+        slots_db_handler.free_all_occupied_slots()
+
+
 async def handler(websocket: WebSocketServerProtocol, path: str):
     print(f"Connection established on path: {path}")
 
@@ -45,9 +62,13 @@ async def handler(websocket: WebSocketServerProtocol, path: str):
             operate_launcher(message)
 
         elif path == "/windows":  # Path to manipulate windows properties
-            if message == "bring to top":
-                # print('reached')
-                twm_v3.bring_windows_on_top()
+            manage_windows(message)
+
+        elif path == "/database":  # Path to manipulate db entries
+            manipulate_database(message)
+
+        elif path =="/testing":  # Path to test stuff
+
 
         else:
             print(f"Unknown path: {path}.")

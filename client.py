@@ -7,6 +7,7 @@ def init():
     try:
         print("establishing connection...")
         ws = connect("ws://127.0.0.1:8080/")
+        print(f"connection {ws} established")
         return ws
     except websockets.WebSocketException as e:
         print(e)

@@ -11,15 +11,28 @@ def create_connection(db_file):
     return db_conn
 
 
-def create_table():
+def create_tables():
     try:
         sql = '''CREATE TABLE IF NOT EXISTS slots (
                     id integer PRIMARY KEY,
                     is_open boolean NOT NULL,
-                    name TEXT
+                    name TEXT,
+                    has_secondary_windows boolean NOT NULL
+                );
+
+                    CREATE TABLE IF NOT EXISTS secondary_names (
+                    id INTEGER PRIMARY KEY,
+                    slot_id INTEGER,
+                    name1 TEXT,
+                    name2 TEXT,
+                    name3 TEXT,
+                    name4 TEXT,
+                    FOREIGN KEY (slot_id) REFERENCES slots (id)
                 );'''
+
         cur = conn.cursor()
         cur.execute(sql)
+
     except sqlite3.Error as e:
         print(e)
 
@@ -75,10 +88,11 @@ def free_all_occupied_slots():
                 # Update the status of the identified slot to 'open'
                 cur.execute("UPDATE slots SET is_open = True WHERE id = ?",
                             (slot_id,))
+                # Set the name of the slot back to null
+                cur.execute("UPDATE slots SET name = null WHERE id = ?",
+                            (slot_id,))
+                conn.commit()
                 print(f"Slot {slot_id} is now free.")
-            conn.commit()
-        else:
-            print("No occupied slots found.")
     except sqlite3.Error as e:
         print(e)
         conn.rollback()
@@ -199,7 +213,7 @@ conn = create_connection(database)
 def recreate_table():
     if conn is not None:
         delete_table()
-        create_table()
+        create_tables()
         initialize_slots()
         check_slots()
     else:
@@ -207,12 +221,11 @@ def recreate_table():
     if conn:
         conn.close()
 
-
 # delete_table()
-# create_table()
+create_tables()
 # recreate_table()
 # populate_first_free_slot()
 # occupy_all_free_slots()
-# free_all_occupied_slots()
+# free_slot(2)
 # initialize_slots()
-name_slot(2, "lol")
+# name_slot(2, "lol")
