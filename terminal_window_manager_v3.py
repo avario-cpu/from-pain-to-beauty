@@ -21,21 +21,29 @@ class WindowType(Enum):
 
 def assign_slot_and_rename_window(name: str) -> (int, str):
     """Assign a slot in the database to the cmd window that just spawned
-    and rename it accordingly. Then, update the database with the new window
-    name assigned to the slot"""
+    and rename it accordingly."""
 
     # Assign a slot number to the terminal window
-    slot_assigned = slots_db_handler.populate_first_free_slot()
+    slot_assigned = slots_db_handler.occupy_first_free_slot()
     if slot_assigned is not None:
+
         # Rename the terminal window if a slot was found
         new_window_title = name + str(slot_assigned)
         os.system(f"title {new_window_title}")
+
         # Register that new name in the database
         slots_db_handler.name_slot(slot_assigned, new_window_title)
+
+        # Register the secondary windows names too.
         return slot_assigned, new_window_title
     else:
         raise ValueError(f"slot assigned was {type(slot_assigned)}. "
                          f"Could not assign to a slot.")
+
+
+def join_secondaries_to_main_window(slot, secondaries):
+    slots_db_handler.name_secondary_windows(slot, secondaries)
+    pass
 
 
 def calculate_new_window_properties(slot_number: int) \
@@ -57,9 +65,6 @@ def resize_and_move_window(window_title: str,
                            new_properties: tuple[int, int, int, int]):
     """
     Reposition and transform the window to: somewhere, under the rainbow... !
-    :param window_title: title of the window
-    :param new_properties: In order: new_width, new_height, new_x, new_y
-    :return: None
     """
     new_width, new_height, new_x, new_y = new_properties
 
@@ -67,7 +72,8 @@ def resize_and_move_window(window_title: str,
     timeout = 3
     start_time = time.time()
 
-    # Poll for the window recently renamed.
+    # Poll for the recently renamed window. Sometimes it needs a bit of time
+    # to be found
     while True:
         if time.time() - start_time > timeout:
             print("Window Search timed out.")
@@ -119,7 +125,12 @@ def close_window(slot):
     slots_db_handler.free_slot(slot)
 
 
-def adjust_window(window_type: WindowType, window_name: str) -> int:
+def get_all_windows_tile():
+    print(gw.getAllTitles())
+
+
+def adjust_window(window_type: WindowType, window_name: str,
+                  secondary_windows: list[str] = None) -> int:
     """
     Decide which the recently spawned terminal window is of the following:
 
@@ -138,6 +149,8 @@ def adjust_window(window_type: WindowType, window_name: str) -> int:
             slot, title = assign_slot_and_rename_window(window_name)
             properties = calculate_new_window_properties(slot)
             resize_and_move_window(title, properties)
+            if secondary_windows:
+                join_secondaries_to_main_window(slot, secondary_windows)
             return slot
         except ValueError as e:
             print(e)
@@ -147,14 +160,7 @@ def adjust_window(window_type: WindowType, window_name: str) -> int:
         os.system(f"title SERVER")
         time.sleep(0.2)  # give time to windows to update cmd name
         server_window = win32gui.FindWindow(None, "SERVER")
-
-        # set the server to be always on top, move it to a predefined
-        # location, a transform it to a predefined size. (args in order:
-        # x_pos, y_pos, width, height
-        win32gui.SetWindowPos(server_window,
-                              None,
-                              -1920, 640, 700, 400,
-                              0)
+        win32gui.SetWindowPos(server_window, None, -1920, 640, 700, 400, 0)
 
 
 def main():

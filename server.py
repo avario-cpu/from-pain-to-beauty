@@ -67,8 +67,10 @@ async def handler(websocket: WebSocketServerProtocol, path: str):
         elif path == "/database":  # Path to manipulate db entries
             manipulate_database(message)
 
-        elif path =="/testing":  # Path to test stuff
-
+        elif path == "/test":  # Path to test stuff
+            if message == "get windows":
+                twm_v3.get_all_windows_tile()
+            pass
 
         else:
             print(f"Unknown path: {path}.")

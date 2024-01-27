@@ -9,6 +9,11 @@ import numpy as np
 import client
 from enum import Enum, auto
 
+secondary_window = 'opencv_shop_scanner'
+secondary_windows = [secondary_window]  # used in terminal_window_manager
+# module to manage secondary window placement. E.g. the small openCV window
+# that spawns with this script.
+
 
 class ConnectionType(Enum):
     WEBSOCKET = auto()
@@ -65,7 +70,7 @@ def scan_for_shop(template: numpy.ndarray, ws=None):
 
     while not os.path.exists("temp/stop.flag"):
         frame = window_capture()
-        cv.imshow('Computer Vision', frame)
+        cv.imshow(secondary_window, frame)
         cv.imwrite('opencv/last_frame.jpg', frame)
 
         # Compare that frame with a pre-established template
