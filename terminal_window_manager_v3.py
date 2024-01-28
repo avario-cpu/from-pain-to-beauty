@@ -3,7 +3,6 @@ Module used to transform the terminal windows of running scripts so that they
 fit my screen nicely on my second monitor, in accordance with the amount of
 windows already present
 """
-
 import time
 import pygetwindow as gw
 import os
@@ -28,22 +27,27 @@ def assign_slot_and_rename_window(name: str) -> (int, str):
     if slot_assigned is not None:
 
         # Rename the terminal window if a slot was found
-        new_window_title = name + str(slot_assigned)
+        new_window_title = f"{name} - slot {slot_assigned}"
         os.system(f"title {new_window_title}")
 
         # Register that new name in the database
         slots_db_handler.name_slot(slot_assigned, new_window_title)
 
-        # Register the secondary windows names too.
         return slot_assigned, new_window_title
     else:
         raise ValueError(f"slot assigned was {type(slot_assigned)}. "
                          f"Could not assign to a slot.")
 
 
-def join_secondaries_to_main_window(slot, secondaries):
-    slots_db_handler.name_secondary_windows(slot, secondaries)
-    pass
+def join_secondaries_to_main_window(main_slot, secondary_windows):
+    for i in range(0, len(secondary_windows)):
+        width = 150
+        height = 150
+        x_pos = (-600 * (1 + main_slot // 4)) + (3 - i) * 150
+        y_pos = 260 * (main_slot % 4)
+        properties = (width, height, x_pos, y_pos)
+        # Move without resizing
+        resize_and_move_window(secondary_windows[i], properties, False)
 
 
 def calculate_new_window_properties(slot_number: int) \
@@ -62,7 +66,9 @@ def calculate_new_window_properties(slot_number: int) \
 
 
 def resize_and_move_window(window_title: str,
-                           new_properties: tuple[int, int, int, int]):
+                           new_properties: tuple[int, int, int, int],
+                           resize: bool = True,
+                           move: bool = True):
     """
     Reposition and transform the window to: somewhere, under the rainbow... !
     """
@@ -83,8 +89,10 @@ def resize_and_move_window(window_title: str,
         window = gw.getWindowsWithTitle(window_title)
         if window:
             window = window[0]
-            window.resizeTo(new_width, new_height)
-            window.moveTo(new_x, new_y)
+            if resize:
+                window.resizeTo(new_width, new_height)
+            if move:
+                window.moveTo(new_x, new_y)
             break
         else:
             print(f"Window "'{window_title}'" not found. trying again")
@@ -121,7 +129,7 @@ def unset_windows_to_topmost():
 
 
 def close_window(slot):
-    # Free up the occupied slot when the window is closed
+    # Free up the occupied slot in the db when the window is closed
     slots_db_handler.free_slot(slot)
 
 
@@ -138,7 +146,7 @@ def adjust_window(window_type: WindowType, window_name: str,
     2. A running script that will give continuous feedback.
     3. The server script.
 
-    And adjust the terminal window accordingly.
+    And adjust the terminal window accordingly
     """
 
     if window_type == WindowType.DENIED_SCRIPT:
@@ -150,7 +158,8 @@ def adjust_window(window_type: WindowType, window_name: str,
             properties = calculate_new_window_properties(slot)
             resize_and_move_window(title, properties)
             if secondary_windows:
-                join_secondaries_to_main_window(slot, secondary_windows)
+                slots_db_handler.name_secondary_windows(slot,
+                                                        secondary_windows)
             return slot
         except ValueError as e:
             print(e)

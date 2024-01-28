@@ -11,8 +11,6 @@ from enum import Enum, auto
 
 secondary_window = 'opencv_shop_scanner'
 secondary_windows = [secondary_window]  # used in terminal_window_manager
-# module to manage secondary window placement. E.g. the small openCV window
-# that spawns with this script.
 
 
 class ConnectionType(Enum):

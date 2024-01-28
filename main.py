@@ -3,6 +3,7 @@ import shop_scanner
 import time
 import terminal_window_manager_v3 as twm_v3
 import atexit
+import threading
 
 
 def exit_countdown():
@@ -14,25 +15,33 @@ def exit_countdown():
 
 
 def main():
-    window = twm_v3.adjust_window(twm_v3.WindowType.RUNNING_SCRIPT, "test",
-                                  shop_scanner.secondary_windows)
+    window_slot = twm_v3.adjust_window(twm_v3.WindowType.RUNNING_SCRIPT,
+                                       "test", shop_scanner.secondary_windows)
 
     # If the lock file is here, don't run the script
     if single_instance.lock_exists():
-        # Make sure the window is closed by the manager at exit
-        atexit.register(twm_v3.close_window, window)
-        # exit_countdown()
+        atexit.register(twm_v3.close_window, window_slot)
         input('enter to quit')
     else:
-        # Make sure the lock file will be removed at exit
         atexit.register(single_instance.remove_lock)
-        # Make sure the window is closed by the manager at exit
-        atexit.register(twm_v3.close_window, window)
+        atexit.register(twm_v3.close_window, window_slot)
 
-        # Go and run and the script !
         single_instance.create_lock_file()
-        shop_scanner.start(shop_scanner.ConnectionType.WEBSOCKET)
-        # exit_countdown()
+
+        scan_thread = threading.Thread(
+            target=shop_scanner.start,
+            args=(shop_scanner.ConnectionType.WEBSOCKET,))
+        scan_thread.start()
+
+        time.sleep(1)  # time delay to make sure the window exists
+
+        twm_thread = threading.Thread(
+            target=twm_v3.join_secondaries_to_main_window,
+            args=(window_slot, shop_scanner.secondary_windows,))
+        twm_thread.start()
+
+        scan_thread.join()
+        twm_thread.join()
         input('enter to quit')
 
 

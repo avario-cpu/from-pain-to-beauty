@@ -11,16 +11,17 @@ def create_connection(db_file):
     return db_conn
 
 
-def create_tables():
+def create_table():
     try:
         cur = conn.cursor()
         cur.execute('''CREATE TABLE IF NOT EXISTS slots (
                             id INTEGER PRIMARY KEY,
                             is_open BOOLEAN NOT NULL,
-                            name TEXT,
+                            name0 TEXT,
                             name1 TEXT,
                             name2 TEXT,
-                            name3 TEXT
+                            name3 TEXT,
+                            name4 TEXT
                        );''')
     except sqlite3.Error as e:
         print(e)
@@ -53,7 +54,7 @@ def check_slots():
 def delete_table():
     try:
         cursor = conn.cursor()
-        sql = f"DROP TABLE IF EXISTS secondary_names"
+        sql = f"DROP TABLE IF EXISTS slots"
         cursor.execute(sql)
         conn.commit()
         print(f"The table has been deleted successfully.")
@@ -118,11 +119,11 @@ def name_slot(slot_id: int, name: str):
         conn.execute("BEGIN")
 
         cur = conn.cursor()
-        cur.execute("SELECT name FROM slots WHERE id = ?", (slot_id,))
+        cur.execute("SELECT name0 FROM slots WHERE id = ?", (slot_id,))
         row = cur.fetchone()
 
         if row:
-            cur.execute("UPDATE slots SET name = ? WHERE id = ?",
+            cur.execute("UPDATE slots SET name0 = ? WHERE id = ?",
                         (name, slot_id))
             conn.commit()
             print(f"Slot {slot_id} named {name}.")
@@ -154,7 +155,7 @@ def name_secondary_windows(slot_id: int, names: list[str]):
 def get_all_names():
     try:
         cur = conn.cursor()
-        cur.execute("SELECT name FROM slots")
+        cur.execute("SELECT name0 FROM slots")
         rows = cur.fetchall()
 
         # Extracting the names from each row
@@ -179,9 +180,11 @@ def free_slot(slot_id: int):
             # Update the status of the identified slot to 'open'
             cur.execute("UPDATE slots SET is_open = True WHERE id = ?",
                         (slot_id,))
-            # Set the name of the slot back to null
-            cur.execute("UPDATE slots SET name = null WHERE id = ?",
-                        (slot_id,))
+            # Set the names of the slot back to null
+            for i in range(0, 5):
+                name = "name" + str(i)
+                cur.execute(f"UPDATE slots SET {name} = null WHERE id = ?",
+                            (slot_id,))
             conn.commit()
             print(f"Slot {slot_id} is now free.")
         else:
@@ -207,10 +210,11 @@ def free_all_occupied_slots():
                 cur.execute(
                     "UPDATE slots SET is_open = True WHERE id = ?",
                     (slot_id,))
-                # Set the name of the slot back to null
-                cur.execute(
-                    "UPDATE slots SET name = null WHERE id = ?",
-                    (slot_id,))
+                # Set the names of the slot back to null
+                for i in range(0, 5):
+                    name = "name" + str(i)
+                    cur.execute(f"UPDATE slots SET {name} = null WHERE id = ?",
+                                (slot_id,))
                 conn.commit()
                 print(f"Slot {slot_id} is now free.")
     except sqlite3.Error as e:
@@ -225,22 +229,10 @@ conn = create_connection(database)
 def recreate_table():
     if conn is not None:
         delete_table()
-        create_tables()
+        create_table()
         initialize_slots()
         check_slots()
     else:
         print("Error! Cannot create the database connection.")
     if conn:
         conn.close()
-
-
-# delete_table()
-# create_tables()
-# recreate_table()
-# occupy_first_free_slot()
-# occupy_all_free_slots()
-# free_slot(2)
-# initialize_slots()
-# name_slot(2, "lol")
-
-name_secondary_windows(3, ['test1', 'test2', 'test3', 'test4'])
