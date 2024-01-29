@@ -19,8 +19,10 @@ class WindowType(Enum):
 
 
 def assign_slot_and_rename_window(name: str) -> (int, str):
-    """Assign a slot in the database to the cmd window that just spawned
-    and rename it accordingly."""
+    """
+    Assign a slot in the database to the cmd window that just spawned
+    and rename it accordingly.
+    """
 
     slot_assigned = slots_db_handler.occupy_first_free_slot()
     if slot_assigned is not None:
@@ -38,11 +40,14 @@ def assign_slot_and_rename_window(name: str) -> (int, str):
 
 def join_secondaries_to_main_window(main_slot: int,
                                     secondary_windows: list[str]):
-    """Adjust the position of the secondary windows that might spawn from
-    the main script. This implies that the names of those secondary window
-    are known in advance, it is not possible otherwise. The slot, on which
-    the math below depends, is the one attributed to the main window in the
-    database """
+    """
+    Adjust the position of the secondary windows that spawn from the
+     main script.
+    :param main_slot: The slot attributed to the main window in the
+    database.
+    :param secondary_windows: List of the secondary window names. Has to be
+    known in advance.
+    """
     for i in range(0, len(secondary_windows)):
         width = 150  # fixed size, might change in the future
         height = 150

@@ -65,8 +65,10 @@ def delete_table():
 
 
 def occupy_first_free_slot() -> int | None:
-    """Find the first free open slot in the database and return the slot id
-    number as an integer. If there are no free slots, return None"""
+    """
+    Find the first free open slot in the database and return the slot id
+    number as an integer. If there are no free slots, return None.
+    """
     try:
         conn.execute("BEGIN")
         cur = conn.cursor()

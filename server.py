@@ -31,9 +31,13 @@ def control_scanner(message):
         with open("temp/stop.flag", "w") as f:
             pass
 
+    elif message == "remove scanner lock":
+        if os.path.exists("temp/myapp.lock"):
+            os.remove("temp/myapp.lock")
+
 
 def operate_launcher(message):
-    if message in ["start scanner", "stop scanner"]:
+    if message in ["start scanner", "stop scanner", "remove scanner lock"]:
         control_scanner(message)
     else:
         print('Not a suitable launcher path message')
