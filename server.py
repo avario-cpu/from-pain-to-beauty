@@ -24,7 +24,7 @@ def control_scanner(message):
 
         # Open the process in a new separate cmd window: this is done to be
         # able to manipulate the position of the script terminal
-        subprocess.Popen(["cmd.exe", "/c", "start",
+        subprocess.Popen(["cmd.exe", "/c", "start", "/min",
                           venv_python_path, "main.py"])
 
     elif message == "stop scanner":

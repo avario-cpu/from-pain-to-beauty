@@ -88,6 +88,7 @@ def resize_and_move_window(window_title: str,
         window = gw.getWindowsWithTitle(window_title)
         if window:
             window = window[0]
+            window.restore()  # in case it was minimized
             if resize:
                 window.resizeTo(new_width, new_height)
             if move:
