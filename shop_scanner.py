@@ -20,7 +20,7 @@ class ConnectionType(Enum):
 
 
 def wait():  # used to slow down the script.
-    time.sleep(0.5)
+    time.sleep(0.01)
 
 
 def window_capture():
@@ -83,7 +83,7 @@ def scan_for_shop(ws=None):
         if cv.waitKey(1) == ord("q"):
             break
 
-        print(f"SSIM: {match_value}")
+        print(f"SSIM: {match_value}", end='\r')
 
         # Detect, according to a threshold value, whether the shop is open.
         if match_value >= 0.8:

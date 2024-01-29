@@ -94,7 +94,8 @@ def resize_and_move_window(window_title: str,
                 window.moveTo(new_x, new_y)
             break
         else:
-            print(f"Window '{window_title}' not found. trying again")
+            print(f"Window '{window_title}' not found. trying again",
+                  end="\r")
             time.sleep(0.01)  # limit the speed of the loop
 
 

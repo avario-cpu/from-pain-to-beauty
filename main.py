@@ -33,7 +33,7 @@ def main():
             args=(shop_scanner.ConnectionType.WEBSOCKET,))
         scan_thread.start()
 
-        time.sleep(1)  # time delay to make sure the secondary window spawns
+        time.sleep(0.5)  # time delay to make sure the secondary window spawns
 
         # Adjust the positioning of the secondary window
         twm_thread = threading.Thread(
