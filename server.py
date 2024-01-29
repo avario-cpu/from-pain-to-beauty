@@ -19,12 +19,14 @@ venv_python_path = "venv/Scripts/python.exe"
 
 def control_scanner(message):
     if message == "start scanner":
-        # remove the stop flag that stopped the previous scanner loop
         if os.path.exists("temp/stop.flag"):
             os.remove("temp/stop.flag")
-        # Open the process in a new separate cmd window
+
+        # Open the process in a new separate cmd window: this is done to be
+        # able to manipulate the position of the script terminal
         subprocess.Popen(["cmd.exe", "/c", "start",
                           venv_python_path, "main.py"])
+
     elif message == "stop scanner":
         with open("temp/stop.flag", "w") as f:
             pass
@@ -34,7 +36,7 @@ def operate_launcher(message):
     if message in ["start scanner", "stop scanner"]:
         control_scanner(message)
     else:
-        print('not a suitable launcher path message')
+        print('Not a suitable launcher path message')
 
 
 def manage_windows(message):
@@ -47,7 +49,7 @@ def manage_windows(message):
         twm_v3.unset_windows_to_topmost()
 
 
-def manipulate_database(message):
+def manage_database(message):
     if message == "free all slots":
         slots_db_handler.free_all_occupied_slots()
 
@@ -65,7 +67,7 @@ async def handler(websocket: WebSocketServerProtocol, path: str):
             manage_windows(message)
 
         elif path == "/database":  # Path to manipulate db entries
-            manipulate_database(message)
+            manage_database(message)
 
         elif path == "/test":  # Path to test stuff
             if message == "get windows":

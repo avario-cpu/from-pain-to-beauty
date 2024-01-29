@@ -22,11 +22,8 @@ def assign_slot_and_rename_window(name: str) -> (int, str):
     """Assign a slot in the database to the cmd window that just spawned
     and rename it accordingly."""
 
-    # Assign a slot number to the terminal window
     slot_assigned = slots_db_handler.occupy_first_free_slot()
     if slot_assigned is not None:
-
-        # Rename the terminal window if a slot was found
         new_window_title = f"{name} - slot {slot_assigned}"
         os.system(f"title {new_window_title}")
 
@@ -39,9 +36,15 @@ def assign_slot_and_rename_window(name: str) -> (int, str):
                          f"Could not assign to a slot.")
 
 
-def join_secondaries_to_main_window(main_slot, secondary_windows):
+def join_secondaries_to_main_window(main_slot: int,
+                                    secondary_windows: list[str]):
+    """Adjust the position of the secondary windows that might spawn from
+    the main script. This implies that the names of those secondary window
+    are known in advance, it is not possible otherwise. The slot, on which
+    the math below depends, is the one attributed to the main window in the
+    database """
     for i in range(0, len(secondary_windows)):
-        width = 150
+        width = 150  # fixed size, might change in the future
         height = 150
         x_pos = (-600 * (1 + main_slot // 4)) + (3 - i) * 150
         y_pos = 260 * (main_slot % 4)
@@ -52,11 +55,6 @@ def join_secondaries_to_main_window(main_slot, secondary_windows):
 
 def calculate_new_window_properties(slot_number: int) \
         -> tuple[int, int, int, int]:
-    # Check that the parameter is an integer
-    if not isinstance(slot_number, int):
-        raise TypeError("slot_number must be of type int")
-
-    # Use the slot number to calculate the desired new position and size
     width = 600
     height = 260
     x_pos = -600 * (1 + slot_number // 4)
@@ -78,14 +76,13 @@ def resize_and_move_window(window_title: str,
     timeout = 3
     start_time = time.time()
 
-    # Poll for the recently renamed window. Sometimes it needs a bit of time
-    # to be found
+    # Poll for the recently renamed window: sometimes, it needs a bit of time
+    # to be found because the rename is not instantaneous
     while True:
         if time.time() - start_time > timeout:
             print("Window Search timed out.")
             break
 
-        # Obtain a list with the matching title windows
         window = gw.getWindowsWithTitle(window_title)
         if window:
             window = window[0]
@@ -95,7 +92,7 @@ def resize_and_move_window(window_title: str,
                 window.moveTo(new_x, new_y)
             break
         else:
-            print(f"Window "'{window_title}'" not found. trying again")
+            print(f"Window '{window_title}' not found. trying again")
             time.sleep(0.01)  # limit the speed of the loop
 
 
@@ -129,7 +126,7 @@ def unset_windows_to_topmost():
 
 
 def close_window(slot):
-    # Free up the occupied slot in the db when the window is closed
+    # Free up the occupied slot in the database when the window is closed
     slots_db_handler.free_slot(slot)
 
 
@@ -153,21 +150,21 @@ def adjust_window(window_type: WindowType, window_name: str,
         pass
 
     elif window_type == WindowType.RUNNING_SCRIPT:
-        try:
-            slot, title = assign_slot_and_rename_window(window_name)
-            properties = calculate_new_window_properties(slot)
-            resize_and_move_window(title, properties)
-            if secondary_windows:
-                slots_db_handler.name_secondary_windows(slot,
-                                                        secondary_windows)
-            return slot
-        except ValueError as e:
-            print(e)
-            input('enter to quit')
+        slot, title = assign_slot_and_rename_window(window_name)
+        properties = calculate_new_window_properties(slot)
+        resize_and_move_window(title, properties)
+        if secondary_windows:
+            slots_db_handler.name_secondary_windows(slot,
+                                                    secondary_windows)
+            # Note: secondary windows cannot be adjusted at the script
+            # launch, since they usually appear later, after some script
+            # logic has been executed.
+        return slot
 
     elif window_type == WindowType.SERVER:
-        os.system(f"title SERVER")
-        time.sleep(0.2)  # give time to windows to update cmd name
+        os.system(f"title SERVER")  # make sure the SERVER cmd prompt is,
+        # in fact, named "SERVER"
+        time.sleep(0.2)  # give time to windows for renaming the cmd
         server_window = win32gui.FindWindow(None, "SERVER")
         win32gui.SetWindowPos(server_window, None, -1920, 640, 700, 400, 0)
 

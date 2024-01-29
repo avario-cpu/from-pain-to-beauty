@@ -15,6 +15,7 @@ def exit_countdown():
 
 
 def main():
+    # Adjust the positioning of the main script window
     window_slot = twm_v3.adjust_window(twm_v3.WindowType.RUNNING_SCRIPT,
                                        "test", shop_scanner.secondary_windows)
 
@@ -25,7 +26,6 @@ def main():
     else:
         atexit.register(single_instance.remove_lock)
         atexit.register(twm_v3.close_window, window_slot)
-
         single_instance.create_lock_file()
 
         scan_thread = threading.Thread(
@@ -33,8 +33,9 @@ def main():
             args=(shop_scanner.ConnectionType.WEBSOCKET,))
         scan_thread.start()
 
-        time.sleep(1)  # time delay to make sure the window exists
+        time.sleep(1)  # time delay to make sure the secondary window spawns
 
+        # Adjust the positioning of the secondary window
         twm_thread = threading.Thread(
             target=twm_v3.join_secondaries_to_main_window,
             args=(window_slot, shop_scanner.secondary_windows,))

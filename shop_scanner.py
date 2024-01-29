@@ -3,8 +3,8 @@ import time
 
 import cv2 as cv
 import mss
-import numpy
 import numpy as np
+from skimage.metrics import structural_similarity as ssim
 
 import client
 from enum import Enum, auto
@@ -14,12 +14,13 @@ secondary_windows = [secondary_window]  # used in terminal_window_manager
 
 
 class ConnectionType(Enum):
+    """Used to run the main loop with or without websocket usage"""
     WEBSOCKET = auto()
     NONE = auto()
 
 
 def wait():  # used to slow down the script.
-    time.sleep(0.01)
+    time.sleep(0.5)
 
 
 def window_capture():
@@ -37,6 +38,13 @@ def window_capture():
     return img
 
 
+def compare_images(image_a, image_b):
+    """Compute the SSIM between two images. SSIM values range between
+    -1 and 1, where "1" means perfect similarity. Works best when the images
+    compared are grayscale. """
+    return ssim(image_a, image_b)
+
+
 def react_to_shop_just_opened(ws):
     if ws:
         client.request_hide_dslr(ws)
@@ -52,58 +60,52 @@ def react_to_shop_just_closed(ws):
     pass
 
 
-def scan_for_shop(template: numpy.ndarray, ws=None):
+def scan_for_shop(ws=None):
     """
     Look for an indication on the screen that the dota Shop is open,
     and react whenever it toggles between open/closed.
 
-    :param template: the template image used to look for a match with the
-    shop UI, converted into a numpy array.
-    :param ws: any "ws" parameter passed will trigger the use of the
-    client to send websocket requests in reaction to the image detection. If
-    None, the script will run without client communication.
-    :return: None
+    :param ws: websocket class object used to send requests in reaction to the
+    image detection.
+    :return: None.
     """
     shop_is_currently_open = False
+    template = cv.imread(
+        'opencv/dota_shop_top_right_icon.jpg', cv.IMREAD_GRAYSCALE)
 
     while not os.path.exists("temp/stop.flag"):
         frame = window_capture()
-        cv.imshow(secondary_window, frame)
-        cv.imwrite('opencv/last_frame.jpg', frame)
+        gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+        cv.imshow(secondary_window, gray_frame)
 
-        # Compare that frame with a pre-established template
-        snapshot = cv.imread('opencv/last_frame.jpg')
-        result = cv.matchTemplate(snapshot,
-                                  template,
-                                  cv.TM_SQDIFF_NORMED)
-        min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
+        match_value = compare_images(gray_frame, template)
 
         if cv.waitKey(1) == ord("q"):
             break
 
-        # print(max_val)
+        print(f"SSIM: {match_value}")
 
         # Detect, according to a threshold value, whether the shop is open.
-        if max_val <= 0.4:
+        if match_value >= 0.8:
 
             # If the shop is detected as open...
             if shop_is_currently_open:
-                # ... But already was at the last check, do nothing
+                # ... And already was at the last check: do nothing
                 wait()
                 continue
             else:
-                # ... But was closed at the last check, react
+                # ... And was closed at the last check: react
                 shop_is_currently_open = True
-                react_to_shop_just_closed(ws)
+                react_to_shop_just_opened(ws)
                 wait()
         else:
             # If the shop is detected as closed...
             if shop_is_currently_open:
-                # ... But was open at the last check, react
+                # ... And was open at the last check: react
                 shop_is_currently_open = False
                 react_to_shop_just_closed(ws)
             else:
-                # ... But was already closed at the last check, do nothing
+                # ... And was already closed at the last check: do nothing
                 wait()
                 continue
 
@@ -116,15 +118,12 @@ def scan_for_shop(template: numpy.ndarray, ws=None):
 
 
 def start(connection_type: ConnectionType = ConnectionType.NONE):
-    """Runs the main loop, either with or without using the client module to
-     connect to the Streamerbot websocket"""
-
-    cv_template = cv.imread('opencv/dota_shop_top_right_icon.jpg')
+    """Runs the main loop, either with or without using websockets"""
     ws = None
     try:
         if connection_type == ConnectionType.WEBSOCKET:
             ws = client.init()
-        scan_for_shop(cv_template, ws)
+        scan_for_shop(ws)
     except KeyboardInterrupt:
         if connection_type == ConnectionType.WEBSOCKET:
             client.disconnect(ws)

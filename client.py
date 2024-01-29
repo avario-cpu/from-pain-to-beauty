@@ -54,7 +54,6 @@ def request_hide_dslr(ws):
 def main():
     ws = init()
     get_actions(ws)
-    request_hide_dslr(ws)
 
 
 if __name__ == "__main__":
