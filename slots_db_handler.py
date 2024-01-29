@@ -155,13 +155,19 @@ def name_secondary_windows(slot_id: int, names: list[str]):
 
 
 def get_all_names():
+    """Get a list with all the named windows in the database"""
     try:
         cur = conn.cursor()
-        cur.execute("SELECT name0 FROM slots")
-        rows = cur.fetchall()
+        names = []
+        for i in range(0, 5):
+            cur.execute(f"SELECT {"name" + str(i)} FROM slots")
+            rows = cur.fetchall()
 
-        # Extracting the names from each row
-        names = [row[0] for row in rows if row[0] is not None]
+            for row in rows:
+                name = row[0]
+                if name is not None:
+                    names.append(name)
+        print(names)
         return names
 
     except sqlite3.Error as e:
@@ -173,13 +179,11 @@ def free_slot(slot_id: int):
     try:
         conn.execute("BEGIN")
 
-        # Check if the slot is currently occupied
         cur = conn.cursor()
         cur.execute("SELECT is_open FROM slots WHERE id = ?", (slot_id,))
         row = cur.fetchone()
 
         if row and not row[0]:  # Ensure the slot is not already open
-            # Update the status of the identified slot to 'open'
             cur.execute("UPDATE slots SET is_open = True WHERE id = ?",
                         (slot_id,))
             # Set the names of the slot back to null
@@ -208,7 +212,6 @@ def free_all_occupied_slots():
         if rows:
             for row in rows:
                 slot_id = row[0]
-                # Update the status of the identified slot to 'open'
                 cur.execute(
                     "UPDATE slots SET is_open = True WHERE id = ?",
                     (slot_id,))

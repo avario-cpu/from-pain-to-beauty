@@ -6,7 +6,7 @@ windows already present
 import time
 import pygetwindow as gw
 import os
-import slots_db_handler
+import slots_db_handler as sdh
 import win32gui
 import win32con
 from enum import Enum, auto
@@ -24,13 +24,13 @@ def assign_slot_and_rename_window(name: str) -> (int, str):
     and rename it accordingly.
     """
 
-    slot_assigned = slots_db_handler.occupy_first_free_slot()
+    slot_assigned = sdh.occupy_first_free_slot()
     if slot_assigned is not None:
         new_window_title = f"{name} - slot {slot_assigned}"
         os.system(f"title {new_window_title}")
 
         # Register that new name in the database
-        slots_db_handler.name_slot(slot_assigned, new_window_title)
+        sdh.name_slot(slot_assigned, new_window_title)
 
         return slot_assigned, new_window_title
     else:
@@ -72,13 +72,10 @@ def resize_and_move_window(window_title: str,
                            new_properties: tuple[int, int, int, int],
                            resize: bool = True,
                            move: bool = True):
-    """
-    Reposition and transform the window to: somewhere, under the rainbow... !
-    """
+    """ Reposition and/or and transform a window"""
     new_width, new_height, new_x, new_y = new_properties
 
-    # Set a time-out time for the loop to exist
-    timeout = 3
+    timeout = 3  # time-out time for while loop
     start_time = time.time()
 
     # Poll for the recently renamed window: sometimes, it needs a bit of time
@@ -103,8 +100,14 @@ def resize_and_move_window(window_title: str,
 
 def set_windows_to_topmost():
     """Set all the cmd windows of the running scripts to be topmost"""
-    windows_names_list = slots_db_handler.get_all_names()
+    windows_names_list = sdh.get_all_names()
     windows_names_list.append("SERVER")
+
+    # Reverse the order of the list in order to have the secondary windows
+    # displayed  over the main window when set to "TOPMOST" (the first
+    # windows passed to SetWindowPos get "TOPMOST" priority)
+    windows_names_list.reverse()
+
     for name in windows_names_list:
         window = win32gui.FindWindow(None, name)
         if window:
@@ -115,11 +118,9 @@ def set_windows_to_topmost():
 
 
 def unset_windows_to_topmost():
-    """Set terminal windows focus behavior back to normal"""
-    windows_names_list = slots_db_handler.get_all_names()
+    """Set terminal windows fore/background behavior back to normal"""
+    windows_names_list = sdh.get_all_names()
     windows_names_list.append("SERVER")
-    print(gw.getAllWindows())
-    print(gw.getAllTitles())
 
     for name in windows_names_list:
         window = win32gui.FindWindow(None, name)
@@ -131,8 +132,8 @@ def unset_windows_to_topmost():
 
 
 def close_window(slot):
-    # Free up the occupied slot in the database when the window is closed
-    slots_db_handler.free_slot(slot)
+    # Free up the occupied database slot
+    sdh.free_slot(slot)
 
 
 def get_all_windows_tile():
@@ -159,10 +160,9 @@ def adjust_window(window_type: WindowType, window_name: str,
         properties = calculate_new_window_properties(slot)
         resize_and_move_window(title, properties)
         if secondary_windows:
-            slots_db_handler.name_secondary_windows(slot,
-                                                    secondary_windows)
-            # Note: secondary windows cannot be adjusted at the script
-            # launch, since they usually appear later, after some script
+            sdh.name_secondary_windows(slot, secondary_windows)
+            # Note: the secondary windows positions cannot be adjusted at the
+            # script launch, since they usually appear later, after some script
             # logic has been executed.
         return slot
 
