@@ -51,6 +51,9 @@ def manage_windows(message):
         twm_v3.set_windows_to_topmost()
     elif message == "unset topmost":
         twm_v3.unset_windows_to_topmost()
+    elif message == "reorganize":
+        twm_v3.readjust_windows()
+        pass
 
 
 def manage_database(message):
@@ -75,8 +78,7 @@ async def handler(websocket: WebSocketServerProtocol, path: str):
 
         elif path == "/test":  # Path to test stuff
             if message == "get windows":
-                twm_v3.get_all_windows_tile()
-            pass
+                twm_v3.get_all_windows_titles()
 
         else:
             print(f"Unknown path: {path}.")

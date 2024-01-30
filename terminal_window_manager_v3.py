@@ -10,17 +10,19 @@ import slots_db_handler as sdh
 import win32gui
 import win32con
 from enum import Enum, auto
+import re
 
 
 class WindowType(Enum):
     DENIED_SCRIPT = auto()
+    ACCEPTED_SCRIPT = auto()
     RUNNING_SCRIPT = auto()
     SERVER = auto()
 
 
 def assign_slot_and_rename_window(name: str) -> (int, str):
     """
-    Assign a slot in the database to the cmd window that just spawned
+    Assign a slot in the database to the terminal window that just spawned
     and rename it accordingly.
     """
 
@@ -41,12 +43,11 @@ def assign_slot_and_rename_window(name: str) -> (int, str):
 def join_secondaries_to_main_window(main_slot: int,
                                     secondary_windows: list[str]):
     """
-    Adjust the position of the secondary windows that spawn from the
-     main script.
+    Adjust the positions of the secondary windows that spawn from the
+     main script, so that they fit on top of the latter.
     :param main_slot: The slot attributed to the main window in the
     database.
-    :param secondary_windows: List of the secondary window names. Has to be
-    known in advance.
+    :param secondary_windows: List of the secondary window names.
     """
     for i in range(0, len(secondary_windows)):
         width = 150  # fixed size, might change in the future
@@ -138,7 +139,7 @@ def close_window(slot):
     sdh.free_slot(slot)
 
 
-def get_all_windows_tile():
+def get_all_windows_titles():
     print(gw.getAllTitles())
 
 
@@ -148,8 +149,9 @@ def adjust_window(window_type: WindowType, window_name: str,
     Decide which the recently spawned terminal window is of the following:
 
     1. A denied script that will soon exit automatically. (lock file)
-    2. A running script that will give continuous feedback.
-    3. The server script.
+    2. An accepted script that will give continuous feedback.
+    3. An already running script that needs to be repositioned.
+    4. The server script.
 
     And adjust the terminal window accordingly
     """
@@ -157,7 +159,7 @@ def adjust_window(window_type: WindowType, window_name: str,
     if window_type == WindowType.DENIED_SCRIPT:
         pass
 
-    elif window_type == WindowType.RUNNING_SCRIPT:
+    elif window_type == WindowType.ACCEPTED_SCRIPT:
         slot, title = assign_slot_and_rename_window(window_name)
         properties = calculate_new_window_properties(slot)
         resize_and_move_window(title, properties)
@@ -176,6 +178,42 @@ def adjust_window(window_type: WindowType, window_name: str,
         win32gui.SetWindowPos(server_window, None, -1920, 640, 700, 400, 0)
 
 
+def readjust_windows():
+    """Look if they are free slots before the ones currently displayed. If
+    there are some, move the windows to fill those earlier slots."""
+
+    # Look for free and occupied slots
+    free_slots = sdh.get_all_free_slots_ids()
+    occupied_slots = sdh.get_all_occupied_slots_id()
+
+    # Check if the latest occupied slot is higher than the earliest free slot.
+    # E.g. slot 7 occupied while slot 3 is free
+    occupied_slots.reverse()
+    if free_slots:
+        for i in range(0, len(free_slots)):
+            if occupied_slots[i] > free_slots[i]:
+                names = sdh.get_full_window_names(occupied_slots[i])
+                sdh.occupy_slot(free_slots[i], names)
+                sdh.free_slot(occupied_slots[i])
+
+                # Once the new slot is, taken get the main window name
+                main_name = sdh.get_main_window_name(occupied_slots[i])
+                # Remove the previous " - slot X" suffix
+                if main_name is not None:
+                    pattern = r' - slot \d+'
+                    main_name = re.sub(pattern, "", main_name)
+                # Add the new suffix in accordance to new slot taken
+                new_main_title = f"{main_name} - slot {free_slots[i]}"
+                os.system(f"title {new_main_title}")
+            else:
+                print(f"slot {free_slots[i]} is free but comes later than "
+                      f"latest slot {occupied_slots[i]} occupied")
+                break
+
+    else:
+        print('no free slots found')
+
+
 def main():
     slot, title = assign_slot_and_rename_window("test")
     properties = calculate_new_window_properties(slot)
@@ -185,4 +223,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    readjust_windows()

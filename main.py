@@ -16,7 +16,7 @@ def exit_countdown():
 
 def main():
     # Adjust the positioning of the main script window
-    window_slot = twm_v3.adjust_window(twm_v3.WindowType.RUNNING_SCRIPT,
+    window_slot = twm_v3.adjust_window(twm_v3.WindowType.ACCEPTED_SCRIPT,
                                        "test", shop_scanner.secondary_windows)
 
     # If the lock file is here, don't run the script
@@ -28,6 +28,7 @@ def main():
         atexit.register(twm_v3.close_window, window_slot)
         single_instance.create_lock_file()
 
+        # Thread the main logic to allow for simultaneous terminal positioning
         scan_thread = threading.Thread(
             target=shop_scanner.start,
             args=(shop_scanner.ConnectionType.WEBSOCKET,))
@@ -41,8 +42,9 @@ def main():
             args=(window_slot, shop_scanner.secondary_windows,))
         twm_thread.start()
 
-        scan_thread.join()
         twm_thread.join()
+        scan_thread.join()
+
         input('enter to quit')
 
 
