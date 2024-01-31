@@ -10,7 +10,6 @@ import slots_db_handler as sdh
 import win32gui
 import win32con
 from enum import Enum, auto
-import re
 
 MAIN_WINDOW_WIDTH = 600
 MAIN_WINDOW_HEIGHT = 260
@@ -23,20 +22,18 @@ class WindowType(Enum):
     SERVER = auto()
 
 
-def assign_slot_and_rename_window(name: str) -> (int, str):
+def assign_slot_and_name_window(name: str) -> (int, str):
     """
     Assign a slot number in the database to the terminal window that just
     spawned and rename it accordingly.
     """
     slot_assigned = sdh.occupy_first_free_slot()
     if slot_assigned is not None:
-        new_window_title = f"{name} - slot {slot_assigned}"
-        os.system(f"title {new_window_title}")
-
+        os.system(f"title {name}")
         # Register that new name in the database
-        sdh.name_slot(slot_assigned, new_window_title)
+        sdh.name_slot(slot_assigned, name)
 
-        return slot_assigned, new_window_title
+        return slot_assigned, name
     else:
         raise ValueError(f"slot assigned was {type(slot_assigned)}. "
                          f"Could not assign to a slot.")
@@ -165,7 +162,7 @@ def adjust_window(window_type: WindowType, window_name: str,
         pass
 
     elif window_type == WindowType.ACCEPTED_SCRIPT:
-        slot, title = assign_slot_and_rename_window(window_name)
+        slot, title = assign_slot_and_name_window(window_name)
         properties = calculate_new_window_properties(slot)
         resize_and_move_window(title, properties)
         if secondary_windows:
@@ -202,43 +199,31 @@ def readjust_windows():
                       f"swapping")
 
                 names = sdh.get_full_window_names(old_slot)
-                old_main_name = names[0]
+                main_name = names[0]
 
-                # Remove the previous " - slot X" suffix
-                new_name = ""
-                if old_main_name is not None:
-                    pattern = r' - slot \d+'
-                    new_name = re.sub(pattern, "", old_main_name)
-
-                # Rename the main window according to the new slot occupied
-                new_main_window_title = f"{new_name} - slot {new_slot}"
-                hwnd = win32gui.FindWindow(None, old_main_name)
+                hwnd = win32gui.FindWindow(None, main_name)
                 if hwnd:
-                    win32gui.SetWindowText(hwnd, new_main_window_title)
-                    names[0] = new_main_window_title
                     # Write the change to the database
                     sdh.occupy_slot(new_slot, names)
                     sdh.free_slot(old_slot)
 
                     # Move the windows according to the new slot occupied
                     properties = calculate_new_window_properties(new_slot)
-                    resize_and_move_window(
-                        new_main_window_title, properties, False)
+                    resize_and_move_window(main_name, properties, False)
                     join_secondaries_to_main_window(new_slot, names[1:])
                 else:
-                    print(f"no window with title '{old_main_name}' found.")
+                    print(f"no window with title '{main_name}' found.")
 
             else:
                 print(f"slot {free_slots[i]} is free but comes later than "
                       f"latest occupied slot {occupied_slots[i]} ")
                 break
-
     else:
         print('no free slots found')
 
 
 def main():
-    slot, title = assign_slot_and_rename_window("test")
+    slot, title = assign_slot_and_name_window("test")
     properties = calculate_new_window_properties(slot)
     resize_and_move_window(title, properties)
     input("press enter to close and free the slot")

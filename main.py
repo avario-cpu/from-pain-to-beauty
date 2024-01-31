@@ -4,6 +4,7 @@ import time
 import terminal_window_manager_v3 as twm_v3
 import atexit
 import threading
+import slots_db_handler as sdh
 
 
 def exit_countdown():
@@ -15,18 +16,23 @@ def exit_countdown():
 
 
 def main():
-    # Adjust the positioning of the main script window
-    window_slot = twm_v3.adjust_window(twm_v3.WindowType.ACCEPTED_SCRIPT,
-                                       "test", shop_scanner.secondary_windows)
-
+    script_name = "shop_scanner"
     # If the lock file is here, don't run the script
     if single_instance.lock_exists():
-        atexit.register(twm_v3.close_window, window_slot)
+        # Adjust the positioning of the denied script window
+        twm_v3.adjust_window(twm_v3.WindowType.DENIED_SCRIPT, script_name)
         input('enter to quit')
     else:
+        # Adjust the positioning of the main script window
+        initial_window_slot = twm_v3.adjust_window(
+            twm_v3.WindowType.ACCEPTED_SCRIPT, script_name,
+            shop_scanner.secondary_windows)
+
         atexit.register(single_instance.remove_lock)
-        atexit.register(twm_v3.close_window, window_slot)
         single_instance.create_lock_file()
+
+        # At exit, free the slot by using the name "shop_scanner".
+        atexit.register(sdh.free_slot_named, script_name)
 
         # Thread the main logic to allow for simultaneous terminal positioning
         scan_thread = threading.Thread(
@@ -39,9 +45,8 @@ def main():
         # Adjust the positioning of the secondary window
         twm_thread = threading.Thread(
             target=twm_v3.join_secondaries_to_main_window,
-            args=(window_slot, shop_scanner.secondary_windows,))
+            args=(initial_window_slot, shop_scanner.secondary_windows,))
         twm_thread.start()
-
         twm_thread.join()
         scan_thread.join()
 

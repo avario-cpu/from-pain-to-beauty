@@ -317,10 +317,17 @@ def get_all_free_slots_ids() -> list[int]:
         print('No free slots found')
 
 
+def free_slot_named(name):
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM slots WHERE name0 = ?", (name,))
+    row = cur.fetchone()
+    if row:
+        free_slot(row[0])
+
+
 def testing_db():
     free_all_occupied_slots()
     for i in range(3):
         occupy_first_free_slot()
 
-# testing_db()
-# free_slot(0)
+# free_slot_named("shop_scanner")
