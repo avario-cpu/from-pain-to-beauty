@@ -51,7 +51,7 @@ def manage_windows(message):
         twm_v3.set_windows_to_topmost()
     elif message == "unset topmost":
         twm_v3.unset_windows_to_topmost()
-    elif message == "reorganize":
+    elif message == "readjust":
         twm_v3.readjust_windows()
         pass
 
@@ -62,10 +62,10 @@ def manage_database(message):
 
 
 async def handler(websocket: WebSocketServerProtocol, path: str):
-    print(f"Connection established on path: {path}")
+    print(f"\nConnection established on path: {path}")
 
     async for message in websocket:
-        print(f"Received: message {message} on path: {path}")
+        print(f"Received: message '{message}' on path: {path}")
 
         if path == "/launcher":  # Path to start and end scripts
             operate_launcher(message)
@@ -103,3 +103,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

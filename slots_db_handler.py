@@ -251,7 +251,6 @@ def get_main_window_name(slot_id: int) -> str:
     cur.execute("SELECT name0 FROM slots WHERE id = ?", (slot_id,))
     row = cur.fetchone()
     name = row[0]
-    print(f"main window name: {name}")
     return name
 
 
@@ -264,7 +263,6 @@ def get_full_window_names(slot_id) -> list[str]:
         rows = cur.fetchone()
         for row in rows:
             names.append(row)
-        print(f"full window names: {names}")
         return names
 
     except sqlite3.Error as e:
@@ -300,7 +298,6 @@ def get_all_occupied_slots_id() -> list[int]:
     if rows is not None:
         for row in rows:
             slot_ids.append(row[0])
-        print(f"all occupied slots: {slot_ids}")
         return slot_ids
     else:
         print('No occupied slots found')
@@ -315,7 +312,15 @@ def get_all_free_slots_ids() -> list[int]:
     if rows is not None:
         for row in rows:
             slot_ids.append(row[0])
-        print(f"all free slots: {slot_ids}")
         return slot_ids
     else:
         print('No free slots found')
+
+
+def testing_db():
+    free_all_occupied_slots()
+    for i in range(3):
+        occupy_first_free_slot()
+
+# testing_db()
+# free_slot(0)

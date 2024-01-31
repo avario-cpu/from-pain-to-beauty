@@ -1,7 +1,7 @@
 """
 Module used to transform the terminal windows of running scripts so that they
 fit my screen nicely on my second monitor, in accordance with the amount of
-windows already present
+windows already present.
 """
 import time
 import pygetwindow as gw
@@ -11,6 +11,9 @@ import win32gui
 import win32con
 from enum import Enum, auto
 import re
+
+MAIN_WINDOW_WIDTH = 600
+MAIN_WINDOW_HEIGHT = 260
 
 
 class WindowType(Enum):
@@ -22,10 +25,9 @@ class WindowType(Enum):
 
 def assign_slot_and_rename_window(name: str) -> (int, str):
     """
-    Assign a slot in the database to the terminal window that just spawned
-    and rename it accordingly.
+    Assign a slot number in the database to the terminal window that just
+    spawned and rename it accordingly.
     """
-
     slot_assigned = sdh.occupy_first_free_slot()
     if slot_assigned is not None:
         new_window_title = f"{name} - slot {slot_assigned}"
@@ -40,31 +42,33 @@ def assign_slot_and_rename_window(name: str) -> (int, str):
                          f"Could not assign to a slot.")
 
 
-def join_secondaries_to_main_window(main_slot: int,
+def join_secondaries_to_main_window(slot: int,
                                     secondary_windows: list[str]):
     """
     Adjust the positions of the secondary windows that spawn from the
-     main script, so that they fit on top of the latter.
-    :param main_slot: The slot attributed to the main window in the
+    main script, so that they fit on top of the latter.
+    :param slot: The slot attributed to the main window in the
     database.
     :param secondary_windows: List of the secondary window names.
     """
     for i in range(0, len(secondary_windows)):
-        width = 150  # fixed size, might change in the future
-        height = 150
-        x_pos = (-600 * (1 + main_slot // 4)) + (3 - i) * 150
-        y_pos = 260 * (main_slot % 4)
-        properties = (width, height, x_pos, y_pos)
-        # Move without resizing
-        resize_and_move_window(secondary_windows[i], properties, False)
+        if secondary_windows[i] is not None:
+            # Set windows to fixed size, might change in the future
+            width = 100
+            height = 100
+            # Position windows from right to left, on top of the main window
+            x_pos = (-MAIN_WINDOW_WIDTH * (1 + slot // 4)) + (3 - i) * 150
+            y_pos = MAIN_WINDOW_HEIGHT * (slot % 4)
+            properties = (width, height, x_pos, y_pos)
+            resize_and_move_window(secondary_windows[i], properties)
 
 
 def calculate_new_window_properties(slot_number: int) \
         -> tuple[int, int, int, int]:
-    width = 600
-    height = 260
-    x_pos = -600 * (1 + slot_number // 4)
-    y_pos = 260 * (slot_number % 4)
+    width = MAIN_WINDOW_WIDTH
+    height = MAIN_WINDOW_HEIGHT
+    x_pos = -MAIN_WINDOW_WIDTH * (1 + slot_number // 4)
+    y_pos = MAIN_WINDOW_HEIGHT * (slot_number % 4)
 
     return width, height, x_pos, y_pos
 
@@ -106,10 +110,11 @@ def set_windows_to_topmost():
     windows_names_list = sdh.get_all_names()
     windows_names_list.append("SERVER")
 
-    # Reverse the order of the list in order to have the secondary windows
-    # displayed  over the main window when set to "TOPMOST" (the first
-    # windows passed to SetWindowPos get "TOPMOST" priority)
     windows_names_list.reverse()
+    # We reverse the order of the list in order to have the secondary windows
+    # displayed  over the main window when set to "TOPMOST" (the first
+    # windows passed to SetWindowPos get "TOPMOST" priority). Actually, IDK.
+    # But, for now it works pretty well like that.
 
     for name in windows_names_list:
         window = win32gui.FindWindow(None, name)
@@ -182,32 +187,50 @@ def readjust_windows():
     """Look if they are free slots before the ones currently displayed. If
     there are some, move the windows to fill those earlier slots."""
 
-    # Look for free and occupied slots
+    # Look for free and occupied slots and check if the latest occupied slot
+    # comes after the earliest free slot. E.g. slot 7 is occupied while slot 3
+    # is free.
     free_slots = sdh.get_all_free_slots_ids()
     occupied_slots = sdh.get_all_occupied_slots_id()
-
-    # Check if the latest occupied slot is higher than the earliest free slot.
-    # E.g. slot 7 occupied while slot 3 is free
     occupied_slots.reverse()
     if free_slots:
         for i in range(0, len(free_slots)):
             if occupied_slots[i] > free_slots[i]:
-                names = sdh.get_full_window_names(occupied_slots[i])
-                sdh.occupy_slot(free_slots[i], names)
-                sdh.free_slot(occupied_slots[i])
+                old_slot = occupied_slots[i]
+                new_slot = free_slots[i]
+                print(f"{new_slot} is free while {old_slot} is occupied, "
+                      f"swapping")
 
-                # Once the new slot is, taken get the main window name
-                main_name = sdh.get_main_window_name(occupied_slots[i])
+                names = sdh.get_full_window_names(old_slot)
+                old_main_name = names[0]
+
                 # Remove the previous " - slot X" suffix
-                if main_name is not None:
+                new_name = ""
+                if old_main_name is not None:
                     pattern = r' - slot \d+'
-                    main_name = re.sub(pattern, "", main_name)
-                # Add the new suffix in accordance to new slot taken
-                new_main_title = f"{main_name} - slot {free_slots[i]}"
-                os.system(f"title {new_main_title}")
+                    new_name = re.sub(pattern, "", old_main_name)
+
+                # Rename the main window according to the new slot occupied
+                new_main_window_title = f"{new_name} - slot {new_slot}"
+                hwnd = win32gui.FindWindow(None, old_main_name)
+                if hwnd:
+                    win32gui.SetWindowText(hwnd, new_main_window_title)
+                    names[0] = new_main_window_title
+                    # Write the change to the database
+                    sdh.occupy_slot(new_slot, names)
+                    sdh.free_slot(old_slot)
+
+                    # Move the windows according to the new slot occupied
+                    properties = calculate_new_window_properties(new_slot)
+                    resize_and_move_window(
+                        new_main_window_title, properties, False)
+                    join_secondaries_to_main_window(new_slot, names[1:])
+                else:
+                    print(f"no window with title '{old_main_name}' found.")
+
             else:
                 print(f"slot {free_slots[i]} is free but comes later than "
-                      f"latest slot {occupied_slots[i]} occupied")
+                      f"latest occupied slot {occupied_slots[i]} ")
                 break
 
     else:
