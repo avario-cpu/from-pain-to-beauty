@@ -7,12 +7,22 @@ import time
 import pygetwindow as gw
 import os
 import slots_db_handler as sdh
+import denied_slots_db_handler as denied_sdh
 import win32gui
 import win32con
+import logging
 from enum import Enum, auto
 
 MAIN_WINDOW_WIDTH = 600
-MAIN_WINDOW_HEIGHT = 260
+MAIN_WINDOW_HEIGHT = 260  # 1040/4 = 260 (40px is for bottom Windows menu)
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename="twm_v3.log",
+    filemode="w")
+
+logger = logging.getLogger(__name__)
 
 
 class WindowType(Enum):
@@ -21,18 +31,34 @@ class WindowType(Enum):
     SERVER = auto()
 
 
-def assign_slot_and_name_window(name: str) -> (int, str):
+def assign_slot_and_name_window(window_type: WindowType,
+                                window_name: str) -> (int | None, str):
     """Assign a slot number in the database to the terminal window that just
     spawned and assign a main name to it."""
-    try:
-        slot_assigned = sdh.occupy_first_free_slot()
-        if slot_assigned is None:
-            raise ValueError
-        os.system(f"title {name}")
-        sdh.name_slot(slot_assigned, name)
-        return slot_assigned, name
-    except ValueError as e:
-        print(e)
+    if window_type == WindowType.ACCEPTED_SCRIPT:
+        try:
+            slot_assigned = sdh.occupy_first_free_slot()
+            if slot_assigned is None:
+                raise ValueError
+
+            title = window_name
+            os.system(f"title {title}")
+            sdh.name_slot(slot_assigned, title)
+            return slot_assigned, title
+        except ValueError as e:
+            print(e)
+
+    elif window_type == WindowType.DENIED_SCRIPT:
+        try:
+            slot_assigned = denied_sdh.occupy_first_free_slot()
+            if slot_assigned is None:
+                raise ValueError
+
+            title = f"{window_name} - denied ({slot_assigned})"
+            os.system(f"title {title}")
+            return slot_assigned, title
+        except ValueError as e:
+            print(e)
 
 
 def join_secondaries_to_main_window(slot: int,
@@ -57,16 +83,26 @@ def join_secondaries_to_main_window(slot: int,
             restore_resize_and_move_window(secondary_windows[i], properties)
 
 
-def calculate_new_window_properties(slot_number: int) \
-        -> tuple[int, int, int, int]:
+def calculate_new_window_properties(
+        window_type: WindowType,
+        slot_number: int) -> tuple[int, int, int, int]:
     """Calculate the size and positions for the main terminal window of the
     scripts"""
-    width = MAIN_WINDOW_WIDTH
-    height = MAIN_WINDOW_HEIGHT
-    x_pos = -MAIN_WINDOW_WIDTH * (1 + slot_number // 4)
-    y_pos = MAIN_WINDOW_HEIGHT * (slot_number % 4)
+    if window_type == WindowType.ACCEPTED_SCRIPT:
+        width = MAIN_WINDOW_WIDTH
+        height = MAIN_WINDOW_HEIGHT
+        x_pos = -width * (1 + slot_number // 4)
+        y_pos = height * (slot_number % 4)
 
-    return width, height, x_pos, y_pos
+        return width, height, x_pos, y_pos
+
+    elif window_type == WindowType.DENIED_SCRIPT:
+        width = 600
+        height = 200
+        x_pos = -1920 + width * (slot_number // 5)
+        y_pos = height * (slot_number % 5)
+
+        return width, height, x_pos, y_pos
 
 
 def restore_resize_and_move_window(
@@ -99,7 +135,7 @@ def restore_resize_and_move_window(
 
         window = gw.getWindowsWithTitle(window_title)
         if window:
-            print(f"\nWindow '{window_title}' found")
+            print(f"\nWindow '{window_title} found")
             window = window[0]
             window.restore()  # in case it was minimized, which is the habitual
             # case with the way I've set up the server as of now.
@@ -110,7 +146,7 @@ def restore_resize_and_move_window(
             break
         else:
             tries += 1
-            print(f"Window '{window_title}' not found. trying again. "
+            print(f"Window '{window_title}' not found. trying again."
                   f"Tries = {tries}", end="\r")
 
 
@@ -177,7 +213,7 @@ def adjust_window(window_type: WindowType, window_name: str,
     positions.
     :param window_type: decides, in order to adjust accordingly, which the
         recently spawned terminal window is of the following:
-        1. A denied script that will soon exit automatically. (lock file)
+        1. A denied script that will soon exit automatically.
         2. An accepted script that will give continuous feedback.
         3. The server script.
     :param window_name: name of the main window to adjust.
@@ -185,25 +221,14 @@ def adjust_window(window_type: WindowType, window_name: str,
     """
 
     if window_type == WindowType.DENIED_SCRIPT:
-        try:
-            window_title = f"{window_name} - denied"
-            os.system(f"title {window_title}")
-
-            restore_resize_and_move_window(window_title, (500, 200, -1920, 0))
-            time.sleep(1)
-
-            window = win32gui.FindWindow(None, window_title)
-            if window is not None:
-                win32gui.SetWindowPos(window, win32con.HWND_TOPMOST,
-                                      0, 0, 0, 0,
-                                      win32con.SWP_NOMOVE |
-                                      win32con.SWP_NOSIZE)
-        except Exception as e:
-            print(e)
+        slot, title = assign_slot_and_name_window(window_type, window_name)
+        properties = calculate_new_window_properties(window_type, slot)
+        restore_resize_and_move_window(title, properties)
+        return slot
 
     elif window_type == WindowType.ACCEPTED_SCRIPT:
-        slot, title = assign_slot_and_name_window(window_name)
-        properties = calculate_new_window_properties(slot)
+        slot, title = assign_slot_and_name_window(window_type, window_name)
+        properties = calculate_new_window_properties(window_type, slot)
         restore_resize_and_move_window(title, properties)
         if secondary_windows:
             sdh.insert_secondary_names(slot, secondary_windows)
@@ -246,7 +271,8 @@ def readjust_windows():
 
                 hwnd = win32gui.FindWindow(None, main_name)
                 if hwnd:
-                    properties = calculate_new_window_properties(new_slot)
+                    properties = calculate_new_window_properties(
+                        WindowType.ACCEPTED_SCRIPT, new_slot)
                     restore_resize_and_move_window(main_name, properties)
                     join_secondaries_to_main_window(new_slot, names[1:])
                 else:
@@ -261,8 +287,10 @@ def readjust_windows():
 
 
 def main():
-    slot, title = assign_slot_and_name_window("test")
-    properties = calculate_new_window_properties(slot)
+    slot, title = assign_slot_and_name_window(
+        WindowType.ACCEPTED_SCRIPT, "test")
+    properties = calculate_new_window_properties(
+        WindowType.ACCEPTED_SCRIPT, slot)
     restore_resize_and_move_window(title, properties)
     input("press enter to close and free the slot")
     close_window(slot)

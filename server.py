@@ -19,9 +19,6 @@ venv_python_path = "venv/Scripts/python.exe"
 
 def control_scanner(message):
     if message == "start scanner":
-        if os.path.exists("temp/stop.flag"):
-            os.remove("temp/stop.flag")
-
         # Open the process in a new separate cmd window: this is done to be
         # able to manipulate the position of the script's terminal with the
         # terminal window manager module.

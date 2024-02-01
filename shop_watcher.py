@@ -110,10 +110,8 @@ def scan_for_shop(ws=None):
             start_time = current_time
             cpu_usage = current_process.cpu_percent()
 
-        if not silence_print:  # to keep a clean terminal when window
-            # repositioning is made, so we can read outputs
-            print(f"SSIM: {round(match_value, 10)}\tFPS:{round(fps)}\t"
-                  f"CPU:{cpu_usage}%", end='\r')
+        print(f"SSIM: {round(match_value, 10)}\tFPS:{round(fps)}\t"
+              f"CPU:{cpu_usage}%", end='\r')
 
         # Detect, according to a threshold value, whether the shop is open.
         if match_value >= 0.8:
@@ -150,6 +148,8 @@ def scan_for_shop(ws=None):
 def start(connection_type: ConnectionType = ConnectionType.NONE):
     """Runs the main loop, either with or without using websockets"""
     ws = None
+    if os.path.exists("temp/stop.flag"):
+        os.remove("temp/stop.flag")
     try:
         if connection_type == ConnectionType.WEBSOCKET:
             ws = client.init()
