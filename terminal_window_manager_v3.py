@@ -22,28 +22,26 @@ class WindowType(Enum):
 
 
 def assign_slot_and_name_window(name: str) -> (int, str):
-    """
-    Assign a slot number in the database to the terminal window that just
-    spawned and rename it accordingly.
-    """
-    slot_assigned = sdh.occupy_first_free_slot()
-    if slot_assigned is not None:
+    """Assign a slot number in the database to the terminal window that just
+    spawned and assign a main name to it."""
+    try:
+        slot_assigned = sdh.occupy_first_free_slot()
+        if slot_assigned is None:
+            raise ValueError
         os.system(f"title {name}")
-        # Register that new name in the database
         sdh.name_slot(slot_assigned, name)
-
         return slot_assigned, name
-    else:
-        raise ValueError(f"slot assigned was {type(slot_assigned)}. "
-                         f"Could not assign to a slot.")
+    except ValueError as e:
+        print(e)
 
 
 def join_secondaries_to_main_window(slot: int,
                                     secondary_windows: list[str]):
     """
-    Adjust the positions of the secondary windows that spawn from the
-    main script, so that they fit on top of the latter.
-    :param slot: The slot attributed to the main window in the
+    Adjust the positions of the secondary terminal windows who spawn from
+    the main script, so that they can fit together on the screen.
+
+    :param slot: The slot attributed to the main terminal window in the
     database.
     :param secondary_windows: List of the secondary window names.
     """
@@ -61,6 +59,8 @@ def join_secondaries_to_main_window(slot: int,
 
 def calculate_new_window_properties(slot_number: int) \
         -> tuple[int, int, int, int]:
+    """Calculate the size and positions for the main terminal window of the
+    scripts"""
     width = MAIN_WINDOW_WIDTH
     height = MAIN_WINDOW_HEIGHT
     x_pos = -MAIN_WINDOW_WIDTH * (1 + slot_number // 4)
@@ -74,20 +74,23 @@ def restore_resize_and_move_window(
         new_properties: tuple[int, int, int, int],
         resize: bool = True,
         move: bool = True):
-    """Restore, then reposition and/or and transform a window
+    """
+    Restore, revealing it from its potential minimized state, then reposition
+    and/or and transform a window.
+
     :param window_title: name of the window
-    :param new_properties: in order: new width, new height, new_x, new_y
+    :param new_properties: in order: new_width, new_height, new_x, new_y
     :param move: do you want to reposition ?
     :param resize: do you want to resize ?
-
     """
     new_width, new_height, new_x, new_y = new_properties
 
     timeout = 3
     start_time = time.time()
 
-    # Poll for the recently renamed window: sometimes, it needs a bit of time
-    # to be found because the rename is not instantaneous
+    # Poll for the window: if it has been renamed recently it might need a
+    # bit of time to be found after the name update (done asynchronously
+    # with the os.system module).
     while True:
         if time.time() - start_time > timeout:
             print("Window Search timed out.")
@@ -97,7 +100,7 @@ def restore_resize_and_move_window(
         if window:
             window = window[0]
             window.restore()  # in case it was minimized, which is the habitual
-            # case, the way I've set up the server as of now.
+            # case with the way I've set up the server as of now.
             if resize:
                 window.resizeTo(new_width, new_height)
             if move:
@@ -106,11 +109,11 @@ def restore_resize_and_move_window(
         else:
             print(f"Window '{window_title}' not found. trying again",
                   end="\r")
-            time.sleep(0.01)  # limit the speed of the loop
 
 
 def set_windows_to_topmost():
-    """Set all the cmd windows of the running scripts to be topmost"""
+    """Set all the windows of the running scripts to be on top of the
+    screen."""
     windows_names_list = sdh.get_all_names()
     windows_names_list.append("SERVER")
 
@@ -118,7 +121,7 @@ def set_windows_to_topmost():
     # We reverse the order of the list in order to have the secondary windows
     # displayed  over the main window when set to "TOPMOST" (the first
     # windows passed to SetWindowPos get "TOPMOST" priority). Actually, IDK.
-    # But, for now it works pretty well like that.
+    # But, for now, it works pretty well like that.
 
     for name in windows_names_list:
         window = win32gui.FindWindow(None, name)
@@ -130,7 +133,7 @@ def set_windows_to_topmost():
 
 
 def unset_windows_to_topmost():
-    """Set terminal windows fore/background behavior back to normal"""
+    """Set the scripts windows fore/background behavior back to normal."""
     windows_names_list = sdh.get_all_names()
     windows_names_list.append("SERVER")
 
@@ -144,24 +147,15 @@ def unset_windows_to_topmost():
 
 
 def restore_all_windows():
+    """Show all the scripts windows who have been minimized"""
     windows_names_list = sdh.get_all_names()
     windows_names_list.append("SERVER")
 
-    timeout = 3
-    start_time = time.time()
-
-    # Restore all minimized windows
-    while True:
-        if time.time() - start_time > timeout:
-            print("Window Search timed out.")
-            break
-
-        for window in windows_names_list:
-            window = gw.getWindowsWithTitle(window)
-            if window:
-                window = window[0]
-                window.restore()  # in case it was minimized, which is the
-                # habitual case, the way I've set up the server as of now.
+    for window in windows_names_list:
+        window = gw.getWindowsWithTitle(window)
+        if window:
+            window = window[0]
+            window.restore()
 
 
 def close_window(slot):
@@ -176,11 +170,15 @@ def get_all_windows_titles():
 def adjust_window(window_type: WindowType, window_name: str,
                   secondary_windows: list[str] = None) -> int:
     """
-    Decide which the recently spawned terminal window is of the following:
-    1. A denied script that will soon exit automatically. (lock file)
-    2. An accepted script that will give continuous feedback.
-    3. The server script.
-    And adjust the terminal window accordingly.
+    Adjust the terminal window's and its potential secondary windows' sizes and
+    positions.
+    :param window_type: decides, in order to adjust accordingly, which the
+        recently spawned terminal window is of the following:
+        1. A denied script that will soon exit automatically. (lock file)
+        2. An accepted script that will give continuous feedback.
+        3. The server script.
+    :param window_name: name of the main window to adjust.
+    :param secondary_windows: list of the secondary window to adjust.
     """
 
     if window_type == WindowType.DENIED_SCRIPT:
@@ -205,10 +203,11 @@ def adjust_window(window_type: WindowType, window_name: str,
         properties = calculate_new_window_properties(slot)
         restore_resize_and_move_window(title, properties)
         if secondary_windows:
-            sdh.name_secondary_windows(slot, secondary_windows)
+            sdh.insert_secondary_names(slot, secondary_windows)
             # Note: the secondary windows positions cannot be adjusted at the
             # script launch, since they usually appear later, after some script
-            # logic has been executed.
+            # logic has been executed. We will adjust their position by
+            # calling the "join_secondaries" function later on.
         return slot
 
     elif window_type == WindowType.SERVER:
@@ -220,15 +219,15 @@ def adjust_window(window_type: WindowType, window_name: str,
 
 
 def readjust_windows():
-    """Look if they are free slots before the ones currently displayed. If
-    there are some, move the windows to fill those earlier slots."""
-
-    # Look for free and occupied slots and check if the latest occupied slot
-    # comes after the earliest free slot. E.g. slot 7 is occupied while slot 3
-    # is free.
-    free_slots = sdh.get_all_free_slots_ids()
-    occupied_slots = sdh.get_all_occupied_slots_id()
-    occupied_slots.reverse()
+    """Look if they are free slots available in the database before the ones
+    currently occupied. E.g. slot 7 is occupied while slot 3 is free. If there
+    are, shift the currently occupied slots to the earlier free ones. Then,
+    adjust the windows properties in accordance with their new designated
+    slot."""
+    free_slots = sdh.get_all_free_slots()
+    occupied_slots = sdh.get_all_occupied_slots()
+    occupied_slots.reverse()  # we want to match the highest occupied slot
+    # with the lowest free slot
     if free_slots:
         for i in range(0, len(free_slots)):
             if occupied_slots[i] > free_slots[i]:
@@ -237,19 +236,15 @@ def readjust_windows():
                 print(f"{new_slot} is free while {old_slot} is occupied, "
                       f"swapping")
 
-                names = sdh.get_full_window_names(old_slot)
+                names = sdh.get_full_names(old_slot)
                 main_name = names[0]
+                sdh.occupy_slot(new_slot, names)
+                sdh.free_slot(old_slot)
 
                 hwnd = win32gui.FindWindow(None, main_name)
                 if hwnd:
-                    # Write the change to the database
-                    sdh.occupy_slot(new_slot, names)
-                    sdh.free_slot(old_slot)
-
-                    # Move the windows according to the new slot occupied
                     properties = calculate_new_window_properties(new_slot)
-                    restore_resize_and_move_window(main_name, properties,
-                                                   False)
+                    restore_resize_and_move_window(main_name, properties,)
                     join_secondaries_to_main_window(new_slot, names[1:])
                 else:
                     print(f"no window with title '{main_name}' found.")

@@ -57,6 +57,7 @@ def recreate_table():
 
 
 def initialize_slots():
+    """populate the table with slots id and their "is_open" bool value"""
     try:
         sql = '''INSERT INTO slots (id, is_open) 
         VALUES (?, ?)'''
@@ -81,6 +82,7 @@ def check_slots():
 
 
 def occupy_slot(slot_id: int, names: list[str]):
+    """Populate and a target slot and insert a list of names"""
     try:
         conn.execute("BEGIN")
 
@@ -106,8 +108,8 @@ def occupy_slot(slot_id: int, names: list[str]):
 
 def occupy_first_free_slot() -> int | None:
     """
-    Find the first free open slot in the database and return the slot id
-    number as an integer. If there are no free slots, return None.
+    Find the first free open slot in the database, populate it and return the
+    slot id number as an integer. If there are no free slots, return None.
     """
     try:
         conn.execute("BEGIN")
@@ -123,7 +125,7 @@ def occupy_first_free_slot() -> int | None:
             print(f"Slot {slot_id} is now populated.")
             return slot_id
         else:
-            print("No free slots available.")
+            print("No free slot available.")
             conn.commit()
             return None
     except sqlite3.Error as e:
@@ -157,6 +159,7 @@ def occupy_all_free_slots():
 
 
 def name_slot(slot_id: int, name: str):
+    """Set the main name of a slot"""
     try:
         conn.execute("BEGIN")
 
@@ -174,7 +177,9 @@ def name_slot(slot_id: int, name: str):
         conn.rollback()
 
 
-def name_secondary_windows(slot_id: int, names: list[str]):
+def insert_secondary_names(slot_id: int, names: list[str]):
+    """Insert a list of secondary names which will fit on the same row as
+    the main name"""
     try:
         conn.execute("BEGIN")
         cur = conn.cursor()
@@ -195,6 +200,7 @@ def name_secondary_windows(slot_id: int, names: list[str]):
 
 
 def free_slot(slot_id: int):
+    """Depopulate a slot and removes all the names inserted into it"""
     try:
         conn.execute("BEGIN")
 
@@ -220,6 +226,8 @@ def free_slot(slot_id: int):
 
 
 def free_all_occupied_slots():
+    """Depopulate all occupied slots and removes all the names inserted into
+    them"""
     try:
         conn.execute("BEGIN")
 
@@ -246,7 +254,8 @@ def free_all_occupied_slots():
         conn.rollback()
 
 
-def get_main_window_name(slot_id: int) -> str:
+def get_main_name(slot_id: int) -> str:
+    """Get the main name of target slot"""
     cur = conn.cursor()
     cur.execute("SELECT name0 FROM slots WHERE id = ?", (slot_id,))
     row = cur.fetchone()
@@ -254,7 +263,8 @@ def get_main_window_name(slot_id: int) -> str:
     return name
 
 
-def get_full_window_names(slot_id) -> list[str]:
+def get_full_names(slot_id) -> list[str]:
+    """Get all the names attributed to a target slot"""
     try:
         cur = conn.cursor()
         names = []
@@ -271,7 +281,7 @@ def get_full_window_names(slot_id) -> list[str]:
 
 
 def get_all_names() -> list[str]:
-    """Get a list with all the named windows in the database"""
+    """Get a list with all the names in the database"""
     try:
         cur = conn.cursor()
         names = []
@@ -290,7 +300,8 @@ def get_all_names() -> list[str]:
         return []
 
 
-def get_all_occupied_slots_id() -> list[int]:
+def get_all_occupied_slots() -> list[int]:
+    """Get a list of all the occupied slots ids"""
     cur = conn.cursor()
     cur.execute("SELECT id FROM slots WHERE is_open = False")
     rows = cur.fetchall()
@@ -304,7 +315,8 @@ def get_all_occupied_slots_id() -> list[int]:
     pass
 
 
-def get_all_free_slots_ids() -> list[int]:
+def get_all_free_slots() -> list[int]:
+    """Get a list of all the free slots ids"""
     cur = conn.cursor()
     cur.execute("SELECT id FROM slots WHERE is_open = True")
     rows = cur.fetchall()
@@ -318,6 +330,8 @@ def get_all_free_slots_ids() -> list[int]:
 
 
 def free_slot_named(name):
+    """Free a slot using the main name as an identifier rather than the slot id
+    integer"""
     cur = conn.cursor()
     cur.execute("SELECT id FROM slots WHERE name0 = ?", (name,))
     row = cur.fetchone()
@@ -329,5 +343,3 @@ def testing_db():
     free_all_occupied_slots()
     for i in range(3):
         occupy_first_free_slot()
-
-

@@ -10,7 +10,9 @@ import client
 from enum import Enum, auto
 
 secondary_window = 'opencv_shop_scanner'
-secondary_windows = [secondary_window]  # used in terminal_window_manager
+secondary_windows = [secondary_window]  # used in terminal_window_manager to
+# provide a known-in-advance list of the secondary windows names that will
+# be adjusted to fit with the main script's terminal window
 
 
 class ConnectionType(Enum):
@@ -62,12 +64,11 @@ def react_to_shop_just_closed(ws):
 
 def scan_for_shop(ws=None):
     """
-    Look for an indication on the screen that the dota Shop is open,
+    Look for an indication on the screen that the Dota2 shop is open,
     and react whenever it toggles between open/closed.
 
     :param ws: websocket class object used to send requests in reaction to the
     image detection.
-    :return: None.
     """
     shop_is_currently_open = False
     template = cv.imread(

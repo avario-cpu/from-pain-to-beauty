@@ -23,7 +23,8 @@ def control_scanner(message):
             os.remove("temp/stop.flag")
 
         # Open the process in a new separate cmd window: this is done to be
-        # able to manipulate the position of the script terminal
+        # able to manipulate the position of the script's terminal with the
+        # terminal window manager module.
         subprocess.Popen(["cmd.exe", "/c", "start", "/min",
                           venv_python_path, "main.py"])
 
