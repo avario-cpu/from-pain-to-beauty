@@ -14,7 +14,7 @@ def init():
         input('enter to quit')
     except ConnectionError as e:
         print(e)
-        input('enter to quit')
+        return None
 
 
 def disconnect(ws):

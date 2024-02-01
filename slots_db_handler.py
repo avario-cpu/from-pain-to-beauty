@@ -225,6 +225,16 @@ def free_slot(slot_id: int):
         conn.rollback()
 
 
+def free_slot_named(name):
+    """Free a slot using the main name as an identifier rather than the slot id
+    integer"""
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM slots WHERE name0 = ?", (name,))
+    row = cur.fetchone()
+    if row:
+        free_slot(row[0])
+
+
 def free_all_occupied_slots():
     """Depopulate all occupied slots and removes all the names inserted into
     them"""
@@ -329,17 +339,8 @@ def get_all_free_slots() -> list[int]:
         print('No free slots found')
 
 
-def free_slot_named(name):
-    """Free a slot using the main name as an identifier rather than the slot id
-    integer"""
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM slots WHERE name0 = ?", (name,))
-    row = cur.fetchone()
-    if row:
-        free_slot(row[0])
-
-
 def testing_db():
     free_all_occupied_slots()
     for i in range(3):
         occupy_first_free_slot()
+

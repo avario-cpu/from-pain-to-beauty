@@ -42,7 +42,7 @@ def join_secondaries_to_main_window(slot: int,
     the main script, so that they can fit together on the screen.
 
     :param slot: The slot attributed to the main terminal window in the
-    database.
+        database.
     :param secondary_windows: List of the secondary window names.
     """
     for i in range(0, len(secondary_windows)):
@@ -87,17 +87,19 @@ def restore_resize_and_move_window(
 
     timeout = 3
     start_time = time.time()
+    tries = 0
 
     # Poll for the window: if it has been renamed recently it might need a
     # bit of time to be found after the name update (done asynchronously
     # with the os.system module).
     while True:
         if time.time() - start_time > timeout:
-            print("Window Search timed out.")
+            print("\nWindow Search timed out.")
             break
 
         window = gw.getWindowsWithTitle(window_title)
         if window:
+            print(f"\nWindow '{window_title}' found")
             window = window[0]
             window.restore()  # in case it was minimized, which is the habitual
             # case with the way I've set up the server as of now.
@@ -107,8 +109,9 @@ def restore_resize_and_move_window(
                 window.moveTo(new_x, new_y)
             break
         else:
-            print(f"Window '{window_title}' not found. trying again",
-                  end="\r")
+            tries += 1
+            print(f"Window '{window_title}' not found. trying again. "
+                  f"Tries = {tries}", end="\r")
 
 
 def set_windows_to_topmost():
@@ -158,7 +161,7 @@ def restore_all_windows():
             window.restore()
 
 
-def close_window(slot):
+def close_window(slot: int):
     # Free up the occupied database slot
     sdh.free_slot(slot)
 
@@ -244,7 +247,7 @@ def readjust_windows():
                 hwnd = win32gui.FindWindow(None, main_name)
                 if hwnd:
                     properties = calculate_new_window_properties(new_slot)
-                    restore_resize_and_move_window(main_name, properties,)
+                    restore_resize_and_move_window(main_name, properties)
                     join_secondaries_to_main_window(new_slot, names[1:])
                 else:
                     print(f"no window with title '{main_name}' found.")
