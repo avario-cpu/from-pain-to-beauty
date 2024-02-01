@@ -9,7 +9,7 @@ import slots_db_handler as sdh
 
 def exit_countdown():
     """Give a bit of time to read terminal exit statements"""
-    for seconds in reversed(range(1, 10)):
+    for seconds in reversed(range(1, 5)):
         print("\r" + f'cmd will close in {seconds} seconds...', end="\r")
         time.sleep(1)
     pass  # "pass" is left here for debugging purposes
@@ -21,7 +21,7 @@ def main():
     if single_instance.lock_exists():
         # Adjust the positioning of the denied script window
         twm_v3.adjust_window(twm_v3.WindowType.DENIED_SCRIPT, script_name)
-        input('enter to quit')
+        exit_countdown()
     else:
         # Adjust the positioning of the main script window
         initial_window_slot = twm_v3.adjust_window(

@@ -330,4 +330,4 @@ def testing_db():
     for i in range(3):
         occupy_first_free_slot()
 
-# free_slot_named("shop_scanner")
+

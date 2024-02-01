@@ -18,7 +18,6 @@ MAIN_WINDOW_HEIGHT = 260
 class WindowType(Enum):
     DENIED_SCRIPT = auto()
     ACCEPTED_SCRIPT = auto()
-    RUNNING_SCRIPT = auto()
     SERVER = auto()
 
 
@@ -57,7 +56,7 @@ def join_secondaries_to_main_window(slot: int,
             x_pos = (-MAIN_WINDOW_WIDTH * (1 + slot // 4)) + (3 - i) * 150
             y_pos = MAIN_WINDOW_HEIGHT * (slot % 4)
             properties = (width, height, x_pos, y_pos)
-            resize_and_move_window(secondary_windows[i], properties)
+            restore_resize_and_move_window(secondary_windows[i], properties)
 
 
 def calculate_new_window_properties(slot_number: int) \
@@ -70,14 +69,21 @@ def calculate_new_window_properties(slot_number: int) \
     return width, height, x_pos, y_pos
 
 
-def resize_and_move_window(window_title: str,
-                           new_properties: tuple[int, int, int, int],
-                           resize: bool = True,
-                           move: bool = True):
-    """ Reposition and/or and transform a window"""
+def restore_resize_and_move_window(
+        window_title: str,
+        new_properties: tuple[int, int, int, int],
+        resize: bool = True,
+        move: bool = True):
+    """Restore, then reposition and/or and transform a window
+    :param window_title: name of the window
+    :param new_properties: in order: new width, new height, new_x, new_y
+    :param move: do you want to reposition ?
+    :param resize: do you want to resize ?
+
+    """
     new_width, new_height, new_x, new_y = new_properties
 
-    timeout = 3  # time-out time for while loop
+    timeout = 3
     start_time = time.time()
 
     # Poll for the recently renamed window: sometimes, it needs a bit of time
@@ -90,7 +96,8 @@ def resize_and_move_window(window_title: str,
         window = gw.getWindowsWithTitle(window_title)
         if window:
             window = window[0]
-            window.restore()  # in case it was minimized
+            window.restore()  # in case it was minimized, which is the habitual
+            # case, the way I've set up the server as of now.
             if resize:
                 window.resizeTo(new_width, new_height)
             if move:
@@ -136,6 +143,27 @@ def unset_windows_to_topmost():
                                   win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
 
 
+def restore_all_windows():
+    windows_names_list = sdh.get_all_names()
+    windows_names_list.append("SERVER")
+
+    timeout = 3
+    start_time = time.time()
+
+    # Restore all minimized windows
+    while True:
+        if time.time() - start_time > timeout:
+            print("Window Search timed out.")
+            break
+
+        for window in windows_names_list:
+            window = gw.getWindowsWithTitle(window)
+            if window:
+                window = window[0]
+                window.restore()  # in case it was minimized, which is the
+                # habitual case, the way I've set up the server as of now.
+
+
 def close_window(slot):
     # Free up the occupied database slot
     sdh.free_slot(slot)
@@ -149,22 +177,33 @@ def adjust_window(window_type: WindowType, window_name: str,
                   secondary_windows: list[str] = None) -> int:
     """
     Decide which the recently spawned terminal window is of the following:
-
     1. A denied script that will soon exit automatically. (lock file)
     2. An accepted script that will give continuous feedback.
-    3. An already running script that needs to be repositioned.
-    4. The server script.
-
-    And adjust the terminal window accordingly
+    3. The server script.
+    And adjust the terminal window accordingly.
     """
 
     if window_type == WindowType.DENIED_SCRIPT:
-        pass
+        try:
+            window_title = f"{window_name} - denied"
+            os.system(f"title {window_title}")
+
+            restore_resize_and_move_window(window_title, (500, 200, -1920, 0))
+            time.sleep(1)
+
+            window = win32gui.FindWindow(None, window_title)
+            if window is not None:
+                win32gui.SetWindowPos(window, win32con.HWND_TOPMOST,
+                                      0, 0, 0, 0,
+                                      win32con.SWP_NOMOVE |
+                                      win32con.SWP_NOSIZE)
+        except Exception as e:
+            print(e)
 
     elif window_type == WindowType.ACCEPTED_SCRIPT:
         slot, title = assign_slot_and_name_window(window_name)
         properties = calculate_new_window_properties(slot)
-        resize_and_move_window(title, properties)
+        restore_resize_and_move_window(title, properties)
         if secondary_windows:
             sdh.name_secondary_windows(slot, secondary_windows)
             # Note: the secondary windows positions cannot be adjusted at the
@@ -209,7 +248,8 @@ def readjust_windows():
 
                     # Move the windows according to the new slot occupied
                     properties = calculate_new_window_properties(new_slot)
-                    resize_and_move_window(main_name, properties, False)
+                    restore_resize_and_move_window(main_name, properties,
+                                                   False)
                     join_secondaries_to_main_window(new_slot, names[1:])
                 else:
                     print(f"no window with title '{main_name}' found.")
@@ -225,7 +265,7 @@ def readjust_windows():
 def main():
     slot, title = assign_slot_and_name_window("test")
     properties = calculate_new_window_properties(slot)
-    resize_and_move_window(title, properties)
+    restore_resize_and_move_window(title, properties)
     input("press enter to close and free the slot")
     close_window(slot)
 

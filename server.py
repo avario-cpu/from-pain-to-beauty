@@ -53,6 +53,8 @@ def manage_windows(message):
         twm_v3.unset_windows_to_topmost()
     elif message == "readjust":
         twm_v3.readjust_windows()
+    elif message == "restore":
+        twm_v3.restore_all_windows()
         pass
 
 
@@ -103,4 +105,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
