@@ -1,13 +1,9 @@
-import os
-import time
+import asyncio
 import cv2 as cv
 import mss
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
-import client
-from enum import Enum, auto
-import threading
-import psutil
+import websockets
 import logging
 
 # Configuration
@@ -15,109 +11,58 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 SCREEN_CAPTURE_AREA = {"left": 1883, "top": 50, "width": 37, "height": 35}
 TEMPLATE_IMAGE_PATH = 'opencv/dota_shop_top_right_icon.jpg'
-STOP_FLAG_PATH = "temp/stop.flag"
-SECONDARY_WINDOW_NAMES = ['opencv_shop_scanner']
-start_event = threading.Event()
+WEBSOCKET_URL = "ws://127.0.0.1:8080/"
+SECONDARY_WINDOW_NAMES = ['opencv_shop_watcher']
 
 
-class ConnectionType(Enum):
-    WEBSOCKET = auto()
-    NONE = auto()
-
-
-def capture_window(area):
+async def capture_window(area):
     with mss.mss() as sct:
         img = sct.grab(area)
     return np.array(img)
 
 
-def compare_images(image_a, image_b):
+async def compare_images(image_a, image_b):
     return ssim(image_a, image_b)
 
 
-def setup_websocket_connection(connection_type):
-    if connection_type == ConnectionType.WEBSOCKET:
-        return client.init()
-    return None
+async def send_websocket_json_message(ws, json_file_path):
+    with open(json_file_path, 'r') as file:
+        await ws.send(file.read())
+    response = await ws.recv()
+    logging.info(f"WebSocket response: {response}")
 
 
-def cleanup_websocket_connection(ws, connection_type):
-    if connection_type == ConnectionType.WEBSOCKET and ws:
-        client.disconnect(ws)
-
-
-def scan_for_shop(ws=None):
+async def scan_for_shop_and_notify():
     shop_is_currently_open = False
     template = cv.imread(TEMPLATE_IMAGE_PATH, cv.IMREAD_GRAYSCALE)
-    frame_count, start_time = 0, time.time()
-    fps, cpu_usage = 0, 0
-    current_process = psutil.Process(os.getpid())
-    start_event.set()
+    async with websockets.connect(WEBSOCKET_URL) as ws:
+        while True:  # Replace with a more suitable condition for stopping.
+            frame = await capture_window(SCREEN_CAPTURE_AREA)
+            gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+            match_value = await compare_images(gray_frame, template)
+            cv.imshow(SECONDARY_WINDOW_NAMES[0], gray_frame)
+            if cv.waitKey(1) == ord("q"):
+                break
 
-    while not os.path.exists(STOP_FLAG_PATH):
-        frame_count += 1
-        frame = capture_window(SCREEN_CAPTURE_AREA)
-        gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-        cv.imshow(SECONDARY_WINDOW_NAMES[0], gray_frame)
+            print(f"SSIM: {match_value}", end="\r")
 
-        if cv.waitKey(1) == ord("q"):
-            break
+            if match_value >= 0.8 and not shop_is_currently_open:
+                logging.info("Shop just opened")
+                await send_websocket_json_message(
+                    ws, "streamerbot_ws_requests/hide_dslr.json")
+                shop_is_currently_open = True
 
-        match_value = compare_images(gray_frame, template)
-        elapsed_time = time.time() - start_time
-
-        if elapsed_time >= 1.0:
-            fps = frame_count / elapsed_time
-            cpu_usage = current_process.cpu_percent()
-            frame_count, start_time = 0, time.time()
-
-        print(f"SSIM:{match_value:.12f} FPS:{round(fps)} "
-              f"CPU:{cpu_usage}%", end='\r')
-
-        shop_is_currently_open = detect_shop_state(match_value,
-                                                   shop_is_currently_open, ws)
-
-    logging.info("Loop terminated")
-    cv.destroyAllWindows()
-    if os.path.exists(STOP_FLAG_PATH):
-        os.remove(STOP_FLAG_PATH)
+            elif match_value < 0.8 and shop_is_currently_open:
+                logging.info("Shop just closed")
+                await send_websocket_json_message(
+                    ws, "streamerbot_ws_requests/show_dslr.json")
+                shop_is_currently_open = False
+            await asyncio.sleep(0)
 
 
-def detect_shop_state(match_value, shop_is_currently_open, ws):
-    threshold = 0.8
-    if match_value >= threshold:
-        if not shop_is_currently_open:
-            print('\nShop just opened')
-            if ws:
-                client.request_hide_dslr(ws)
-            shop_is_currently_open = True
-    else:
-        if shop_is_currently_open:
-            print('\nShop just closed')
-            if ws:
-                client.request_show_dslr(ws)
-            shop_is_currently_open = False
-    return shop_is_currently_open
-
-
-def start(connection_type=ConnectionType.NONE):
-    if os.path.exists(STOP_FLAG_PATH):
-        os.remove(STOP_FLAG_PATH)
-    ws = setup_websocket_connection(connection_type)
-    try:
-        scan_for_shop(ws)
-    except KeyboardInterrupt:
-        logging.info("KeyboardInterrupt caught. Exiting.")
-    finally:
-        cleanup_websocket_connection(ws, connection_type)
-
-
-def main():
-    ws_mode = input("Run with websocket client? (w/any key for NO): ")
-    connection_type = ConnectionType.WEBSOCKET if ws_mode.lower() == 'w' \
-        else ConnectionType.NONE
-    start(connection_type)
+async def main():
+    await scan_for_shop_and_notify()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
