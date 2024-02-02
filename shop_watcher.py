@@ -1,172 +1,122 @@
 import os
 import time
-
 import cv2 as cv
 import mss
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
-
 import client
 from enum import Enum, auto
 import threading
 import psutil
+import logging
 
-# List all the secondary windows names that will be required for the
-# terminal_window_manager module in order to adjust their positions.
-secondary_window = 'opencv_shop_scanner'
-secondary_windows = [secondary_window]
-
+# Configuration
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+SCREEN_CAPTURE_AREA = {"left": 1883, "top": 50, "width": 37, "height": 35}
+TEMPLATE_IMAGE_PATH = 'opencv/dota_shop_top_right_icon.jpg'
+STOP_FLAG_PATH = "temp/stop.flag"
+SECONDARY_WINDOW_NAMES = ['opencv_shop_scanner']
 start_event = threading.Event()
-current_process = psutil.Process(os.getpid())
-silence_print = True
 
 
 class ConnectionType(Enum):
-    """Used to run the main loop with or without websocket usage"""
     WEBSOCKET = auto()
     NONE = auto()
 
 
-def wait():  # used to slow down the script.
-    time.sleep(0.01)
-
-
-def window_capture():
-    """Capture a specific part of the screen and returns it as a numpy
-    array."""
-    x = 1883
-    y = 50
-    w = 37
-    h = 35
-
+def capture_window(area):
     with mss.mss() as sct:
-        monitor_area = {"left": x, "top": y, "width": w, "height": h}
-        img = sct.grab(monitor_area)
-        img = np.array(img)  # necessary for openCV methods.
-    return img
+        img = sct.grab(area)
+    return np.array(img)
 
 
 def compare_images(image_a, image_b):
-    """Compute the SSIM between two images. SSIM values range between
-    -1 and 1, where "1" means perfect similarity. Works best when the images
-    compared are grayscale. """
     return ssim(image_a, image_b)
 
 
-def react_to_shop_just_opened(ws):
-    if ws:
-        client.request_hide_dslr(ws)
-    print('\nopened shop')
-    pass
+def setup_websocket_connection(connection_type):
+    if connection_type == ConnectionType.WEBSOCKET:
+        return client.init()
+    return None
 
 
-def react_to_shop_just_closed(ws):
-    if ws:
-        client.request_show_dslr(ws)
-    print('\nclosed shop')
-    wait()
-    pass
+def cleanup_websocket_connection(ws, connection_type):
+    if connection_type == ConnectionType.WEBSOCKET and ws:
+        client.disconnect(ws)
 
 
 def scan_for_shop(ws=None):
-    """
-    Look for an indication on the screen that the Dota2 shop is open,
-    and react whenever it toggles between open/closed.
-
-    :param ws: websocket :class:`ClientConnection` instance used to send
-        requests in reaction to the image detection.
-    """
     shop_is_currently_open = False
-    template = cv.imread(
-        'opencv/dota_shop_top_right_icon.jpg', cv.IMREAD_GRAYSCALE)
+    template = cv.imread(TEMPLATE_IMAGE_PATH, cv.IMREAD_GRAYSCALE)
+    frame_count, start_time = 0, time.time()
+    fps, cpu_usage = 0, 0
+    current_process = psutil.Process(os.getpid())
+    start_event.set()
 
-    frame_count = 0
-    start_time = time.time()
-    fps = 0
-    cpu_usage = 0
-
-    start_event.set()  # used to communicate to main that the loop started
-    print("started loop")
-
-    while not os.path.exists("temp/stop.flag"):
-        # Set variable used for fps counting
+    while not os.path.exists(STOP_FLAG_PATH):
         frame_count += 1
-        current_time = time.time()
-        elapsed_time = current_time - start_time
-
-        frame = window_capture()
+        frame = capture_window(SCREEN_CAPTURE_AREA)
         gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-        cv.imshow(secondary_window, gray_frame)
-
-        match_value = compare_images(gray_frame, template)
+        cv.imshow(SECONDARY_WINDOW_NAMES[0], gray_frame)
 
         if cv.waitKey(1) == ord("q"):
             break
 
-        # Calculate FPS and cpu usage, only once every second
+        match_value = compare_images(gray_frame, template)
+        elapsed_time = time.time() - start_time
+
         if elapsed_time >= 1.0:
             fps = frame_count / elapsed_time
-            frame_count = 0
-            start_time = current_time
             cpu_usage = current_process.cpu_percent()
+            frame_count, start_time = 0, time.time()
 
-        print(f"SSIM: {round(match_value, 10)}\tFPS:{round(fps)}\t"
+        print(f"SSIM:{match_value:.12f} FPS:{round(fps)} "
               f"CPU:{cpu_usage}%", end='\r')
 
-        # Detect, according to a threshold value, whether the shop is open.
-        if match_value >= 0.8:
+        shop_is_currently_open = detect_shop_state(match_value,
+                                                   shop_is_currently_open, ws)
 
-            # If the shop is detected as open...
-            if shop_is_currently_open:
-                # ... And already was at the last check: do nothing
-                wait()
-                continue
-            else:
-                # ... And was closed at the last check: react
-                shop_is_currently_open = True
-                react_to_shop_just_opened(ws)
-                wait()
-        else:
-            # If the shop is detected as closed...
-            if shop_is_currently_open:
-                # ... And was open at the last check: react
-                shop_is_currently_open = False
-                react_to_shop_just_closed(ws)
-            else:
-                # ... And was already closed at the last check: do nothing
-                wait()
-                continue
-
-        # When the loop breaks...
-    print("\nloop terminated")
+    logging.info("Loop terminated")
     cv.destroyAllWindows()
-    os.remove("temp/stop.flag")
-    if ws:
-        client.disconnect(ws)
+    if os.path.exists(STOP_FLAG_PATH):
+        os.remove(STOP_FLAG_PATH)
 
 
-def start(connection_type: ConnectionType = ConnectionType.NONE):
-    """Runs the main loop, either with or without using websockets"""
-    ws = None
-    if os.path.exists("temp/stop.flag"):
-        os.remove("temp/stop.flag")
+def detect_shop_state(match_value, shop_is_currently_open, ws):
+    threshold = 0.8
+    if match_value >= threshold:
+        if not shop_is_currently_open:
+            print('\nShop just opened')
+            if ws:
+                client.request_hide_dslr(ws)
+            shop_is_currently_open = True
+    else:
+        if shop_is_currently_open:
+            print('\nShop just closed')
+            if ws:
+                client.request_show_dslr(ws)
+            shop_is_currently_open = False
+    return shop_is_currently_open
+
+
+def start(connection_type=ConnectionType.NONE):
+    if os.path.exists(STOP_FLAG_PATH):
+        os.remove(STOP_FLAG_PATH)
+    ws = setup_websocket_connection(connection_type)
     try:
-        if connection_type == ConnectionType.WEBSOCKET:
-            ws = client.init()
         scan_for_shop(ws)
     except KeyboardInterrupt:
-        if connection_type == ConnectionType.WEBSOCKET:
-            client.disconnect(ws)
-        print("KeyboardInterrupt")
+        logging.info("KeyboardInterrupt caught. Exiting.")
+    finally:
+        cleanup_websocket_connection(ws, connection_type)
 
 
 def main():
-    # decide if you want to connect to the websocket client
-    ws_mode = input("run with websocket client ?: [w/any]")
-    if ws_mode == "w":
-        start(ConnectionType.WEBSOCKET)
-    else:
-        start()
+    ws_mode = input("Run with websocket client? (w/any key for NO): ")
+    connection_type = ConnectionType.WEBSOCKET if ws_mode.lower() == 'w' \
+        else ConnectionType.NONE
+    start(connection_type)
 
 
 if __name__ == "__main__":

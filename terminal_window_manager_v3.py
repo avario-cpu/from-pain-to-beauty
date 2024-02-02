@@ -76,7 +76,8 @@ def join_secondaries_to_main_window(slot: int,
             # Set windows to fixed size, might change in the future
             width = 100
             height = 100
-            # Position windows from right to left, on top of the main window
+            # Position the secondary windows on top of the main window, from
+            # right to left.
             x_pos = (-MAIN_WINDOW_WIDTH * (1 + slot // 4)) + (3 - i) * 150
             y_pos = MAIN_WINDOW_HEIGHT * (slot % 4)
             properties = (width, height, x_pos, y_pos)
@@ -137,8 +138,8 @@ def restore_resize_and_move_window(
         if window:
             print(f"\nWindow '{window_title} found")
             window = window[0]
-            window.restore()  # in case it was minimized, which is the habitual
-            # case with the way I've set up the server as of now.
+            window.restore()  # We start all the scripts as subprocesses
+            # minimized
             if resize:
                 window.resizeTo(new_width, new_height)
             if move:

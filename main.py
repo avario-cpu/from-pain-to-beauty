@@ -33,7 +33,7 @@ def main():
     else:
         slot = twm_v3.adjust_window(twm_v3.WindowType.ACCEPTED_SCRIPT,
                                     script_name,
-                                    shop_watcher.secondary_windows)
+                                    shop_watcher.SECONDARY_WINDOW_NAMES)
 
         single_instance.create_lock_file()
         atexit.register(single_instance.remove_lock)
@@ -48,12 +48,11 @@ def main():
         watch_thread.start()
 
         shop_watcher.start_event.wait()  # wait for the loop to start
-        twm_v3.join_secondaries_to_main_window(slot,
-                                               shop_watcher.secondary_windows)
+        twm_v3.join_secondaries_to_main_window(
+            slot, shop_watcher.SECONDARY_WINDOW_NAMES)
         watch_thread.join()
         exit_countdown()
 
 
 if __name__ == "__main__":
     main()
-
