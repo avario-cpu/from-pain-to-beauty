@@ -3,15 +3,17 @@ Module used to transform the terminal windows of running scripts so that they
 fit my screen nicely on my second monitor, in accordance with the amount of
 windows already present.
 """
-import time
-import pygetwindow as gw
-import os
-import slots_db_handler as sdh
-import denied_slots_db_handler as denied_sdh
-import win32gui
-import win32con
 import logging
+import os
+import time
 from enum import Enum, auto
+
+import pygetwindow as gw
+import win32con
+import win32gui
+
+import denied_slots_db_handler as denied_sdh
+import slots_db_handler as sdh
 
 MAIN_WINDOW_WIDTH = 600
 MAIN_WINDOW_HEIGHT = 260  # 1040/4 = 260 (40px is for bottom Windows menu)
@@ -19,7 +21,7 @@ MAIN_WINDOW_HEIGHT = 260  # 1040/4 = 260 (40px is for bottom Windows menu)
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename="twm_v3.log",
+    filename="temp/logs/twm_v3.log",
     filemode="w")
 
 logger = logging.getLogger(__name__)
@@ -131,12 +133,12 @@ def restore_resize_and_move_window(
     # with the os.system module).
     while True:
         if time.time() - start_time > timeout:
-            print("\nWindow Search timed out.")
+            print("Window Search timed out.")
             break
 
         window = gw.getWindowsWithTitle(window_title)
         if window:
-            print(f"\nWindow '{window_title} found")
+            print(f"Window '{window_title} found")
             window = window[0]
             window.restore()  # We start all the scripts as subprocesses
             # minimized
@@ -147,8 +149,10 @@ def restore_resize_and_move_window(
             break
         else:
             tries += 1
-            print(f"Window '{window_title}' not found. trying again."
-                  f"Tries = {tries}", end="\r")
+            if time.time() - start_time > 0.5 or tries == 1:
+                logging.debug(
+                    f"Window '{window_title}' not found. trying again."
+                    f"Tries = {tries}")
 
 
 def set_windows_to_topmost():

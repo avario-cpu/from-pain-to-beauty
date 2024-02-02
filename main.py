@@ -1,11 +1,14 @@
-import single_instance
-import shop_watcher
-import time
-import terminal_window_manager_v3 as twm_v3
+import asyncio
 import atexit
-import threading
-import slots_db_handler as sdh
+import time
+
 import denied_slots_db_handler as denied_sdh
+import shop_watcher
+import single_instance
+import slots_db_handler as sdh
+import terminal_window_manager_v3 as twm_v3
+
+enable_print_output = asyncio.Event()
 
 
 def exit_countdown():
@@ -16,7 +19,7 @@ def exit_countdown():
     exit()
 
 
-def main():
+async def main():
     """If there are no single instance lock file, start the Dota2 shop_watcher
      module. At launch, reposition immediately the terminal providing feedback
     regarding its execution. Shortly after, reposition the secondary window
@@ -41,18 +44,15 @@ def main():
         # Use the script's name to free the data entry rather than the slot ID
         atexit.register(sdh.free_slot_named, script_name)
 
-        # Thread the main logic to allow for simultaneous terminal positioning
-        watch_thread = threading.Thread(
-            target=shop_watcher.start,
-            args=(shop_watcher.ConnectionType.WEBSOCKET,))
-        watch_thread.start()
-
-        shop_watcher.start_event.wait()  # wait for the loop to start
+        task = asyncio.create_task(shop_watcher.main())
+        await shop_watcher.secondary_window_spawned.wait()
         twm_v3.join_secondaries_to_main_window(
             slot, shop_watcher.SECONDARY_WINDOW_NAMES)
-        watch_thread.join()
+
+        shop_watcher.mute_print.set()
+        await task
         exit_countdown()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

@@ -1,10 +1,11 @@
 import asyncio
+import logging
+
 import cv2 as cv
 import mss
 import numpy as np
-from skimage.metrics import structural_similarity as ssim
 import websockets
-import logging
+from skimage.metrics import structural_similarity as ssim
 
 # Configuration
 logging.basicConfig(level=logging.INFO,
@@ -13,6 +14,10 @@ SCREEN_CAPTURE_AREA = {"left": 1883, "top": 50, "width": 37, "height": 35}
 TEMPLATE_IMAGE_PATH = 'opencv/dota_shop_top_right_icon.jpg'
 WEBSOCKET_URL = "ws://127.0.0.1:8080/"
 SECONDARY_WINDOW_NAMES = ['opencv_shop_watcher']
+
+secondary_window_spawned = asyncio.Event()
+mute_print = asyncio.Event()
+stop_event_loop = asyncio.Event()
 
 
 async def capture_window(area):
@@ -36,15 +41,18 @@ async def scan_for_shop_and_notify():
     shop_is_currently_open = False
     template = cv.imread(TEMPLATE_IMAGE_PATH, cv.IMREAD_GRAYSCALE)
     async with websockets.connect(WEBSOCKET_URL) as ws:
-        while True:  # Replace with a more suitable condition for stopping.
+        while not stop_event_loop:
             frame = await capture_window(SCREEN_CAPTURE_AREA)
             gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
             match_value = await compare_images(gray_frame, template)
+
             cv.imshow(SECONDARY_WINDOW_NAMES[0], gray_frame)
+            secondary_window_spawned.set()
             if cv.waitKey(1) == ord("q"):
                 break
 
-            print(f"SSIM: {match_value}", end="\r")
+            if not mute_print:
+                print(f"SSIM: {match_value}", end="\r")
 
             if match_value >= 0.8 and not shop_is_currently_open:
                 logging.info("Shop just opened")
@@ -65,4 +73,8 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt")
+        cv.destroyAllWindows()

@@ -6,10 +6,11 @@ about later.
 """
 
 import asyncio
+import os
+import subprocess
+
 import websockets
 from websockets import WebSocketServerProtocol
-import subprocess
-import os
 
 import slots_db_handler
 import terminal_window_manager_v3 as twm_v3
