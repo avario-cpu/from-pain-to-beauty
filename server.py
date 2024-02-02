@@ -14,30 +14,39 @@ from websockets import WebSocketServerProtocol
 
 import slots_db_handler
 import terminal_window_manager_v3 as twm_v3
+import re
 
 venv_python_path = "venv/Scripts/python.exe"
+subprocesses = {}
 
 
-def control_scanner(message):
-    if message == "start scanner":
+def control_shop_watcher(message):
+    if message == "start shop_watcher":
         # Open the process in a new separate cmd window: this is done to be
         # able to manipulate the position of the script's terminal with the
         # terminal window manager module.
-        subprocess.Popen(["cmd.exe", "/c", "start", "/min",
-                          venv_python_path, "main.py"])
+        p = subprocess.Popen([
+            "cmd.exe", "/c", "start", "/min", venv_python_path, "main.py"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True)
 
-    elif message == "stop scanner":
+        initial_output = p.stdout.readline().strip()
+        print(f"Subprocess says: {initial_output}")
+
+    elif message == "stop shop_watcher":
         with open("temp/stop.flag", "w") as f:
             pass
 
-    elif message == "remove scanner lock":
+    elif message == "remove shop_watcher lock":
         if os.path.exists("temp/myapp.lock"):
             os.remove("temp/myapp.lock")
 
 
 def operate_launcher(message):
-    if message in ["start scanner", "stop scanner", "remove scanner lock"]:
-        control_scanner(message)
+    msg = re.search("shop_watcher", message)
+    if msg is not None:
+        control_shop_watcher(message)
     else:
         print('Not a suitable launcher path message')
 

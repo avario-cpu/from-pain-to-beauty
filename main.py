@@ -9,6 +9,7 @@ import slots_db_handler as sdh
 import terminal_window_manager_v3 as twm_v3
 
 enable_print_output = asyncio.Event()
+print("hi")
 
 
 def exit_countdown():

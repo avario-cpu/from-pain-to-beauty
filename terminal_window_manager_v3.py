@@ -248,7 +248,8 @@ def adjust_window(window_type: WindowType, window_name: str,
         # in fact, named "SERVER"
         time.sleep(0.2)  # give time to windows for renaming the cmd
         server_window = win32gui.FindWindow(None, "SERVER")
-        win32gui.SetWindowPos(server_window, None, -1920, 640, 700, 400, 0)
+        if server_window:
+            win32gui.SetWindowPos(server_window, None, -1920, 640, 700, 400, 0)
 
 
 def readjust_windows():

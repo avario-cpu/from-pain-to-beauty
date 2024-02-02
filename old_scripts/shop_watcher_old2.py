@@ -4,7 +4,7 @@ import cv2 as cv
 import mss
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
-import client
+from old_scripts import client
 from enum import Enum, auto
 import threading
 import psutil

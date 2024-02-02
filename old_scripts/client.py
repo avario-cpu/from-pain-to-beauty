@@ -31,7 +31,7 @@ def disconnect(ws):
 
 def get_actions(ws):
     """Gets a list of all my Streamerbot actions."""
-    actions_file_path = "streamerbot_ws_requests/get_actions.json"
+    actions_file_path = "../streamerbot_ws_requests/get_actions.json"
     try:
         print("getting actions list...")
         with open(actions_file_path, 'r') as file:
@@ -59,11 +59,11 @@ def send_request(ws, json_file_path):
 
 
 def request_show_dslr(ws):
-    send_request(ws, "streamerbot_ws_requests/show_dslr.json")
+    send_request(ws, "../streamerbot_ws_requests/show_dslr.json")
 
 
 def request_hide_dslr(ws):
-    send_request(ws, "streamerbot_ws_requests/hide_dslr.json")
+    send_request(ws, "../streamerbot_ws_requests/hide_dslr.json")
 
 
 def main():
