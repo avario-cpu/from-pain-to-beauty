@@ -18,13 +18,9 @@ import slots_db_handler as sdh
 MAIN_WINDOW_WIDTH = 600
 MAIN_WINDOW_HEIGHT = 260  # 1040/4 = 260 (40px is for bottom Windows menu)
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename="temp/logs/twm_v3.log",
-    filemode="w")
-
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    filename="temp/logs/twm_v3.log")
 
 
 class WindowType(Enum):
@@ -63,8 +59,7 @@ def assign_slot_and_name_window(window_type: WindowType,
             print(e)
 
 
-def join_secondaries_to_main_window(slot: int,
-                                    secondary_windows: list[str]):
+def adjust_secondary_windows(slot: int, secondary_windows: list[str]):
     """
     Adjust the positions of the secondary terminal windows who spawn from
     the main script, so that they can fit together on the screen.
@@ -96,7 +91,6 @@ def calculate_new_window_properties(
         height = MAIN_WINDOW_HEIGHT
         x_pos = -width * (1 + slot_number // 4)
         y_pos = height * (slot_number % 4)
-
         return width, height, x_pos, y_pos
 
     elif window_type == WindowType.DENIED_SCRIPT:
@@ -104,7 +98,6 @@ def calculate_new_window_properties(
         height = 200
         x_pos = -1920 + width * (slot_number // 5)
         y_pos = height * (slot_number % 5)
-
         return width, height, x_pos, y_pos
 
 
@@ -215,7 +208,8 @@ def adjust_window(window_type: WindowType, window_name: str,
                   secondary_windows: list[str] = None) -> int:
     """
     Adjust the terminal window's and its potential secondary windows' sizes and
-    positions.
+    positions in relation to a slot number obtained from a database file, which
+    the windows get assigned to, to represent their place on the screen.
     :param window_type: decides, in order to adjust accordingly, which the
         recently spawned terminal window is of the following:
         1. A denied script that will soon exit automatically.
@@ -223,6 +217,7 @@ def adjust_window(window_type: WindowType, window_name: str,
         3. The server script.
     :param window_name: name of the main window to adjust.
     :param secondary_windows: list of the secondary window to adjust.
+    :return: the slot assigned to the window in the database
     """
 
     if window_type == WindowType.DENIED_SCRIPT:
@@ -280,7 +275,7 @@ def readjust_windows():
                     properties = calculate_new_window_properties(
                         WindowType.ACCEPTED_SCRIPT, new_slot)
                     restore_resize_and_move_window(main_name, properties)
-                    join_secondaries_to_main_window(new_slot, names[1:])
+                    adjust_secondary_windows(new_slot, names[1:])
                 else:
                     print(f"no window with title '{main_name}' found.")
 

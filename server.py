@@ -7,6 +7,7 @@ about later.
 
 import asyncio
 import os
+import re
 import subprocess
 
 import websockets
@@ -14,39 +15,32 @@ from websockets import WebSocketServerProtocol
 
 import slots_db_handler
 import terminal_window_manager_v3 as twm_v3
-import re
 
 venv_python_path = "venv/Scripts/python.exe"
-subprocesses = {}
 
 
-def control_shop_watcher(message):
+async def control_shop_watcher(message):
     if message == "start shop_watcher":
         # Open the process in a new separate cmd window: this is done to be
         # able to manipulate the position of the script's terminal with the
         # terminal window manager module.
-        p = subprocess.Popen([
-            "cmd.exe", "/c", "start", "/min", venv_python_path, "main.py"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True)
-
-        initial_output = p.stdout.readline().strip()
-        print(f"Subprocess says: {initial_output}")
+        subprocess.Popen([
+            "cmd.exe", "/c", "start", "/min", venv_python_path, "main.py"])
 
     elif message == "stop shop_watcher":
         with open("temp/stop.flag", "w") as f:
             pass
+        await send_message_to_socket_server("Stop Subprocess")
 
     elif message == "remove shop_watcher lock":
         if os.path.exists("temp/myapp.lock"):
             os.remove("temp/myapp.lock")
 
 
-def operate_launcher(message):
+async def operate_launcher(message):
     msg = re.search("shop_watcher", message)
     if msg is not None:
-        control_shop_watcher(message)
+        await control_shop_watcher(message)
     else:
         print('Not a suitable launcher path message')
 
@@ -71,14 +65,12 @@ def manage_database(message):
         slots_db_handler.free_all_occupied_slots()
 
 
-async def handler(websocket: WebSocketServerProtocol, path: str):
-    print(f"\nConnection established on path: {path}")
-
+async def websocket_handler(websocket: WebSocketServerProtocol, path: str):
     async for message in websocket:
-        print(f"Received: message '{message}' on path: {path}")
+        print(f"WS: Received: message '{message}' on path: {path}")
 
         if path == "/launcher":  # Path to start and end scripts
-            operate_launcher(message)
+            await operate_launcher(message)
 
         elif path == "/windows":  # Path to manipulate windows properties
             manage_windows(message)
@@ -94,22 +86,37 @@ async def handler(websocket: WebSocketServerProtocol, path: str):
             print(f"Unknown path: {path}.")
 
 
-def main():
-    print("Welcome to the server, bro. You know what to do.")
+async def send_message_to_socket_server(message, host='localhost', port=9999):
+    reader, writer = await asyncio.open_connection(host, port)
+    print(f'Sending: {message}')
+    writer.write(message.encode('utf-8'))
 
+    # Wait for the server to process the message and send a response
+    data = await reader.read(1024)
+    print(f'Received: {data.decode("utf-8")}')
+
+    print('Closing the connection')
+    writer.close()
+    await writer.wait_closed()
+
+
+async def main():
+    print("Welcome to the server, bro. You know what to do.")
     if not os.path.exists("temp"):
         os.makedirs("temp")
 
-    start_server = websockets.serve(handler, "localhost", 8765)
-
     twm_v3.adjust_window(twm_v3.WindowType.SERVER, 'SERVER')
+    websocket_server = await websockets.serve(websocket_handler, "localhost",
+                                              8888)
 
     try:
-        asyncio.get_event_loop().run_until_complete(start_server)
-        asyncio.get_event_loop().run_forever()
+        await asyncio.Future()
     except KeyboardInterrupt:
         print('KeyboardInterrupt')
+    finally:
+        websocket_server.close()
+        await websocket_server.wait_closed()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
