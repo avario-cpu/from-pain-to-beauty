@@ -8,8 +8,6 @@ import single_instance
 import slots_db_handler as sdh
 import terminal_window_manager_v3 as twm_v3
 
-enable_print_output = asyncio.Event()
-
 
 def exit_countdown():
     """Give a bit of time to read terminal exit statements"""
@@ -28,12 +26,12 @@ async def main():
     script_name = "dota2_shop_watcher"
 
     if single_instance.lock_exists():
-        slot = twm_v3.adjust_window(twm_v3.WindowType.DENIED_SCRIPT,
+        slot = twm_v3.handle_window(twm_v3.WindowType.DENIED_SCRIPT,
                                     script_name)
         atexit.register(denied_sdh.free_slot, slot)
         print("\n>>> Lock file is present: exiting... <<<")
     else:
-        slot = twm_v3.adjust_window(twm_v3.WindowType.ACCEPTED_SCRIPT,
+        slot = twm_v3.handle_window(twm_v3.WindowType.ACCEPTED_SCRIPT,
                                     script_name,
                                     shop_watcher.SECONDARY_WINDOW_NAMES)
 
@@ -41,16 +39,16 @@ async def main():
         atexit.register(single_instance.remove_lock)
         atexit.register(sdh.free_slot_named, script_name)
 
-        shop_watcher.mute_print_feedback.set()
+        shop_watcher.mute_main_loop_print_feedback.set()
         task = asyncio.create_task(shop_watcher.main())
-        await shop_watcher.secondary_window_spawned.wait()
+        await shop_watcher.secondary_windows_have_spawned.wait()
         twm_v3.adjust_secondary_windows(slot,
                                         shop_watcher.SECONDARY_WINDOW_NAMES)
 
-        shop_watcher.mute_print_feedback.clear()
+        shop_watcher.mute_main_loop_print_feedback.clear()
         await task
 
 
 if __name__ == "__main__":
     asyncio.run(main())
-    exit_countdown()
+    input('enter to q')

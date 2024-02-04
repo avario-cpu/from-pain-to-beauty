@@ -18,9 +18,11 @@ import slots_db_handler as sdh
 MAIN_WINDOW_WIDTH = 600
 MAIN_WINDOW_HEIGHT = 260  # 1040/4 = 260 (40px is for bottom Windows menu)
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(message)s',
-                    filename="temp/logs/twm_v3.log")
+
+# def configure_logger():
+#     logging.basicConfig(level=logging.DEBUG,
+#                         format='%(asctime)s - %(levelname)s - %(message)s',
+#                         filename="temp/logs/twm_v3.log")
 
 
 class WindowType(Enum):
@@ -119,6 +121,7 @@ def restore_resize_and_move_window(
 
     timeout = 3
     start_time = time.time()
+    start_time_2 = time.time()
     tries = 0
 
     # Poll for the window: if it has been renamed recently it might need a
@@ -126,7 +129,7 @@ def restore_resize_and_move_window(
     # with the os.system module).
     while True:
         if time.time() - start_time > timeout:
-            print("Window Search timed out.")
+            print(f"Window Search for '{window_title}' timed out.")
             break
 
         window = gw.getWindowsWithTitle(window_title)
@@ -142,10 +145,11 @@ def restore_resize_and_move_window(
             break
         else:
             tries += 1
-            if time.time() - start_time > 0.5 or tries == 1:
+            if time.time() - start_time_2 > 0.5 or tries == 1:
+                start_time_2 = time.time()
                 logging.debug(
-                    f"Window '{window_title}' not found. trying again."
-                    f"Tries = {tries}")
+                    f"Window '{window_title}' not found. trying again..."
+                    f" tries = {tries}")
 
 
 def set_windows_to_topmost():
@@ -204,12 +208,13 @@ def get_all_windows_titles():
     print(gw.getAllTitles())
 
 
-def adjust_window(window_type: WindowType, window_name: str,
+def handle_window(window_type: WindowType, window_name: str,
                   secondary_windows: list[str] = None) -> int:
     """
-    Adjust the terminal window's and its potential secondary windows' sizes and
-    positions in relation to a slot number obtained from a database file, which
-    the windows get assigned to, to represent their place on the screen.
+    Assign a slot in a database to the window that just spawned and to the
+    list of secondary windows that might accompany it. Then, according to
+    the slot they were assigned to, calculate new properties to resize and
+    move them to a particular place on the screen.
     :param window_type: decides, in order to adjust accordingly, which the
         recently spawned terminal window is of the following:
         1. A denied script that will soon exit automatically.
@@ -234,8 +239,7 @@ def adjust_window(window_type: WindowType, window_name: str,
             sdh.insert_secondary_names(slot, secondary_windows)
             # Note: the secondary windows positions cannot be adjusted at the
             # script launch, since they usually appear later, after some script
-            # logic has been executed. We will adjust their position by
-            # calling the "join_secondaries" function later on.
+            # logic has been executed. We must adjust their position later on.
         return slot
 
     elif window_type == WindowType.SERVER:
@@ -298,4 +302,5 @@ def main():
 
 
 if __name__ == '__main__':
+    logging.info("START")
     readjust_windows()

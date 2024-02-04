@@ -12,6 +12,7 @@ import subprocess
 
 import websockets
 from websockets import WebSocketServerProtocol
+import constants
 
 import slots_db_handler
 import terminal_window_manager_v3 as twm_v3
@@ -25,12 +26,11 @@ async def control_shop_watcher(message):
         # able to manipulate the position of the script's terminal with the
         # terminal window manager module.
         subprocess.Popen([
-            "cmd.exe", "/c", "start", "/min", venv_python_path, "main.py"])
+            "cmd.exe", "/c", "start", "/min", venv_python_path,
+            "shop_watcher.py"])
 
     elif message == "stop shop_watcher":
-        with open("temp/stop.flag", "w") as f:
-            pass
-        await send_message_to_socket_server("Stop Subprocess")
+        await send_message_to_socket_server(constants.STOP_SUBPROCESS_MESSAGE)
 
     elif message == "remove shop_watcher lock":
         if os.path.exists("temp/myapp.lock"):
@@ -67,7 +67,7 @@ def manage_database(message):
 
 async def websocket_handler(websocket: WebSocketServerProtocol, path: str):
     async for message in websocket:
-        print(f"WS: Received: message '{message}' on path: {path}")
+        print(f"WS Received: '{message}' on path: {path}")
 
         if path == "/launcher":  # Path to start and end scripts
             await operate_launcher(message)
@@ -87,13 +87,13 @@ async def websocket_handler(websocket: WebSocketServerProtocol, path: str):
 
 
 async def send_message_to_socket_server(message, host='localhost', port=9999):
+    """Client function to send messages to subprocesses servers"""
     reader, writer = await asyncio.open_connection(host, port)
-    print(f'Sending: {message}')
-    writer.write(message.encode('utf-8'))
 
-    # Wait for the server to process the message and send a response
+    writer.write(message.encode('utf-8'))
+    print(f'SOCK Sent: {message}')
     data = await reader.read(1024)
-    print(f'Received: {data.decode("utf-8")}')
+    print(f'SOCK Received: {data.decode("utf-8")}')
 
     print('Closing the connection')
     writer.close()
@@ -103,12 +103,11 @@ async def send_message_to_socket_server(message, host='localhost', port=9999):
 async def main():
     print("Welcome to the server, bro. You know what to do.")
     if not os.path.exists("temp"):
-        os.makedirs("temp")
+        os.makedirs("temp")  # just in case git remove the dir
 
-    twm_v3.adjust_window(twm_v3.WindowType.SERVER, 'SERVER')
+    twm_v3.handle_window(twm_v3.WindowType.SERVER, 'SERVER')
     websocket_server = await websockets.serve(websocket_handler, "localhost",
                                               8888)
-
     try:
         await asyncio.Future()
     except KeyboardInterrupt:
