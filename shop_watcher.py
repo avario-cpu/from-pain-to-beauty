@@ -16,6 +16,14 @@ import slots_db_handler as sdh
 import terminal_window_manager_v3 as twm_v3
 import constants
 
+
+class SecondaryWindow:
+    def __init__(self, name, width, height):
+        self.name = name
+        self.width = width
+        self.height = height
+
+
 # Configuration
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -25,8 +33,8 @@ logging.basicConfig(level=logging.DEBUG,
 SCREEN_CAPTURE_AREA = {"left": 1883, "top": 50, "width": 37, "height": 35}
 TEMPLATE_IMAGE_PATH = 'opencv/dota_shop_top_right_icon.jpg'
 WEBSOCKET_URL = "ws://127.0.0.1:8080/"
-SECONDARY_WINDOW_NAMES = ['opencv_shop_watcher']
 SCRIPT_NAME = "dota2_shop_watcher"
+SECONDARY_WINDOWS = [SecondaryWindow("opencv_shop_scanner", 100, 100)]
 
 secondary_windows_have_spawned = asyncio.Event()
 mute_main_loop_print_feedback = asyncio.Event()
@@ -109,7 +117,7 @@ async def scan_for_shop_and_notify(ws):
         frame = await capture_window(SCREEN_CAPTURE_AREA)
         gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
         match_value = await compare_images(gray_frame, template)
-        cv.imshow(SECONDARY_WINDOW_NAMES[0], gray_frame)
+        cv.imshow(SECONDARY_WINDOWS[0].name, gray_frame)
         secondary_windows_have_spawned.set()
 
         if cv.waitKey(1) == ord("q"):

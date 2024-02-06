@@ -23,9 +23,17 @@ def create_table():
                             is_open BOOLEAN NOT NULL,
                             name0 TEXT,
                             name1 TEXT,
+                            width1 INT,
+                            height1 INT,
                             name2 TEXT,
+                            width2 INT,
+                            height2 INT,
                             name3 TEXT,
-                            name4 TEXT
+                            width3 INT,
+                            height3 INT,
+                            name4 TEXT,
+                            width4 INT,
+                            height4 INT,
                        );''')
     except sqlite3.Error as e:
         print(e)
@@ -158,7 +166,7 @@ def occupy_all_free_slots():
         conn.rollback()
 
 
-def name_slot(slot_id: int, name: str):
+def set_slot_main_name(slot_id: int, name: str):
     """Set the main name of a slot"""
     try:
         conn.execute("BEGIN")
@@ -177,7 +185,7 @@ def name_slot(slot_id: int, name: str):
         conn.rollback()
 
 
-def insert_secondary_names(slot_id: int, names: list[str]):
+def set_slot_secondary_names(slot_id: int, names: list[str]):
     """Insert a list of secondary names which will fit on the same row as
     the main name"""
     try:
@@ -291,7 +299,8 @@ def get_full_names(slot_id) -> list[str]:
 
 
 def get_all_names() -> list[str]:
-    """Get a list with all the names in the database"""
+    """Get a list of all the names, main and secondary, in the entire
+    database"""
     try:
         cur = conn.cursor()
         names = []

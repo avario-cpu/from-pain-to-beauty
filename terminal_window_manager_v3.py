@@ -43,7 +43,7 @@ def assign_slot_and_name_window(window_type: WindowType,
 
             title = window_name
             os.system(f"title {title}")
-            sdh.name_slot(slot_assigned, title)
+            sdh.set_slot_main_name(slot_assigned, title)
             return slot_assigned, title
         except ValueError as e:
             print(e)
@@ -236,7 +236,7 @@ def handle_window(window_type: WindowType, window_name: str,
         properties = calculate_new_window_properties(window_type, slot)
         restore_resize_and_move_window(title, properties)
         if secondary_windows:
-            sdh.insert_secondary_names(slot, secondary_windows)
+            sdh.set_slot_secondary_names(slot, secondary_windows)
             # Note: the secondary windows positions cannot be adjusted at the
             # script launch, since they usually appear later, after some script
             # logic has been executed. We must adjust their position later on.
