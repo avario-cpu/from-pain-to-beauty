@@ -13,30 +13,25 @@ def create_connection(db_file):
 
 database = "slots.db"
 conn = create_connection(database)
+AMOUNT_OF_SLOTS = 8
+AMOUNT_OF_WINDOWS = 5  # main counts for 1, then secondaries
 
 
 def create_table():
     try:
         cur = conn.cursor()
-        cur.execute('''CREATE TABLE IF NOT EXISTS slots (
+        fields = ', '.join(f"name{i} TEXT, width{i} INT, height{i} INT"
+                           for i in range(AMOUNT_OF_WINDOWS))
+
+        sql = f'''CREATE TABLE IF NOT EXISTS slots (
                             id INTEGER PRIMARY KEY,
                             is_open BOOLEAN NOT NULL,
-                            name0 TEXT,
-                            name1 TEXT,
-                            width1 INT,
-                            height1 INT,
-                            name2 TEXT,
-                            width2 INT,
-                            height2 INT,
-                            name3 TEXT,
-                            width3 INT,
-                            height3 INT,
-                            name4 TEXT,
-                            width4 INT,
-                            height4 INT,
-                       );''')
+                            {fields}
+                            )'''
+
+        cur.execute(sql)
     except sqlite3.Error as e:
-        print(e)
+        print(f"SQLite error: {e}")
 
 
 def delete_table():
@@ -52,85 +47,56 @@ def delete_table():
         conn.rollback()
 
 
-def recreate_table():
-    if conn is not None:
-        delete_table()
-        create_table()
-        initialize_slots()
-        check_slots()
-    else:
-        print("Error! Cannot create the database connection.")
-    if conn:
-        conn.close()
-
-
 def initialize_slots():
     """populate the table with slots id and their "is_open" bool value"""
     try:
         sql = '''INSERT INTO slots (id, is_open) 
         VALUES (?, ?)'''
-        for i in range(0, 8):
+        for i in range(0, AMOUNT_OF_SLOTS):
             conn.execute(sql, (i, True))
         conn.commit()
     except sqlite3.Error as e:
         print(e)
 
 
-def check_slots():
-    """ Check which slots are open and which are not """
+def occupy_slot_with_data(slot_id: int, data: list[tuple] = None):
+    """Populate a target slot and insert window properties"""
     try:
-        cur = conn.cursor()
-        cur.execute("SELECT id, is_open FROM slots")
-        rows = cur.fetchall()
-        for row in rows:
-            print(f"Slot {row[0]} is {'open' if row[1] else 'not open'}")
-        conn.commit()
-    except sqlite3.Error as e:
-        print(e)
-
-
-def occupy_slot(slot_id: int, names: list[str]):
-    """Populate and a target slot and insert a list of names"""
-    try:
-        conn.execute("BEGIN")
 
         cur = conn.cursor()
         cur.execute("SELECT is_open FROM slots WHERE id = ?", (slot_id,))
         row = cur.fetchone()
 
-        if row:
+        if row and row[0]:
             cur.execute("UPDATE slots SET is_open = False WHERE id = ?",
                         (slot_id,))
-            for i in range(0, len(names)):
-                name = "name" + str(i)
-                cur.execute(f"UPDATE slots SET {name} = ? WHERE id = ?",
-                            (names[i], slot_id,))
+            if data is not None:
+                for i in range(0, len(data)):
+                    name, width, height = data[i]
+                    cur.execute(
+                        f"UPDATE slots SET name{i}= ?, width{i}=?, "
+                        f"height{i}=? WHERE id = ?",
+                        (name, width, height, slot_id,))
             conn.commit()
             print(f"Slot {slot_id} is now occupied.")
         else:
-            print(f"Slot {slot_id} not found")
+            print(f"Slot {slot_id} is already occupied or does not exist")
     except sqlite3.Error as e:
         print(e)
         conn.rollback()
 
 
-def occupy_first_free_slot() -> int | None:
-    """
-    Find the first free open slot in the database, populate it and return the
-    slot id number as an integer. If there are no free slots, return None.
-    """
+def get_first_free_slot() -> int | None:
+    """Populate the first free open slot in the database and return it"""
     try:
-        conn.execute("BEGIN")
         cur = conn.cursor()
         cur.execute("SELECT id FROM slots WHERE is_open = True LIMIT 1")
         row = cur.fetchone()
 
         if row:
             slot_id = row[0]
-            cur.execute("UPDATE slots SET is_open = False WHERE id = ?",
-                        (slot_id,))
             conn.commit()
-            print(f"Slot {slot_id} is now populated.")
+            print(f"Slot {slot_id} is the first available")
             return slot_id
         else:
             print("No free slot available.")
@@ -141,36 +107,9 @@ def occupy_first_free_slot() -> int | None:
         conn.rollback()
 
 
-def occupy_all_free_slots():
-    """Used only for debugging"""
-    try:
-        conn.execute("BEGIN")
-
-        # Fetch all free slots
-        cur = conn.cursor()
-        cur.execute("SELECT id FROM slots WHERE is_open = True")
-        rows = cur.fetchall()
-
-        if rows:
-            for row in rows:
-                slot_id = row[0]
-                # Update the status of the identified slot to 'closed'
-                cur.execute("UPDATE slots SET is_open = False WHERE id = ?",
-                            (slot_id,))
-                print(f"Slot {slot_id} is now occupied.")
-            conn.commit()
-        else:
-            print("No free slots found.")
-    except sqlite3.Error as e:
-        print(e)
-        conn.rollback()
-
-
 def set_slot_main_name(slot_id: int, name: str):
     """Set the main name of a slot"""
     try:
-        conn.execute("BEGIN")
-
         cur = conn.cursor()
         cur.execute("SELECT name0 FROM slots WHERE id = ?", (slot_id,))
         row = cur.fetchone()
@@ -185,32 +124,9 @@ def set_slot_main_name(slot_id: int, name: str):
         conn.rollback()
 
 
-def set_slot_secondary_names(slot_id: int, names: list[str]):
-    """Insert a list of secondary names which will fit on the same row as
-    the main name"""
-    try:
-        conn.execute("BEGIN")
-        cur = conn.cursor()
-
-        for i in range(0, len(names)):
-            name = "name" + str(i + 1)
-            cur.execute(f"SELECT {name} FROM slots WHERE id = ?", (slot_id,))
-            row = cur.fetchone()
-            if row:
-                cur.execute(f"UPDATE slots SET {name} = ? WHERE id = ?",
-                            (names[i], slot_id))
-        conn.commit()
-
-    except sqlite3.Error as e:
-        print(e)
-        conn.rollback()
-    pass
-
-
 def free_slot(slot_id: int):
-    """Depopulate a slot and removes all the names inserted into it"""
+    """Depopulate a slot and removes all the data inserted into it"""
     try:
-        conn.execute("BEGIN")
 
         cur = conn.cursor()
         cur.execute("SELECT is_open FROM slots WHERE id = ?", (slot_id,))
@@ -220,10 +136,11 @@ def free_slot(slot_id: int):
             cur.execute("UPDATE slots SET is_open = True WHERE id = ?",
                         (slot_id,))
             # Set the names of the slot back to null
-            for i in range(0, 5):
-                name = "name" + str(i)
-                cur.execute(f"UPDATE slots SET {name} = null WHERE id = ?",
-                            (slot_id,))
+            for i in range(AMOUNT_OF_WINDOWS):
+                cur.execute(
+                    f"UPDATE slots SET name{i}= ?, width{i}=?, height{i}=?"
+                    f"WHERE id =? ",
+                    (None, None, None, slot_id,))
             conn.commit()
             print(f"Slot {slot_id} is now free.")
         else:
@@ -243,59 +160,41 @@ def free_slot_named(name):
         free_slot(row[0])
 
 
-def free_all_occupied_slots():
-    """Depopulate all occupied slots and removes all the names inserted into
-    them"""
+def free_all_slots():
+    """Free all slots and remove all their data"""
     try:
-        conn.execute("BEGIN")
-
-        # Fetch all occupied slots
         cur = conn.cursor()
-        cur.execute("SELECT id FROM slots WHERE is_open = False")
-        rows = cur.fetchall()
+        cur.execute(f"UPDATE slots SET is_open = True")
 
-        if rows:
-            for row in rows:
-                slot_id = row[0]
-                cur.execute(
-                    "UPDATE slots SET is_open = True WHERE id = ?",
-                    (slot_id,))
-                # Set the names of the slot back to null
-                for i in range(0, 5):
-                    name = "name" + str(i)
-                    cur.execute(f"UPDATE slots SET {name} = null WHERE id = ?",
-                                (slot_id,))
-                conn.commit()
-                print(f"Slot {slot_id} is now free.")
+        for i in range(AMOUNT_OF_WINDOWS):
+            cur.execute(
+                f"UPDATE slots SET name{i}= ?, width{i}=?, height{i}=?",
+                (None, None, None,))
+
+        conn.commit()
+
     except sqlite3.Error as e:
         print(e)
         conn.rollback()
 
 
-def get_main_name(slot_id: int) -> str:
-    """Get the main name of target slot"""
-    cur = conn.cursor()
-    cur.execute("SELECT name0 FROM slots WHERE id = ?", (slot_id,))
-    row = cur.fetchone()
-    name = row[0]
-    return name
-
-
-def get_full_names(slot_id) -> list[str]:
-    """Get all the names attributed to a target slot"""
+def get_full_data(slot_id) -> list[str]:
+    """Get all the data from a row (window name and size, excludes is_open)"""
     try:
         cur = conn.cursor()
-        names = []
-        cur.execute("SELECT name0, name1, name2, name3, name4 FROM slots "
-                    "WHERE id = ? ", (slot_id,))
-        rows = cur.fetchone()
-        for row in rows:
-            names.append(row)
-        return names
+
+        fields = ', '.join([f"name{i}, width{i}, height{i}"
+                            for i in range(AMOUNT_OF_WINDOWS)])
+
+        sql = f"SELECT {fields} FROM slots WHERE id = ?"
+
+        cur.execute(sql, (slot_id,))
+        row = cur.fetchone()
+        print(row)
+        return row
 
     except sqlite3.Error as e:
         print(e)
-        return []
 
 
 def get_all_names() -> list[str]:
@@ -304,8 +203,8 @@ def get_all_names() -> list[str]:
     try:
         cur = conn.cursor()
         names = []
-        for i in range(0, 5):
-            cur.execute(f"SELECT {"name" + str(i)} FROM slots")
+        for i in range(AMOUNT_OF_WINDOWS):
+            cur.execute(f"SELECT name{i} FROM slots")
             rows = cur.fetchall()
 
             for row in rows:
@@ -346,11 +245,3 @@ def get_all_free_slots() -> list[int]:
         return slot_ids
     else:
         print('No free slots found')
-
-
-def testing_db():
-    free_all_occupied_slots()
-    for i in range(3):
-        occupy_first_free_slot()
-
-

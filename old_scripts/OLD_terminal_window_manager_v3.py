@@ -37,7 +37,7 @@ def assign_slot_and_name_window(window_type: WindowType,
     spawned and assign a main name to it."""
     if window_type == WindowType.ACCEPTED_SCRIPT:
         try:
-            slot_assigned = sdh.occupy_first_free_slot()
+            slot_assigned = sdh.get_first_free_slot()
             if slot_assigned is None:
                 raise ValueError
 

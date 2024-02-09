@@ -6,7 +6,7 @@ import denied_slots_db_handler as denied_sdh
 import shop_watcher
 import single_instance
 import slots_db_handler as sdh
-import terminal_window_manager_v3 as twm_v3
+import OLD_terminal_window_manager_v3 as twm_v3
 
 
 def exit_countdown():

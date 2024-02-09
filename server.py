@@ -13,9 +13,10 @@ import subprocess
 import websockets
 from websockets import WebSocketServerProtocol
 import constants
+import denied_slots_db_handler
 
 import slots_db_handler
-import terminal_window_manager_v3 as twm_v3
+import terminal_window_manager_v4 as twm
 
 venv_python_path = "venv/Scripts/python.exe"
 
@@ -47,22 +48,22 @@ async def operate_launcher(message):
 
 def manage_windows(message):
     if message == "bring to top":
-        twm_v3.set_windows_to_topmost()
-        twm_v3.unset_windows_to_topmost()
+        twm.bring_window_to_foreground()
     elif message == "set topmost":
-        twm_v3.set_windows_to_topmost()
+        twm.set_windows_to_topmost()
     elif message == "unset topmost":
-        twm_v3.unset_windows_to_topmost()
+        twm.unset_windows_to_topmost()
     elif message == "readjust":
-        twm_v3.readjust_windows()
+        twm.rearrange_windows()
     elif message == "restore":
-        twm_v3.restore_all_windows()
+        twm.restore_all_windows()
         pass
 
 
 def manage_database(message):
     if message == "free all slots":
-        slots_db_handler.free_all_occupied_slots()
+        slots_db_handler.free_all_slots()
+        denied_slots_db_handler.free_all_slots()
 
 
 async def websocket_handler(websocket: WebSocketServerProtocol, path: str):
@@ -80,7 +81,7 @@ async def websocket_handler(websocket: WebSocketServerProtocol, path: str):
 
         elif path == "/test":  # Path to test stuff
             if message == "get windows":
-                twm_v3.get_all_windows_titles()
+                print(twm.get_all_windows_names())
 
         else:
             print(f"Unknown path: {path}.")
@@ -105,7 +106,7 @@ async def main():
     if not os.path.exists("temp"):
         os.makedirs("temp")  # just in case git remove the dir
 
-    twm_v3.handle_window(twm_v3.WindowType.SERVER, 'SERVER')
+    twm.manage_window(twm.WinType.SERVER, 'SERVER')
     websocket_server = await websockets.serve(websocket_handler, "localhost",
                                               8888)
     try:
