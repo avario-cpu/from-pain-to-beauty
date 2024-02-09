@@ -37,7 +37,7 @@ stop_loop = asyncio.Event()
 
 def exit_countdown():
     """Give a bit of time to read terminal exit statements"""
-    for seconds in reversed(range(1, 6)):
+    for seconds in reversed(range(1, 5)):
         print("\r" + f'cmd will close in {seconds} seconds...', end="\r")
         time.sleep(1)
     exit()
@@ -103,7 +103,7 @@ async def compare_images(image_a, image_b):
     return ssim(image_a, image_b)
 
 
-async def react_to_shop(ws, state):
+async def react_to_shop(state, ws):
     print(f"Shop just {state}")
     if state == "opened" and ws:
         await send_json_request(
@@ -131,10 +131,11 @@ async def scan_for_shop_and_notify(ws):
 
         if match_value >= 0.8 and not shop_is_currently_open:
             shop_is_currently_open = True
-            await react_to_shop(ws, "opened")
+            await react_to_shop("opened", ws)
+
         elif match_value < 0.8 and shop_is_currently_open:
             shop_is_currently_open = False
-            await react_to_shop(ws, "closed")
+            await react_to_shop("closed", ws)
         await asyncio.sleep(0)
     if ws:
         await ws.close()
@@ -181,4 +182,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    input('enter to q')
+    exit_countdown()

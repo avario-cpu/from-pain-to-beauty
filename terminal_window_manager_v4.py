@@ -205,7 +205,7 @@ def search_for_vacant_slots() -> dict[int:int]:
                 pairs[current_slot] = new_slot
             else:
                 logger.info(f"Slot {new_slot} is free but comes later "
-                             f"than latest occupied slot {current_slot}")
+                            f"than latest occupied slot {current_slot}")
     logger.info(f"Vacant pairs founds: {pairs}")
     return pairs
 
