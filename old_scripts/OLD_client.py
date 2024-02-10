@@ -59,11 +59,11 @@ def send_request(ws, json_file_path):
 
 
 def request_show_dslr(ws):
-    send_request(ws, "../streamerbot_ws_requests/show_dslr.json")
+    send_request(ws, "../streamerbot_ws_requests/dslr_show.json")
 
 
 def request_hide_dslr(ws):
-    send_request(ws, "../streamerbot_ws_requests/hide_dslr.json")
+    send_request(ws, "../streamerbot_ws_requests/dslr_hide.json")
 
 
 def main():

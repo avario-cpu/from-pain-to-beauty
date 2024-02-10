@@ -163,4 +163,5 @@ cython_debug/
 
 # Project specific files
 slots.db
-temp/
+temp/*
+!temp/.gitkeep

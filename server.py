@@ -21,6 +21,15 @@ import terminal_window_manager_v4 as twm
 venv_python_path = "venv/Scripts/python.exe"
 
 
+def reset_databases():
+    slots_db_handler.delete_table()
+    slots_db_handler.create_table()
+    slots_db_handler.initialize_slots()
+    denied_slots_db_handler.delete_table()
+    denied_slots_db_handler.create_table()
+    denied_slots_db_handler.initialize_slots()
+
+
 async def control_shop_watcher(message):
     if message == "start shop_watcher":
         # Open the process in a new separate cmd window: this is done to be

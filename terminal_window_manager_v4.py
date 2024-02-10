@@ -12,12 +12,16 @@ import my_classes as my
 import slots_db_handler as sdh
 from constants import SERVER_WINDOW_NAME
 
-# Setup logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - '
-                           '%(message)s',
-                    filename="temp/logs/twm_v4.log")
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('terminal_window_manager')
+logger.setLevel(logging.DEBUG)
+fh = logging.FileHandler('temp/logs/twm_v4.log')
+fh.setLevel(logging.DEBUG)
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+logger.addHandler(fh)
+
+logger.info('Start test for shop_watcher')
 
 MAIN_WINDOW_WIDTH = 600
 MAIN_WINDOW_HEIGHT = 260

@@ -1,0 +1,11 @@
+{
+  "request": "Read time",
+  "action": {
+    "id": "35e4928e-bfbd-4d0f-b696-4af7d225c429",
+    "name": "Hide DSLR"
+  },
+  "args": {
+    "key": "value"
+  },
+  "id": "<id>"
+}

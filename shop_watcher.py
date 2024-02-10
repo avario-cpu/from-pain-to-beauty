@@ -10,19 +10,71 @@ import websockets
 from skimage.metrics import structural_similarity as ssim
 from websockets import WebSocketException
 
+import constants
 import denied_slots_db_handler as denied_sdh
 import my_classes as my
 import single_instance
 import slots_db_handler as sdh
 import terminal_window_manager_v4 as twm
-import constants
+
+logger = logging.getLogger('shop_watcher')
+logger.setLevel(logging.DEBUG)
+fh = logging.FileHandler('temp/logs/shop_watcher.log')
+fh.setLevel(logging.DEBUG)
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+logger.addHandler(fh)
+
+
+class ShopTracker:
+    def __init__(self):
+        self.shop_is_currently_open = False
+        self.shop_opening_time = None
+        self.shop_open_duration_task = None
+        self.flags = {"reacted_to_open>3": False, "reacted_to_open>15": False}
+
+    async def reset_flags(self):
+        for key in self.flags:
+            self.flags[key] = False
+        pass
+
+    async def track_shop_open_duration(self, ws):
+        while self.shop_is_currently_open:
+            elapsed_time = round(time.time() - self.shop_opening_time)
+            print(f"Shop has been open for {elapsed_time} seconds")
+            if elapsed_time >= 2 and not self.flags["reacted_to_open>3"]:
+                await react_to_shop_stayed_open(ws, 3)
+                self.flags["reacted_to_open>3"] = True
+            if elapsed_time >= 3 and not self.flags["reacted_to_open>15"]:
+                await react_to_shop_stayed_open(ws, 15)
+                self.flags["reacted_to_open>15"] = True
+            await asyncio.sleep(1)  # Adjust the sleep time as necessary
+
+    async def open_shop(self, ws):
+        if not self.shop_is_currently_open:
+            self.shop_is_currently_open = True
+            self.shop_opening_time = time.time()
+            self.shop_open_duration_task = asyncio.create_task(
+                self.track_shop_open_duration(ws))
+            await react_to_shop("opened", ws)
+
+    async def close_shop(self, ws):
+        if self.shop_is_currently_open:
+            self.shop_is_currently_open = False
+            if (self.shop_open_duration_task and not
+            self.shop_open_duration_task.done()):
+                self.shop_open_duration_task.cancel()
+                try:
+                    await self.shop_open_duration_task
+                except asyncio.CancelledError:
+                    print("Shop open duration tracking stopped.")
+            await react_to_shop("closed", ws)
+            await self.reset_flags()
+
 
 # Configuration
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - '
-                           '%(message)s',
-                    filename="temp/logs/shop_watcher.log")
-logger = logging.getLogger(__name__)
+
 
 SCREEN_CAPTURE_AREA = {"left": 1883, "top": 50, "width": 37, "height": 35}
 TEMPLATE_IMAGE_PATH = 'opencv/dota_shop_top_right_icon.jpg'
@@ -86,13 +138,6 @@ async def run_socket_server():
         print("Server closed")
 
 
-async def send_json_request(ws, json_file_path):
-    with open(json_file_path, 'r') as file:
-        await ws.send(file.read())
-    response = await ws.recv()
-    logger.info(f"WebSocket response: {response}")
-
-
 async def capture_window(area):
     with mss.mss() as sct:
         img = sct.grab(area)
@@ -103,18 +148,50 @@ async def compare_images(image_a, image_b):
     return ssim(image_a, image_b)
 
 
-async def react_to_shop(state, ws):
-    print(f"Shop just {state}")
-    if state == "opened" and ws:
-        await send_json_request(
-            ws, "streamerbot_ws_requests/hide_dslr.json")
-    elif state == "closed" and ws:
-        await send_json_request(
-            ws, "streamerbot_ws_requests/show_dslr.json")
+async def send_json_requests(ws, json_file_paths: str | list[str]):
+    if isinstance(json_file_paths, str):
+        json_file_paths = [json_file_paths]
+
+    for json_file in json_file_paths:
+        with open(json_file, 'r') as file:
+            await ws.send(file.read())
+        response = await ws.recv()
+        logger.info(f"WebSocket response: {response}")
+
+
+async def react_to_shop(status, ws):
+    print(f"Shop just {status}")
+    if status == "opened" and ws:
+        await send_json_requests(
+            ws, "streamerbot_ws_requests/dslr_hide.json")
+    elif status == "closed" and ws:
+        await send_json_requests(
+            ws, ["streamerbot_ws_requests/dslr_show.json",
+                 "streamerbot_ws_requests/brb_buying_milk_hide.json"])
+    pass
+
+
+async def react_to_shop_stayed_open(ws, seconds):
+    if seconds == 3:
+        await send_json_requests(
+            ws, "streamerbot_ws_requests/brb_buying_milk_show.json")
+    if seconds == 15:
+        start_time = time.time()
+        while True:
+            elapsed_time = time.time() - start_time + 15
+            seconds_only = int(round(elapsed_time))
+            formatted_time = f"{seconds_only:02d}"
+            with (open("streamerbot_watched/time_with_shop_open.txt",
+                       "w") as file):
+                file.write(
+                    f"Bro you've been in the shop for {formatted_time} seconds"
+                    f", just buy something")
+
+            await asyncio.sleep(1)
 
 
 async def scan_for_shop_and_notify(ws):
-    shop_is_currently_open = False
+    shop_tracker = ShopTracker()
     template = cv.imread(TEMPLATE_IMAGE_PATH, cv.IMREAD_GRAYSCALE)
 
     while not stop_loop.is_set():
@@ -129,13 +206,11 @@ async def scan_for_shop_and_notify(ws):
         if not mute_main_loop_print_feedback.is_set():
             print(f"SSIM: {match_value:.6f}", end="\r")
 
-        if match_value >= 0.8 and not shop_is_currently_open:
-            shop_is_currently_open = True
-            await react_to_shop("opened", ws)
+        if match_value >= 0.8:
+            await shop_tracker.open_shop(ws)
 
-        elif match_value < 0.8 and shop_is_currently_open:
-            shop_is_currently_open = False
-            await react_to_shop("closed", ws)
+        elif match_value < 0.8:
+            await shop_tracker.close_shop(ws)
         await asyncio.sleep(0)
     if ws:
         await ws.close()
