@@ -16,6 +16,7 @@ import my_classes as my
 import single_instance
 import slots_db_handler as sdh
 import terminal_window_manager_v4 as twm
+import random
 
 logger = logging.getLogger('shop_watcher')
 logger.setLevel(logging.DEBUG)
@@ -46,7 +47,7 @@ class ShopTracker:
             if elapsed_time >= 2 and not self.flags["reacted_to_open>3"]:
                 await react_to_shop_stayed_open(ws, 3)
                 self.flags["reacted_to_open>3"] = True
-            if elapsed_time >= 3 and not self.flags["reacted_to_open>15"]:
+            if elapsed_time >= 6 and not self.flags["reacted_to_open>15"]:
                 await react_to_shop_stayed_open(ws, 15)
                 self.flags["reacted_to_open>15"] = True
             await asyncio.sleep(1)  # Adjust the sleep time as necessary
@@ -166,28 +167,29 @@ async def react_to_shop(status, ws):
             ws, "streamerbot_ws_requests/dslr_hide.json")
     elif status == "closed" and ws:
         await send_json_requests(
-            ws, ["streamerbot_ws_requests/dslr_show.json",
-                 "streamerbot_ws_requests/brb_buying_milk_hide.json"])
+            ws, "streamerbot_ws_requests/dslr_show.json", )
     pass
 
 
 async def react_to_shop_stayed_open(ws, seconds):
     if seconds == 3:
-        await send_json_requests(
-            ws, "streamerbot_ws_requests/brb_buying_milk_show.json")
+        if random.randint(1, 4) == 1:
+            await send_json_requests(
+                ws, "streamerbot_ws_requests/brb_buying_milk_show.json")
     if seconds == 15:
-        start_time = time.time()
-        while True:
-            elapsed_time = time.time() - start_time + 15
-            seconds_only = int(round(elapsed_time))
-            formatted_time = f"{seconds_only:02d}"
-            with (open("streamerbot_watched/time_with_shop_open.txt",
-                       "w") as file):
-                file.write(
-                    f"Bro you've been in the shop for {formatted_time} seconds"
-                    f", just buy something")
+        if random.randint(1, 4) == 1:
+            start_time = time.time()
+            while True:
+                elapsed_time = time.time() - start_time + 15
+                seconds_only = int(round(elapsed_time))
+                formatted_time = f"{seconds_only:02d}"
+                with (open("streamerbot_watched/time_with_shop_open.txt",
+                           "w") as file):
+                    file.write(
+                        f"Bro you've been in the shop for {formatted_time} "
+                        f"seconds, just buy something...")
 
-            await asyncio.sleep(1)
+                await asyncio.sleep(1)
 
 
 async def scan_for_shop_and_notify(ws):
