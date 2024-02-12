@@ -63,8 +63,8 @@ class ShopTracker:
     async def close_shop(self, ws):
         if self.shop_is_currently_open:
             self.shop_is_currently_open = False
-            if (self.shop_open_duration_task and not
-            self.shop_open_duration_task.done()):
+            if (self.shop_open_duration_task
+                    and not self.shop_open_duration_task.done()):
                 self.shop_open_duration_task.cancel()
                 try:
                     await self.shop_open_duration_task
