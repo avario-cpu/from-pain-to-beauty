@@ -44,11 +44,11 @@ class ShopTracker:
         while self.shop_is_currently_open:
             elapsed_time = round(time.time() - self.shop_opening_time)
             print(f"Shop has been open for {elapsed_time} seconds")
-            if elapsed_time >= 2 and not self.flags["reacted_to_open>3"]:
-                await react_to_shop_stayed_open(ws, 3)
+            if elapsed_time >= 3 and not self.flags["reacted_to_open>3"]:
+                await react_to_shop_stayed_open(ws, "short")
                 self.flags["reacted_to_open>3"] = True
             if elapsed_time >= 6 and not self.flags["reacted_to_open>15"]:
-                await react_to_shop_stayed_open(ws, 15)
+                await react_to_shop_stayed_open(ws, "long", elapsed_time)
                 self.flags["reacted_to_open>15"] = True
             await asyncio.sleep(1)  # Adjust the sleep time as necessary
 
@@ -79,7 +79,7 @@ class ShopTracker:
 
 SCREEN_CAPTURE_AREA = {"left": 1883, "top": 50, "width": 37, "height": 35}
 TEMPLATE_IMAGE_PATH = 'opencv/dota_shop_top_right_icon.jpg'
-WEBSOCKET_URL = "ws://127.0.0.1:8080/"
+WEBSOCKET_URL = "ws://127.0.0.1:50001/"  # the websocket of Streamerbot
 SCRIPT_NAME = "dota2_shop_watcher"
 SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_shop_scanner", 100, 100)]
 
@@ -125,7 +125,7 @@ async def handle_socket_client(reader, writer):
 
 async def run_socket_server():
     server = await asyncio.start_server(handle_socket_client, 'localhost',
-                                        9999)
+                                        59000)
     addr = server.sockets[0].getsockname()
     print(f"Serving on {addr}")
 
@@ -171,16 +171,24 @@ async def react_to_shop(status, ws):
     pass
 
 
-async def react_to_shop_stayed_open(ws, seconds):
-    if seconds == 3:
+async def react_to_shop_stayed_open(ws, duration, seconds=None):
+    if duration == "short":
+        print(
+            "rolling for a reaction to shop staying open for a short while...")
         if random.randint(1, 4) == 1:
+            print("reacting ! (short)")
             await send_json_requests(
                 ws, "streamerbot_ws_requests/brb_buying_milk_show.json")
-    if seconds == 15:
-        if random.randint(1, 4) == 1:
+    if duration == "long":
+        print(
+            "rolling for a reaction to shop staying open for a long while...")
+        if random.randint(1, 3) == 1:
+            print("reacting ! (long)")
+            await send_json_requests(
+                ws, "streamerbot_ws_requests/brb_buying_milk_hide.json")
             start_time = time.time()
             while True:
-                elapsed_time = time.time() - start_time + 15
+                elapsed_time = time.time() - start_time + seconds
                 seconds_only = int(round(elapsed_time))
                 formatted_time = f"{seconds_only:02d}"
                 with (open("streamerbot_watched/time_with_shop_open.txt",

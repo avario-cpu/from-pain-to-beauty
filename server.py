@@ -96,7 +96,7 @@ async def websocket_handler(websocket: WebSocketServerProtocol, path: str):
             print(f"Unknown path: {path}.")
 
 
-async def send_message_to_socket_server(message, host='localhost', port=9999):
+async def send_message_to_socket_server(message, host='localhost', port=59000):
     """Client function to send messages to subprocesses servers"""
     reader, writer = await asyncio.open_connection(host, port)
 
