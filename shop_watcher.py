@@ -33,7 +33,8 @@ class ShopTracker:
         self.shop_is_currently_open = False
         self.shop_opening_time = None
         self.shop_open_duration_task = None
-        self.flags = {"reacted_to_open>3": False, "reacted_to_open>15": False}
+        self.flags = {"reacted_to_open_short": False,
+                      "reacted_to_open_long": False}
 
     async def reset_flags(self):
         for key in self.flags:
@@ -44,12 +45,12 @@ class ShopTracker:
         while self.shop_is_currently_open:
             elapsed_time = round(time.time() - self.shop_opening_time)
             print(f"Shop has been open for {elapsed_time} seconds")
-            if elapsed_time >= 3 and not self.flags["reacted_to_open>3"]:
+            if elapsed_time >= 5 and not self.flags["reacted_to_open_short"]:
                 await react_to_shop_stayed_open(ws, "short")
-                self.flags["reacted_to_open>3"] = True
-            if elapsed_time >= 6 and not self.flags["reacted_to_open>15"]:
+                self.flags["reacted_to_open_short"] = True
+            if elapsed_time >= 15 and not self.flags["reacted_to_open_long"]:
                 await react_to_shop_stayed_open(ws, "long", elapsed_time)
-                self.flags["reacted_to_open>15"] = True
+                self.flags["reacted_to_open_long"] = True
             await asyncio.sleep(1)  # Adjust the sleep time as necessary
 
     async def open_shop(self, ws):
