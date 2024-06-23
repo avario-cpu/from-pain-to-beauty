@@ -117,7 +117,7 @@ async def main():
 
     twm.manage_window(twm.WinType.SERVER, 'SERVER')
     websocket_server = await websockets.serve(websocket_handler, "localhost",
-                                              8888)
+                                              50000)
     try:
         await asyncio.Future()
     except KeyboardInterrupt:
