@@ -177,14 +177,16 @@ async def react_to_shop_stayed_open(ws, duration, seconds=None):
         print(
             "rolling for a reaction to shop staying open for a short while...")
         if random.randint(1, 4) == 1:
-            print("reacting ! (short)")
+            print("reacting !")
             await send_json_requests(
                 ws, "streamerbot_ws_requests/brb_buying_milk_show.json")
+        else:
+            print("not reacting !")
     if duration == "long":
         print(
             "rolling for a reaction to shop staying open for a long while...")
         if random.randint(1, 3) == 1:
-            print("reacting ! (long)")
+            print("reacting !")
             await send_json_requests(
                 ws, "streamerbot_ws_requests/brb_buying_milk_hide.json")
             start_time = time.time()
@@ -199,6 +201,9 @@ async def react_to_shop_stayed_open(ws, duration, seconds=None):
                         f"seconds, just buy something...")
 
                 await asyncio.sleep(1)
+
+        else:
+            print("not reacting !")
 
 
 async def scan_for_shop_and_notify(ws):
