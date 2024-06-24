@@ -2,6 +2,7 @@ import asyncio
 import atexit
 import logging
 import time
+import os
 
 import cv2 as cv
 import mss
@@ -81,7 +82,8 @@ class ShopTracker:
 SCREEN_CAPTURE_AREA = {"left": 1883, "top": 50, "width": 37, "height": 35}
 TEMPLATE_IMAGE_PATH = 'opencv/dota_shop_top_right_icon.jpg'
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
-SCRIPT_NAME = "dota2_shop_watcher"
+SCRIPT_NAME = os.path.splitext(
+    os.path.basename(__file__))[0] if __name__ == "__main__" else __name__
 SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_shop_scanner", 100, 100)]
 
 secondary_windows_have_spawned = asyncio.Event()
@@ -126,7 +128,7 @@ async def handle_socket_client(reader, writer):
 
 async def run_socket_server():
     server = await asyncio.start_server(handle_socket_client, 'localhost',
-                                        59000)
+                                        constants.SUBPROCESSES[SCRIPT_NAME])
     addr = server.sockets[0].getsockname()
     print(f"Serving on {addr}")
 

@@ -19,6 +19,7 @@ import slots_db_handler
 import terminal_window_manager_v4 as twm
 
 venv_python_path = "venv/Scripts/python.exe"
+subprocess_names = list(constants.SUBPROCESSES.keys())
 
 
 def reset_databases():
@@ -30,31 +31,37 @@ def reset_databases():
     denied_slots_db_handler.initialize_slots()
 
 
-async def control_shop_watcher(message):
-    if message == "start shop_watcher":
+async def control_subprocess(instruction, target):
+    if instruction == "start":
         # Open the process in a new separate cmd window: this is done to be
         # able to manipulate the position of the script's terminal with the
         # terminal window manager module.
         subprocess.Popen([
             "cmd.exe", "/c", "start", "/min", venv_python_path,
-            "shop_watcher.py"])
+            f"{target}.py"])
 
-    elif message == "stop shop_watcher":
+    elif instruction == "stop":
         await send_message_to_subprocess_socket(
             constants.STOP_SUBPROCESS_MESSAGE,
-            constants.SUBPROCESS_PORTS['shop_watcher'])
+            constants.SUBPROCESSES[f'{target}'])
 
-    elif message == "remove shop_watcher lock":
-        if os.path.exists("temp/myapp.lock"):
-            os.remove("temp/myapp.lock")
+    elif instruction == "unlock":
+        if os.path.exists(f"temp/lock_files/{target}.lock"):
+            os.remove(f"temp/lock_files/{target}.lock")
 
 
 async def operate_launcher(message):
-    msg = re.search("shop_watcher", message)
-    if msg is not None:
-        await control_shop_watcher(message)
+    parts = message.split()
+    if len(parts) >= 2:
+        instruction = parts[0]
+        target = parts[1]
+        if target in subprocess_names:
+            await control_subprocess(instruction, target)
+        else:
+            print(f"Unknown target {target}")
     else:
-        print('Not a suitable launcher path message')
+        print("Invalid message format, must be in two parts: << instruction & "
+              "target >>")
 
 
 def manage_windows(message):

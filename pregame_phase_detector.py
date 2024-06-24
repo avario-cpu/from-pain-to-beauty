@@ -1,4 +1,5 @@
 import atexit
+import os
 
 import cv2 as cv
 import mss
@@ -41,12 +42,13 @@ START_BUY_TEMPLATE_PATH = "opencv/dota_strategy_time_message.jpg"
 IN_GAME_CAPTURE_AREA = {"left": 1820, "top": 1020, "width": 80, "height": 60}
 IN_GAME_TEMPLATE_PATH = "opencv/dota_deliver_items_icon.jpg"
 SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_hero_pick_scanner", 350, 100)]
-SCRIPT_NAME = "dota2_pregame_detector"
+SCRIPT_NAME = os.path.splitext(
+    os.path.basename(__file__))[0] if __name__ == "__main__" else __name__
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
-stop_main_loop = asyncio.Event()
+
 secondary_windows_have_spawned = asyncio.Event()
 mute_main_loop_print_feedback = asyncio.Event()
-stop_subprocess = asyncio.Event()
+stop_loop = asyncio.Event()
 
 
 async def establish_ws_connection():
@@ -69,7 +71,7 @@ async def handle_socket_client(reader, writer):
             break
         message = data.decode()
         if message == constants.STOP_SUBPROCESS_MESSAGE:
-            stop_subprocess.set()
+            stop_loop.set()
         print(f"Received: {message}")
         writer.write(b"ACK from WebSocket server")
         await writer.drain()
@@ -78,8 +80,7 @@ async def handle_socket_client(reader, writer):
 
 async def run_socket_server():
     server = await asyncio.start_server(handle_socket_client, 'localhost',
-                                        constants.SUBPROCESS_PORTS[
-                                            'game_start_watcher'])
+                                        constants.SUBPROCESSES[SCRIPT_NAME])
     addr = server.sockets[0].getsockname()
     print(f"Serving on {addr}")
 
@@ -139,7 +140,7 @@ async def detect_pregame_phase(ws):
     template = cv.imread(HERO_PICK_TEMPLATE_PATH, cv.IMREAD_GRAYSCALE)
     capture_area = HERO_PICK_CAPTURE_AREA
 
-    while not stop_main_loop.is_set():
+    while not stop_loop.is_set():
         frame = await capture_window(capture_area)
         gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
         match_value = await compare_images(gray_frame, template)
@@ -195,8 +196,7 @@ async def main():
         atexit.register(single_instance.remove_lock, SCRIPT_NAME)
         atexit.register(sdh.free_slot_named, SCRIPT_NAME)
         socket_server_task = asyncio.create_task(run_socket_server())
-        mute_main_loop_print_feedback.set()  # avoid ugly lines due to caret
-        # replacement print
+        # mute_main_loop_print_feedback.set()
 
         ws = None
         try:
@@ -204,7 +204,7 @@ async def main():
             main_task = asyncio.create_task(detect_pregame_phase(ws))
             await secondary_windows_have_spawned.wait()
             twm.manage_secondary_windows(slot, SECONDARY_WINDOWS)
-            mute_main_loop_print_feedback.clear()
+            # mute_main_loop_print_feedback.clear()
             await main_task
         except KeyboardInterrupt:
             print("KeyboardInterrupt")

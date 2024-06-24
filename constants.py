@@ -1,7 +1,7 @@
 STOP_SUBPROCESS_MESSAGE = "stop subprocess"
 SERVER_WINDOW_NAME = "MY SERVER"
 
-SUBPROCESS_PORTS = {
+SUBPROCESSES = {
     'shop_watcher': 59000,
-    'game_start_watcher': 59001
+    'pregame_phase_detector': 59001
 }
