@@ -80,7 +80,7 @@ class ShopTracker:
 
 SCREEN_CAPTURE_AREA = {"left": 1883, "top": 50, "width": 37, "height": 35}
 TEMPLATE_IMAGE_PATH = 'opencv/dota_shop_top_right_icon.jpg'
-WEBSOCKET_URL = "ws://127.0.0.1:50001/"  # the websocket of Streamerbot
+STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
 SCRIPT_NAME = "dota2_shop_watcher"
 SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_shop_scanner", 100, 100)]
 
@@ -99,7 +99,7 @@ def exit_countdown():
 
 async def establish_ws_connection():
     try:
-        ws = await websockets.connect(WEBSOCKET_URL)
+        ws = await websockets.connect(STREAMERBOT_WS_URL)
         logger.info(f"Established connection: {ws}")
         return ws
     except WebSocketException as e:
