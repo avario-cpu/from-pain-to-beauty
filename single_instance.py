@@ -1,5 +1,8 @@
 import os
 
+if not os.path.exists("temp/lock_files"):
+    os.makedirs("temp/lock_files")
+
 
 def create_lock_file(name):
     open(f"temp/lock_files/{name}.lock", 'x')
