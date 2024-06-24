@@ -1,18 +1,18 @@
 import os
 
 
-def create_lock_file():
-    open("temp/myapp.lock", 'x')
+def create_lock_file(name):
+    open(f"temp/lock_files/{name}.lock", 'x')
     print("created lock file")
 
 
-def remove_lock():
-    os.remove("temp/myapp.lock")
+def remove_lock(name):
+    os.remove(f"temp/lock_files/{name}.lock")
     print("removed lock file")
 
 
-def lock_exists():
-    lock = os.path.isfile("temp/myapp.lock")
+def lock_exists(name):
+    lock = os.path.isfile(f"temp/lock_files/{name}.lock")
     script_dir = os.path.dirname(os.path.abspath(__file__))
     script_dir_name = os.path.basename(script_dir)
     if lock:

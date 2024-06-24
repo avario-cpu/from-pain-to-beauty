@@ -237,7 +237,7 @@ async def scan_for_shop_and_notify(ws):
 async def main():
     """If there are no single instance lock file, start the Dota2 shop_watcher
      module. Reposition the terminal right at launch."""
-    if single_instance.lock_exists():
+    if single_instance.lock_exists(SCRIPT_NAME):
         slot = twm.manage_window(twm.WinType.DENIED, SCRIPT_NAME)
         atexit.register(denied_sdh.free_slot, slot)
         print("\n>>> Lock file is present: exiting... <<<")
@@ -246,8 +246,8 @@ async def main():
         slot = twm.manage_window(twm.WinType.ACCEPTED,
                                  SCRIPT_NAME, SECONDARY_WINDOWS)
 
-        single_instance.create_lock_file()
-        atexit.register(single_instance.remove_lock)
+        single_instance.create_lock_file(SCRIPT_NAME)
+        atexit.register(single_instance.remove_lock, SCRIPT_NAME)
         atexit.register(sdh.free_slot_named, SCRIPT_NAME)
         socket_server_task = asyncio.create_task(run_socket_server())
         mute_main_loop_print_feedback.set()  # avoid ugly lines due to caret
