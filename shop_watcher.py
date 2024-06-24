@@ -227,7 +227,7 @@ async def scan_for_shop_and_notify(ws):
 
         elif match_value < 0.8:
             await shop_tracker.close_shop(ws)
-        await asyncio.sleep(0)
+        await asyncio.sleep(0.01)
     if ws:
         await ws.close()
         cv.destroyAllWindows()
