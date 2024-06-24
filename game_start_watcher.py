@@ -11,7 +11,7 @@ import terminal_window_manager_v4 as twm
 import denied_slots_db_handler as denied_sdh
 import slots_db_handler as sdh
 import websockets
-from websockets import WebSocketException
+from websockets import WebSocketException, ConnectionClosedError
 import constants
 import logging
 
@@ -103,16 +103,35 @@ async def compare_images(image_a, image_b):
     return ssim(image_a, image_b)
 
 
+async def send_json_requests(ws, json_file_paths: str | list[str]):
+    if isinstance(json_file_paths, str):
+        json_file_paths = [json_file_paths]
+
+    for json_file in json_file_paths:
+        try:
+            with open(json_file, 'r') as file:
+                await ws.send(file.read())
+            response = await ws.recv()
+            logger.info(f"WebSocket response: {response}")
+        except ConnectionClosedError as e:
+            logger.error(f"WebSocket connection closed: {e}")
+        except WebSocketException as e:
+            logger.error(f"WebSocket error: {e}")
+
+
 async def send_camera_adjust_request(ws, game_state):
     if game_state.in_game:
-        pass
+        await send_json_requests(
+            ws, "streamerbot_ws_requests/switch_to_meta_scene.json")
     elif game_state.versus_screen:
-        pass
+        await send_json_requests(
+            ws, "streamerbot_ws_requests/dslr_hide_for_VS_screen.json")
     elif game_state.starting_buy:
-        pass
+        await send_json_requests(
+            ws, "streamerbot_ws_requests/dslr_move_for_starting_buy.json")
     elif game_state.hero_pick:
-        pass
-    pass
+        await send_json_requests(
+            ws, "streamerbot_ws_requests/dslr_move_for_hero_pick.json")
 
 
 async def detect_pregame_phase(ws):
@@ -129,8 +148,9 @@ async def detect_pregame_phase(ws):
 
         if cv.waitKey(1) == ord("q"):
             break
-        if not mute_main_loop_print_feedback.is_set():
-            print(f"SSIM: {match_value:.6f}", end="\r")
+            # if not mute_main_loop_print_feedback.is_set():
+            # commented out as apparently not needed here, don't ask me why...
+        print(f"SSIM: {match_value:.6f}", end="\r")
         if match_value >= 0.8 and not game_sate.hero_pick:
             game_sate.hero_pick = True
             print("Hey! You're picking :)")
@@ -197,7 +217,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    finally:
-        cv.destroyAllWindows()
+    asyncio.run(main())
