@@ -41,7 +41,8 @@ async def control_shop_watcher(message):
 
     elif message == "stop shop_watcher":
         await send_message_to_subprocess_socket(
-            constants.STOP_SUBPROCESS_MESSAGE)
+            constants.STOP_SUBPROCESS_MESSAGE,
+            constants.SUBPROCESS_PORTS['shop_watcher'])
 
     elif message == "remove shop_watcher lock":
         if os.path.exists("temp/myapp.lock"):
@@ -97,8 +98,7 @@ async def websocket_handler(websocket: WebSocketServerProtocol, path: str):
             print(f"Unknown path: {path}.")
 
 
-async def send_message_to_subprocess_socket(message, host='localhost',
-                                            port=59000):
+async def send_message_to_subprocess_socket(message, port, host='localhost'):
     """Client function to send messages to subprocesses servers"""
     reader, writer = await asyncio.open_connection(host, port)
 

@@ -10,19 +10,19 @@ import single_instance
 import terminal_window_manager_v4 as twm
 import denied_slots_db_handler as denied_sdh
 import slots_db_handler as sdh
-
+import websockets
+from websockets import WebSocketException
 import constants
+import logging
 
-HERO_PICK_CAPTURE_AREA = {"left": 790, "top": 140, "width": 340, "height": 40}
-HERO_PICK_TEMPLATE_PATH = "opencv/dota_select_your_hero_message.jpg"
-SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_hero_pick_scanner", 340,
-                                        40), ]
-SCRIPT_NAME = "dota2_pregame_detector"
-STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
-stop_hero_pick_loop = asyncio.Event()
-secondary_windows_have_spawned = asyncio.Event()
-mute_main_loop_print_feedback = asyncio.Event()
-stop_subprocess = asyncio.Event()
+logger = logging.getLogger('shop_watcher')
+logger.setLevel(logging.DEBUG)
+fh = logging.FileHandler('temp/logs/game_start_watcher.log')
+fh.setLevel(logging.DEBUG)
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+logger.addHandler(fh)
 
 
 class PregameSate:
@@ -31,6 +31,30 @@ class PregameSate:
         self.hero_pick = False
         self.starting_buy = False
         self.versus_screen = False
+
+
+HERO_PICK_CAPTURE_AREA = {"left": 790, "top": 140, "width": 340, "height": 40}
+HERO_PICK_TEMPLATE_PATH = "opencv/dota_select_your_hero_message.jpg"
+SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_hero_pick_scanner", 350, 100),
+                     my.SecondaryWindow("test", 150, 150)]
+SCRIPT_NAME = "dota2_pregame_detector"
+STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
+stop_hero_pick_loop = asyncio.Event()
+secondary_windows_have_spawned = asyncio.Event()
+mute_main_loop_print_feedback = asyncio.Event()
+stop_subprocess = asyncio.Event()
+
+
+async def establish_ws_connection():
+    try:
+        ws = await websockets.connect(STREAMERBOT_WS_URL)
+        logger.info(f"Established connection: {ws}")
+        return ws
+    except WebSocketException as e:
+        logger.debug(f"Websocket error: {e}")
+    except OSError as e:
+        logger.debug(f"OS error: {e}")
+    return None
 
 
 async def handle_socket_client(reader, writer):
@@ -50,7 +74,8 @@ async def handle_socket_client(reader, writer):
 
 async def run_socket_server():
     server = await asyncio.start_server(handle_socket_client, 'localhost',
-                                        59000)
+                                        constants.SUBPROCESS_PORTS[
+                                            'game_start_watcher'])
     addr = server.sockets[0].getsockname()
     print(f"Serving on {addr}")
 
@@ -74,7 +99,11 @@ async def compare_images(image_a, image_b):
     return ssim(image_a, image_b)
 
 
-async def detect_hero_pick_phase():
+async def send_camera_adjust_request(ws):
+    pass
+
+
+async def detect_hero_pick_phase(ws):
     game_sate = PregameSate()
     template = cv.imread(HERO_PICK_TEMPLATE_PATH, cv.IMREAD_GRAYSCALE)
 
@@ -92,6 +121,7 @@ async def detect_hero_pick_phase():
         if match_value >= 0.8:
             game_sate.hero_pick = True
             print("Hey! You're picking :)")
+            await send_camera_adjust_request(ws)
             await asyncio.sleep(1)
         await asyncio.sleep(0.01)
 
@@ -113,9 +143,26 @@ async def main():
         mute_main_loop_print_feedback.set()  # avoid ugly lines due to caret
         # replacement print
 
+        ws = None
+        try:
+            ws = await establish_ws_connection()
+            main_task = asyncio.create_task(detect_hero_pick_phase(ws))
+            await secondary_windows_have_spawned.wait()
+            twm.manage_secondary_windows(slot, SECONDARY_WINDOWS)
+            mute_main_loop_print_feedback.clear()
+            await main_task
+        except KeyboardInterrupt:
+            print("KeyboardInterrupt")
+        finally:
+            socket_server_task.cancel()
+            await socket_server_task
+            cv.destroyAllWindows()
+            if ws:
+                await ws.close()
+
 
 if __name__ == "__main__":
     try:
-        asyncio.run(detect_hero_pick_phase())
+        asyncio.run(main())
     finally:
         cv.destroyAllWindows()
