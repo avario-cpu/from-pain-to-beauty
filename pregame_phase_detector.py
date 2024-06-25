@@ -16,17 +16,8 @@ from websockets import WebSocketException, ConnectionClosedError
 import constants
 import logging
 
-logger = logging.getLogger('shop_watcher')
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('temp/logs/game_start_watcher.log')
-fh.setLevel(logging.DEBUG)
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-logger.addHandler(fh)
 
-
-class PregameSate:
+class PregameState:
 
     def __init__(self):
         self.hero_pick = False
@@ -49,6 +40,15 @@ STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
 secondary_windows_have_spawned = asyncio.Event()
 mute_main_loop_print_feedback = asyncio.Event()
 stop_loop = asyncio.Event()
+
+logger = logging.getLogger(SCRIPT_NAME)
+logger.setLevel(logging.DEBUG)
+fh = logging.FileHandler(f'temp/logs/{SCRIPT_NAME}.log')
+fh.setLevel(logging.DEBUG)
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+logger.addHandler(fh)
 
 
 async def establish_ws_connection():
@@ -79,10 +79,12 @@ async def handle_socket_client(reader, writer):
 
 
 async def run_socket_server():
+    logger.info("Starting run_socket_server")
     server = await asyncio.start_server(handle_socket_client, 'localhost',
-                                        constants.SUBPROCESSES[SCRIPT_NAME])
+                                        59001)
     addr = server.sockets[0].getsockname()
     print(f"Serving on {addr}")
+    logger.info(f"Serving on {addr}")
 
     try:
         await server.serve_forever()
@@ -136,7 +138,7 @@ async def send_camera_adjust_request(ws, game_state):
 
 
 async def detect_pregame_phase(ws):
-    game_sate = PregameSate()
+    game_sate = PregameState()
     template = cv.imread(HERO_PICK_TEMPLATE_PATH, cv.IMREAD_GRAYSCALE)
     capture_area = HERO_PICK_CAPTURE_AREA
 
@@ -149,9 +151,8 @@ async def detect_pregame_phase(ws):
 
         if cv.waitKey(1) == ord("q"):
             break
-            # if not mute_main_loop_print_feedback.is_set():
-            # commented out as apparently not needed here, don't ask me why...
-        print(f"SSIM: {match_value:.6f}", end="\r")
+        if not mute_main_loop_print_feedback.is_set():
+            print(f"SSIM: {match_value:.6f}", end="\r")
         if match_value >= 0.8 and not game_sate.hero_pick:
             game_sate.hero_pick = True
             print("Hey! You're picking :)")
@@ -181,7 +182,7 @@ async def detect_pregame_phase(ws):
             print("Woah ! You're in game now !")
             await send_camera_adjust_request(ws, game_sate)
 
-    await asyncio.sleep(0.01)
+        await asyncio.sleep(0.01)
 
 
 async def main():
@@ -196,7 +197,7 @@ async def main():
         atexit.register(single_instance.remove_lock, SCRIPT_NAME)
         atexit.register(sdh.free_slot_named, SCRIPT_NAME)
         socket_server_task = asyncio.create_task(run_socket_server())
-        # mute_main_loop_print_feedback.set()
+        mute_main_loop_print_feedback.set()
 
         ws = None
         try:
@@ -204,7 +205,7 @@ async def main():
             main_task = asyncio.create_task(detect_pregame_phase(ws))
             await secondary_windows_have_spawned.wait()
             twm.manage_secondary_windows(slot, SECONDARY_WINDOWS)
-            # mute_main_loop_print_feedback.clear()
+            mute_main_loop_print_feedback.clear()
             await main_task
         except KeyboardInterrupt:
             print("KeyboardInterrupt")

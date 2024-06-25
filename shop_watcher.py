@@ -19,15 +19,6 @@ import slots_db_handler as sdh
 import terminal_window_manager_v4 as twm
 import random
 
-logger = logging.getLogger('shop_watcher')
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('temp/logs/shop_watcher.log')
-fh.setLevel(logging.DEBUG)
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-logger.addHandler(fh)
-
 
 class ShopTracker:
     def __init__(self):
@@ -76,9 +67,6 @@ class ShopTracker:
             await self.reset_flags()
 
 
-# Configuration
-
-
 SCREEN_CAPTURE_AREA = {"left": 1883, "top": 50, "width": 37, "height": 35}
 TEMPLATE_IMAGE_PATH = 'opencv/dota_shop_top_right_icon.jpg'
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
@@ -89,6 +77,15 @@ SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_shop_scanner", 100, 100)]
 secondary_windows_have_spawned = asyncio.Event()
 mute_main_loop_print_feedback = asyncio.Event()
 stop_loop = asyncio.Event()
+
+logger = logging.getLogger(SCRIPT_NAME)
+logger.setLevel(logging.DEBUG)
+fh = logging.FileHandler(f'temp/logs/{SCRIPT_NAME}.log')
+fh.setLevel(logging.DEBUG)
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+logger.addHandler(fh)
 
 
 def exit_countdown():
@@ -243,6 +240,7 @@ async def main():
         slot = twm.manage_window(twm.WinType.DENIED, SCRIPT_NAME)
         atexit.register(denied_sdh.free_slot, slot)
         print("\n>>> Lock file is present: exiting... <<<")
+        return
 
     else:
         slot = twm.manage_window(twm.WinType.ACCEPTED,
