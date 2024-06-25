@@ -31,7 +31,7 @@ def reset_databases():
     denied_slots_db_handler.initialize_slots()
 
 
-async def control_subprocess(instruction, target):
+async def control_subprocess(instruction, target, target_name):
     if instruction == "start":
         # Open the process in a new separate cmd window: this is done to be
         # able to manipulate the position of the script's terminal with the
@@ -43,11 +43,11 @@ async def control_subprocess(instruction, target):
     elif instruction == "stop":
         await send_message_to_subprocess_socket(
             constants.STOP_SUBPROCESS_MESSAGE,
-            constants.SUBPROCESSES[f'{target}'])
+            constants.SUBPROCESSES[f'{target_name}'])
 
     elif instruction == "unlock":
-        if os.path.exists(f"temp/lock_files/{target}.lock"):
-            os.remove(f"temp/lock_files/{target}.lock")
+        if os.path.exists(f"temp/lock_files/{target_name}.lock"):
+            os.remove(f"temp/lock_files/{target_name}.lock")
 
 
 async def operate_launcher(message):
@@ -55,8 +55,9 @@ async def operate_launcher(message):
     if len(parts) >= 2:
         instruction = parts[0]
         target = parts[1]
-        if target in subprocess_names:
-            await control_subprocess(instruction, target)
+        target_name = constants.SCRIPT_NAME_SUFFIX + target
+        if target_name in subprocess_names:
+            await control_subprocess(instruction, target, target_name)
         else:
             print(f"Unknown target {target}")
     else:
