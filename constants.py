@@ -1,7 +1,8 @@
 STOP_SUBPROCESS_MESSAGE = "stop subprocess"
 SERVER_WINDOW_NAME = "MY SERVER"
+SCRIPT_NAME_SUFFIX = "my_"
 
 SUBPROCESSES = {
-    'shop_watcher': 59000,
-    'pregame_phase_detector': 59001
+    SCRIPT_NAME_SUFFIX + 'shop_watcher': 59000,
+    SCRIPT_NAME_SUFFIX + 'pregame_phase_detector': 59001
 }

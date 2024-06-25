@@ -70,8 +70,9 @@ class ShopTracker:
 SCREEN_CAPTURE_AREA = {"left": 1883, "top": 50, "width": 37, "height": 35}
 TEMPLATE_IMAGE_PATH = 'opencv/dota_shop_top_right_icon.jpg'
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
-SCRIPT_NAME = os.path.splitext(
+SCRIPT_NAME = constants.SCRIPT_NAME_SUFFIX + os.path.splitext(
     os.path.basename(__file__))[0] if __name__ == "__main__" else __name__
+# suffix added to avoid window naming conflicts with cli manager
 SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_shop_scanner", 100, 100)]
 
 secondary_windows_have_spawned = asyncio.Event()

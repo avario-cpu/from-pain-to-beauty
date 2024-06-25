@@ -103,13 +103,13 @@ def find_slot_and_name_window(window_type: WinType, window_name: str):
     """Assign a slot and sets window title based on window type."""
     if window_type == WinType.ACCEPTED:
         slot_id = sdh.get_first_free_slot()
-        title = f"{window_name}_twm_v4"
+        title = window_name
         set_window_title(title)
         return slot_id, title
 
     elif window_type == WinType.DENIED:
         slot_id = denied_sdh.occupy_first_free_slot()
-        title = f"{window_name}_twm_v4_denied({slot_id})"
+        title = f"{window_name}_denied({slot_id})"
         set_window_title(title)
         return slot_id, title
 
@@ -233,16 +233,27 @@ def rearrange_secondary_windows(free_slot, data):
 
 
 def obtain_window_data(current_slot):
+    """Obtain main and secondary window data from a database slot"""
     data = sdh.get_full_data(current_slot)
     data = [(data[i], data[i + 1], data[i + 2])
             for i in range(0, len(data) - 2, 3)
             if None not in (data[i], data[i + 1], data[i + 2])]
+    # yea the expression is complicated, but you'll get it bro, read again :)
     logger.info(f"Rearrangement data obtained: {data}")
     return data
 
 
+def refit_windows():
+    """Move all active windows back to their allocated positions"""
+    for active_window_slot in sdh.get_all_occupied_slots():
+        data = obtain_window_data(active_window_slot)
+        rearrange_main_window(active_window_slot, data)
+        rearrange_secondary_windows(active_window_slot, data)
+
+
 def rearrange_windows():
-    """Rearrange windows to fill empty slots in a more compact way"""
+    """Rearrange windows to fill empty slots in a more compact way. Also
+    makes them return back to their position and to the foreground"""
     pairs = search_for_vacant_slots() if not None else {}
     for current_slot, free_slot in pairs.items():
         data = obtain_window_data(current_slot)
@@ -251,6 +262,8 @@ def rearrange_windows():
 
         rearrange_main_window(free_slot, data)
         rearrange_secondary_windows(free_slot, data)
+    refit_windows()
+    bring_window_to_foreground()
 
 
 def manage_secondary_windows(

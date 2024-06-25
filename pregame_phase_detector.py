@@ -34,8 +34,9 @@ START_BUY_TEMPLATE_PATH = "opencv/dota_strategy_time_message.jpg"
 IN_GAME_CAPTURE_AREA = {"left": 1820, "top": 1020, "width": 80, "height": 60}
 IN_GAME_TEMPLATE_PATH = "opencv/dota_deliver_items_icon.jpg"
 SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_hero_pick_scanner", 350, 100)]
-SCRIPT_NAME = os.path.splitext(
+SCRIPT_NAME = constants.SCRIPT_NAME_SUFFIX + os.path.splitext(
     os.path.basename(__file__))[0] if __name__ == "__main__" else __name__
+# suffix added to avoid window naming conflicts with cli manager
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
 
 secondary_windows_have_spawned = asyncio.Event()
