@@ -132,7 +132,7 @@ async def send_json_requests(ws, json_file_paths: str | list[str]):
             logger.error(f"WebSocket error: {e}")
 
 
-async def send_camera_adjust_request(ws, game_state):
+async def send_streamerbot_ws_request(ws, game_state):
     if game_state.in_game:
         await send_json_requests(
             ws, "streamerbot_ws_requests/switch_to_meta_scene.json")
@@ -144,7 +144,8 @@ async def send_camera_adjust_request(ws, game_state):
             ws, "streamerbot_ws_requests/dslr_move_for_starting_buy.json")
     elif game_state.hero_pick:
         await send_json_requests(
-            ws, "streamerbot_ws_requests/dslr_move_for_hero_pick.json")
+            ws, ["streamerbot_ws_requests/dslr_move_for_hero_pick.json",
+                 "streamerbot_ws_requests/switch_to_game_start_scene.json"])
 
 
 async def detect_pregame_phase(ws):
@@ -168,12 +169,12 @@ async def detect_pregame_phase(ws):
             print("Hey! You're picking :)")
             capture_area = START_BUY_CAPTURE_AREA
             template = cv.imread(START_BUY_TEMPLATE_PATH, cv.IMREAD_GRAYSCALE)
-            await send_camera_adjust_request(ws, game_sate)
+            await send_streamerbot_ws_request(ws, game_sate)
 
         elif match_value >= 0.8 and not game_sate.starting_buy:
             game_sate.starting_buy = True
             print("Oh, now this is the starting buy !")
-            await send_camera_adjust_request(ws, game_sate)
+            await send_streamerbot_ws_request(ws, game_sate)
 
         elif (match_value <= 0.8
               and game_sate.hero_pick
@@ -183,14 +184,16 @@ async def detect_pregame_phase(ws):
             print("Hey look, you're in VS screen :)")
             capture_area = IN_GAME_CAPTURE_AREA
             template = cv.imread(IN_GAME_TEMPLATE_PATH, cv.IMREAD_GRAYSCALE)
-            await send_camera_adjust_request(ws, game_sate)
+            await send_streamerbot_ws_request(ws, game_sate)
 
         elif (match_value >= 0.8
               and game_sate.versus_screen
               and not game_sate.in_game):
             game_sate.in_game = True
             print("Woah ! You're in game now !")
-            await send_camera_adjust_request(ws, game_sate)
+            await send_streamerbot_ws_request(ws, game_sate)
+            print("Okay, finished. Leaving the script now :)")
+            break
 
         await asyncio.sleep(0.01)
 

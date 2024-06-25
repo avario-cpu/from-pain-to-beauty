@@ -1,0 +1,11 @@
+{
+  "request": "DoAction",
+  "action": {
+    "id": "597ba7a4-20d3-45e5-85a3-bbfd65633db6",
+    "name": "Switch to game start scene"
+  },
+  "args": {
+    "key": "value"
+  },
+  "id": "<id>"
+}
