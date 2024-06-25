@@ -27,13 +27,14 @@ class PregameState:
         self.in_game = False
 
 
-HERO_PICK_CAPTURE_AREA = {"left": 790, "top": 140, "width": 340, "height": 40}
-HERO_PICK_TEMPLATE_PATH = "opencv/dota_choose_your_hero_message.jpg"
-START_BUY_CAPTURE_AREA = {"left": 880, "top": 70, "width": 160, "height": 30}
-START_BUY_TEMPLATE_PATH = "opencv/dota_strategy_time_message.jpg"
+HERO_PICK_CAPTURE_AREA = {"left": 880, "top": 70, "width": 160, "height": 30}
+HERO_PICK_TEMPLATE = "opencv/all_pick.jpg"
+STRATEGY_TIME_TEMPLATE = "opencv/strategy_time.jpg"
+START_BUY_CAPTURE_AREA = {"left": 860, "top": 120, "width": 400, "height": 30}
+START_BUY_TEMPLATE = "opencv/strategy-loadout-world-guides.jpg"
 IN_GAME_CAPTURE_AREA = {"left": 1820, "top": 1020, "width": 80, "height": 60}
-IN_GAME_TEMPLATE_PATH = "opencv/dota_deliver_items_icon.jpg"
-SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_hero_pick_scanner", 350, 100)]
+IN_GAME_TEMPLATE = "opencv/deliver_items_icon.jpg"
+SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_hero_pick_scanner", 400, 100)]
 SCRIPT_NAME = constants.SCRIPT_NAME_SUFFIX + os.path.splitext(
     os.path.basename(__file__))[0] if __name__ == "__main__" else __name__
 # suffix added to avoid window naming conflicts with cli manager
@@ -149,7 +150,7 @@ async def send_streamerbot_ws_request(ws, game_state):
 
 async def detect_pregame_phase(ws):
     game_sate = PregameState()
-    template = cv.imread(HERO_PICK_TEMPLATE_PATH, cv.IMREAD_GRAYSCALE)
+    template = cv.imread(HERO_PICK_TEMPLATE, cv.IMREAD_GRAYSCALE)
     capture_area = HERO_PICK_CAPTURE_AREA
 
     while not stop_loop.is_set():
@@ -167,23 +168,46 @@ async def detect_pregame_phase(ws):
             game_sate.hero_pick = True
             print("Hey! You're picking :)")
             capture_area = START_BUY_CAPTURE_AREA
-            template = cv.imread(START_BUY_TEMPLATE_PATH, cv.IMREAD_GRAYSCALE)
+            template = cv.imread(START_BUY_TEMPLATE, cv.IMREAD_GRAYSCALE)
             await send_streamerbot_ws_request(ws, game_sate)
 
         elif match_value >= 0.8 and not game_sate.starting_buy:
             game_sate.starting_buy = True
-            print("Oh, now this is the starting buy !")
+            print("Now, this is the starting buy !")
             await send_streamerbot_ws_request(ws, game_sate)
 
-        elif (match_value <= 0.8
-              and game_sate.hero_pick
-              and game_sate.starting_buy
-              and not game_sate.versus_screen):
-            game_sate.versus_screen = True
-            print("Hey look, you're in VS screen :)")
-            capture_area = IN_GAME_CAPTURE_AREA
-            template = cv.imread(IN_GAME_TEMPLATE_PATH, cv.IMREAD_GRAYSCALE)
-            await send_streamerbot_ws_request(ws, game_sate)
+        if (match_value <= 0.8 and game_sate.starting_buy and
+                not game_sate.versus_screen):
+            print("Back to picking, or in VS screen...")
+            # Check to see if "All pick" still shows up
+            template = cv.imread(HERO_PICK_TEMPLATE, cv.IMREAD_GRAYSCALE)
+            capture_area = HERO_PICK_CAPTURE_AREA
+            frame = await capture_window(capture_area)
+            gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+            match_value = await compare_images(gray_frame, template)
+            if match_value >= 0.8:
+                game_sate.hero_pick = False
+                game_sate.starting_buy = False
+                continue
+            else:
+                # Check to see if "Strategy time" still shows up
+                template = cv.imread(STRATEGY_TIME_TEMPLATE,
+                                     cv.IMREAD_GRAYSCALE)
+                capture_area = HERO_PICK_CAPTURE_AREA
+                frame = await capture_window(capture_area)
+                gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+                match_value = await compare_images(gray_frame, template)
+                if match_value >= 0.8:
+                    game_sate.hero_pick = False
+                    game_sate.starting_buy = False
+                    continue
+                else:
+                    game_sate.versus_screen = True
+                    print("You're in VS screen, or tabbed out...")
+                    capture_area = IN_GAME_CAPTURE_AREA
+                    template = cv.imread(IN_GAME_TEMPLATE,
+                                         cv.IMREAD_GRAYSCALE)
+                    await send_streamerbot_ws_request(ws, game_sate)
 
         elif (match_value >= 0.8
               and game_sate.versus_screen
