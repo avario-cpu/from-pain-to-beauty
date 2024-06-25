@@ -67,8 +67,8 @@ class ShopTracker:
             await self.reset_flags()
 
 
-SCREEN_CAPTURE_AREA = {"left": 1883, "top": 50, "width": 37, "height": 35}
-TEMPLATE_IMAGE_PATH = 'opencv/dota_shop_top_right_icon.jpg'
+SCREEN_CAPTURE_AREA = {"left": 1853, "top": 50, "width": 30, "height": 35}
+TEMPLATE_IMAGE_PATH = 'opencv/shop_top_right_icon.jpg'
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
 SCRIPT_NAME = constants.SCRIPT_NAME_SUFFIX + os.path.splitext(
     os.path.basename(__file__))[0] if __name__ == "__main__" else __name__

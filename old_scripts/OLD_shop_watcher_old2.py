@@ -14,7 +14,7 @@ import logging
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 SCREEN_CAPTURE_AREA = {"left": 1883, "top": 50, "width": 37, "height": 35}
-TEMPLATE_IMAGE_PATH = '../opencv/dota_shop_top_right_icon.jpg'
+TEMPLATE_IMAGE_PATH = '../opencv/shop_top_right_icon.jpg'
 STOP_FLAG_PATH = "temp/stop.flag"
 SECONDARY_WINDOW_NAMES = ['opencv_shop_scanner']
 start_event = threading.Event()
