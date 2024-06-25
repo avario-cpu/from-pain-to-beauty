@@ -152,8 +152,8 @@ def calculate_secondary_window_properties(
     for i in range(0, len(secondary_windows)):
         width = secondary_windows[i].width
         height = secondary_windows[i].height
-        x_pos = ((-MAIN_WINDOW_WIDTH * (1 + slot // MAX_WINDOWS_PER_COLUMN)
-                  + x_pos_offset))
+        x_pos = (-width - MAIN_WINDOW_WIDTH * (slot // MAX_WINDOWS_PER_COLUMN)
+                 + x_pos_offset)
         y_pos = MAIN_WINDOW_HEIGHT * (slot % MAX_WINDOWS_PER_COLUMN)
 
         props = width, height, x_pos, y_pos

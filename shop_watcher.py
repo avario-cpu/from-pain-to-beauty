@@ -73,7 +73,7 @@ STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
 SCRIPT_NAME = constants.SCRIPT_NAME_SUFFIX + os.path.splitext(
     os.path.basename(__file__))[0] if __name__ == "__main__" else __name__
 # suffix added to avoid window naming conflicts with cli manager
-SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_shop_scanner", 100, 100)]
+SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_shop_scanner", 150, 100)]
 
 secondary_windows_have_spawned = asyncio.Event()
 mute_main_loop_print_feedback = asyncio.Event()
