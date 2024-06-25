@@ -144,8 +144,7 @@ async def send_streamerbot_ws_request(ws, game_state):
             ws, "streamerbot_ws_requests/dslr_move_for_starting_buy.json")
     elif game_state.hero_pick:
         await send_json_requests(
-            ws, ["streamerbot_ws_requests/dslr_move_for_hero_pick.json",
-                 "streamerbot_ws_requests/switch_to_game_start_scene.json"])
+            ws, "streamerbot_ws_requests/hero_pick_setup.json")
 
 
 async def detect_pregame_phase(ws):
