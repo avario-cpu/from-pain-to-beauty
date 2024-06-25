@@ -103,13 +103,13 @@ def find_slot_and_name_window(window_type: WinType, window_name: str):
     """Assign a slot and sets window title based on window type."""
     if window_type == WinType.ACCEPTED:
         slot_id = sdh.get_first_free_slot()
-        title = window_name
+        title = f"{window_name}_twm_v4"
         set_window_title(title)
         return slot_id, title
 
     elif window_type == WinType.DENIED:
         slot_id = denied_sdh.occupy_first_free_slot()
-        title = f"{window_name} - denied ({slot_id})"
+        title = f"{window_name}_twm_v4_denied({slot_id})"
         set_window_title(title)
         return slot_id, title
 

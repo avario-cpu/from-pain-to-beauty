@@ -15,6 +15,7 @@ import websockets
 from websockets import WebSocketException, ConnectionClosedError
 import constants
 import logging
+import time
 
 
 class PregameState:
@@ -51,6 +52,14 @@ fh.setFormatter(formatter)
 logger.addHandler(fh)
 
 
+def exit_countdown():
+    """Give a bit of time to read terminal exit statements"""
+    for seconds in reversed(range(1, 5)):
+        print("\r" + f'cmd will close in {seconds} seconds...', end="\r")
+        time.sleep(1)
+    exit()
+
+
 async def establish_ws_connection():
     try:
         ws = await websockets.connect(STREAMERBOT_WS_URL)
@@ -81,7 +90,7 @@ async def handle_socket_client(reader, writer):
 async def run_socket_server():
     logger.info("Starting run_socket_server")
     server = await asyncio.start_server(handle_socket_client, 'localhost',
-                                        59001)
+                                        constants.SUBPROCESSES[SCRIPT_NAME])
     addr = server.sockets[0].getsockname()
     print(f"Serving on {addr}")
     logger.info(f"Serving on {addr}")
@@ -219,3 +228,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+    exit_countdown()
