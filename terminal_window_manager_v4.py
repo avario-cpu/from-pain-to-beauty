@@ -36,7 +36,6 @@ class WinType(Enum):
 
 def get_all_windows_names():
     names = sdh.get_all_names()
-    names.append(SERVER_WINDOW_NAME)
     return names
 
 
