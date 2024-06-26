@@ -1,6 +1,7 @@
 import atexit
 import os
 
+import cv2
 import cv2 as cv
 import mss
 import numpy as np
@@ -22,35 +23,108 @@ from enum import Enum, auto
 class PreGamePhases:
 
     def __init__(self):
-        self.finding_game = False
-        self.hero_pick = False
-        self.starting_buy = False
-        self.versus_screen = False
-        self.in_game = False
+        self._finding_game = False
+        self._hero_pick = False
+        self._starting_buy = False
+        self._versus_screen = False
+        self._in_game = False
+
+    @property
+    def finding_game(self):
+        return self._finding_game
+
+    @finding_game.setter
+    def finding_game(self, value):
+        if value:
+            self._set_all_false()
+        self._finding_game = value
+
+    @property
+    def hero_pick(self):
+        return self._hero_pick
+
+    @hero_pick.setter
+    def hero_pick(self, value):
+        if value:
+            self._set_all_false()
+        self._hero_pick = value
+
+    @property
+    def starting_buy(self):
+        return self._starting_buy
+
+    @starting_buy.setter
+    def starting_buy(self, value):
+        if value:
+            self._set_all_false()
+        self._starting_buy = value
+
+    @property
+    def versus_screen(self):
+        return self._versus_screen
+
+    @versus_screen.setter
+    def versus_screen(self, value):
+        if value:
+            self._set_all_false()
+        self._versus_screen = value
+
+    @property
+    def in_game(self):
+        return self._in_game
+
+    @in_game.setter
+    def in_game(self, value):
+        if value:
+            self._set_all_false()
+        self._in_game = value
+
+    def _set_all_false(self):
+        self._finding_game = False
+        self._hero_pick = False
+        self._starting_buy = False
+        self._versus_screen = False
+        self._in_game = False
+
+    def __str__(self):
+        return (
+            f"finding_game: {self._finding_game}, hero_pick: {self._hero_pick}"
+            f", starting_buy: {self._starting_buy}, versus_screen: "
+            f"{self._versus_screen}, in_game: {self._in_game}")
 
 
-class Interruption(Enum):
+class InterruptType(Enum):
     TAB_OUT = auto()
-    GAME_CANCELED = auto()
-    DRAFT_SCREEN_SWAP = auto()
     EXIT = auto()
+    GAME_CANCELED = auto()
+    DRAFT_SCREEN_CHANGE = auto()
+    START_BUY_SCREEN = auto()
     SETTINGS_SCREEN = auto()
+    VERSUS_SCREEN = auto()
 
 
-PICK_PHASE_AREA = {"left": 880, "top": 70, "width": 160, "height": 30}
+PICK_PHASE_TIMER_AREA = {"left": 880, "top": 70, "width": 160, "height": 30}
 STARTING_BUY_AREA = {"left": 860, "top": 120, "width": 400, "height": 30}
 IN_GAME_AREA = {"left": 1820, "top": 1020, "width": 80, "height": 60}
 DOTA_SETTINGS_AREA = {"left": 60, "top": 10, "width": 40, "height": 40}
 SEARCH_GAME_BUTTON_AREA = {"left": 1525, "top": 1005, "width": 340,
                            "height": 55}
+POWER_ICON_AREA = {"left": 1860, "top": 10, "width": 60, "height": 40}
 
-ALL_PICK_TEMPLATE = "opencv/all_pick.jpg"
-STRATEGY_TIME_TEMPLATE = "opencv/strategy_time.jpg"
-STARTING_BUY_TEMPLATE = "opencv/strategy-loadout-world-guides.jpg"
-IN_GAME_TEMPLATE = "opencv/deliver_items_icon.jpg"
-SETTINGS_WHEEL_TEMPLATE = "opencv/settings_wheel.jpg"
-PLAY_DOTA_BUTTON_TEMPLATE = "opencv/play_dota.jpg"
-RETURN_TO_GAME_TEMPLATE = "opencv/return_to_game.jpg"
+ALL_PICK_TEMPLATE = cv2.imread("opencv/all_pick.jpg", cv.IMREAD_GRAYSCALE)
+STRATEGY_TIME_TEMPLATE = cv2.imread("opencv/strategy_time.jpg",
+                                    cv.IMREAD_GRAYSCALE)
+STARTING_BUY_TEMPLATE = cv2.imread("opencv/strategy-loadout-world-guides.jpg",
+                                   cv.IMREAD_GRAYSCALE)
+IN_GAME_TEMPLATE = cv2.imread("opencv/deliver_items_icon.jpg",
+                              cv.IMREAD_GRAYSCALE)
+PLAY_DOTA_BUTTON_TEMPLATE = cv2.imread("opencv/play_dota.jpg",
+                                       cv.IMREAD_GRAYSCALE)
+RETURN_TO_GAME_TEMPLATE = cv2.imread("opencv/return_to_game.jpg",
+                                     cv.IMREAD_GRAYSCALE)
+
+POWER_ICON_TEMPLATE = cv2.imread("opencv/dota_power_icon.jpg",
+                                 cv.IMREAD_GRAYSCALE)
 
 SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_hero_pick_scanner", 400, 100)]
 SCRIPT_NAME = constants.SCRIPT_NAME_SUFFIX + os.path.splitext(
@@ -60,7 +134,7 @@ STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
 
 secondary_windows_have_spawned = asyncio.Event()
 mute_main_loop_print_feedback = asyncio.Event()
-stop_loop = asyncio.Event()
+stop_main_loop = asyncio.Event()
 
 logger = logging.getLogger(SCRIPT_NAME)
 logger.setLevel(logging.DEBUG)
@@ -100,7 +174,7 @@ async def handle_socket_client(reader, writer):
             break
         message = data.decode()
         if message == constants.STOP_SUBPROCESS_MESSAGE:
-            stop_loop.set()
+            stop_main_loop.set()
         print(f"Received: {message}")
         writer.write(b"ACK from WebSocket server")
         await writer.drain()
@@ -170,7 +244,8 @@ async def send_streamerbot_ws_request(ws, game_phase):
             ws, "streamerbot_ws_requests/switch_to_meta_scene.json")
 
 
-async def capture_and_process_image(capture_area, template):
+async def capture_and_process_image(capture_area,
+                                    template: cv2.typing.MatLike):
     frame = await capture_window(capture_area)
     gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     match_value = await compare_images(gray_frame, template)
@@ -194,38 +269,115 @@ async def define_relevant_match(game_phase: PreGamePhases):
         pass
     elif game_phase.versus_screen:
         capture_area = IN_GAME_AREA
-        template = cv.imread(IN_GAME_TEMPLATE, cv.IMREAD_GRAYSCALE)
+        template = IN_GAME_TEMPLATE
     elif game_phase.starting_buy or game_phase.hero_pick:
         capture_area = STARTING_BUY_AREA
-        template = cv.imread(STARTING_BUY_TEMPLATE, cv.IMREAD_GRAYSCALE)
+        template = STARTING_BUY_TEMPLATE
     elif game_phase.finding_game:
-        capture_area = PICK_PHASE_AREA
-        template = cv.imread(ALL_PICK_TEMPLATE, cv.IMREAD_GRAYSCALE)
+        capture_area = PICK_PHASE_TIMER_AREA
+        template = ALL_PICK_TEMPLATE
     return capture_area, template
 
 
-async def analyze_dota_interrupt():
+async def analyze_dota_interrupt(game_phase):
+    # Check if "Return to game" button shows
 
-    # Check if "All pick" or "Strategy time" still show up
-    if (await capture_and_process_image(
-            PICK_PHASE_AREA, ALL_PICK_TEMPLATE) >= 0.8
-            or await
-            capture_and_process_image(
-                PICK_PHASE_AREA, STRATEGY_TIME_TEMPLATE) >= 0.8):
-        return Interruption.DRAFT_SCREEN_SWAP
+    async def check_for_tab_out():
+        match_value = await capture_and_process_image(POWER_ICON_AREA,
+                                                      POWER_ICON_TEMPLATE)
+        logger.debug(f"Tab-out check: match_value={match_value}")
+        if match_value >= 0.8:
+            logger.debug(f"High TABOUT match value !!")
+        return InterruptType.TAB_OUT if match_value >= 0.8 else None
 
-    # Check if "Return to game" button shows up
-    elif (await capture_and_process_image(
-            SEARCH_GAME_BUTTON_AREA, RETURN_TO_GAME_TEMPLATE) >= 0.8):
-        return Interruption.TAB_OUT
-
-    # Check if "Play Dota" button shows up
-    elif (await capture_and_process_image(
-            SEARCH_GAME_BUTTON_AREA, PLAY_DOTA_BUTTON_TEMPLATE) >= 0.8):
-        return Interruption.GAME_CANCELED
-
-    else:
+    async def check_for_draft_screen_change():
+        if game_phase.starting_buy:
+            match_value_all_pick = await capture_and_process_image(
+                PICK_PHASE_TIMER_AREA, ALL_PICK_TEMPLATE)
+            match_value_strategy_time = await capture_and_process_image(
+                PICK_PHASE_TIMER_AREA, STRATEGY_TIME_TEMPLATE)
+            if match_value_all_pick >= 0.8 or match_value_strategy_time >= 0.8:
+                return InterruptType.DRAFT_SCREEN_CHANGE
         return None
+
+    async def check_for_game_cancel():
+        match_value = await capture_and_process_image(
+            SEARCH_GAME_BUTTON_AREA, PLAY_DOTA_BUTTON_TEMPLATE)
+        return InterruptType.GAME_CANCELED if match_value >= 0.8 else None
+
+    async def check_for_vs_screen():
+        if game_phase.starting_buy:
+            return InterruptType.VERSUS_SCREEN
+        return None
+
+    initial_results = await asyncio.gather(
+        check_for_tab_out(),
+        check_for_draft_screen_change(),
+        check_for_game_cancel()
+    )
+
+    for result in initial_results:
+        if result:
+            return result
+
+    vs_screen_result = await check_for_vs_screen()
+    if vs_screen_result:
+        await asyncio.sleep(0.2)
+        initial_results_recheck = await asyncio.gather(
+            check_for_tab_out(),
+            check_for_draft_screen_change(),
+            check_for_game_cancel()
+        )
+        for result in initial_results_recheck:
+            if result:
+                return result
+
+        return vs_screen_result
+
+    return None
+
+
+async def pause_detection(ws, game_phase):
+    if await analyze_dota_interrupt(game_phase) == InterruptType.TAB_OUT:
+        print("You tabbed out, in Dota")
+        while True:
+            # Keep looping as long as "Disconnect" button shows up
+            match_value = await capture_and_process_image(
+                POWER_ICON_AREA, POWER_ICON_TEMPLATE)
+            if match_value <= 0.8:
+                print("exited Dota tab out")
+                break
+
+    elif await analyze_dota_interrupt(
+            game_phase) == InterruptType.DRAFT_SCREEN_CHANGE:
+        print("You swiped back to hero pick screen")
+        print("Fictional delay of 300ms to match animation...")
+        await asyncio.sleep(0.3)
+        game_phase.hero_pick = True
+        await send_streamerbot_ws_request(ws, game_phase)
+        capture_area, template = await define_relevant_match(game_phase)
+        return capture_area, template, game_phase
+
+    elif await analyze_dota_interrupt(
+            game_phase) == InterruptType.GAME_CANCELED:
+        print("Your game got canceled ! Resetting the script.")
+        game_phase.finding_game = True
+        await send_streamerbot_ws_request(ws, game_phase)
+        capture_area, template = await define_relevant_match(
+            game_phase)
+        return capture_area, template, game_phase
+
+    elif await analyze_dota_interrupt(
+            game_phase) == InterruptType.VERSUS_SCREEN:
+        print("You're in VS screen, or left Dota")
+        game_phase.versus_screen = True
+        await send_streamerbot_ws_request(ws, game_phase)
+        capture_area, template = await define_relevant_match(
+            game_phase)
+        return capture_area, template, game_phase
+
+    capture_area, template = await define_relevant_match(game_phase)
+    return capture_area, template, game_phase
 
 
 async def detect_pregame_phase(ws):
@@ -233,74 +385,45 @@ async def detect_pregame_phase(ws):
     game_phase.finding_game = True
     capture_area, template = await define_relevant_match(game_phase)
 
-    while not stop_loop.is_set():
+    while not stop_main_loop.is_set():
 
         match_value = await capture_and_process_image(capture_area, template)
         # match_value = 0.7
-        # await capture_new_area(PLAY_DOTA_AREA, "opencv/return_to_game.jpg")
+        # await capture_new_area(DOTA_PLUS_BUTTONS_AREA,
+        #                        "opencv/dota_power_icon.jpg")
 
         if cv.waitKey(1) == ord("q"):
             break
         if not mute_main_loop_print_feedback.is_set():
             print(f"SSIM: {match_value:.6f}", end="\r")
 
-        if match_value >= 0.8 and not game_phase.hero_pick:
+        if match_value >= 0.8 and game_phase.finding_game:
             print("On hero pick screen")
             game_phase.hero_pick = True
-            capture_area, template = await define_relevant_match(game_phase)
             await send_streamerbot_ws_request(ws, game_phase)
+            capture_area, template = await define_relevant_match(game_phase)
             continue
 
         elif match_value <= 0.8 and game_phase.hero_pick:
-            # So, we lost track of the all pick template
-            print("Exited hero pick")
-            pass
+            capture_area, template, game_phase = \
+                await pause_detection(ws, game_phase)
+            continue
 
-        elif match_value >= 0.8 and not game_phase.starting_buy:
+        elif match_value >= 0.8 and game_phase.hero_pick:
             print("Now, this is the starting buy !")
             game_phase.starting_buy = True
             await send_streamerbot_ws_request(ws, game_phase)
+            continue
 
-        elif (match_value <= 0.8 and game_phase.starting_buy and
-              not game_phase.versus_screen):
-            # So, we lost track of the starting buy template
-            print("You exited the starting buy screen...")
-            if analyze_dota_interrupt() == Interruption.DRAFT_SCREEN_SWAP:
-                print("You're back on the hero pick screen")
-                game_phase.starting_buy = False
-                await send_streamerbot_ws_request(ws, game_phase)
-                capture_area, template = await define_relevant_match(
-                    game_phase)
-                continue
+        elif match_value <= 0.8 and game_phase.starting_buy:
+            capture_area, template, game_phase = \
+                await pause_detection(ws, game_phase)
+            continue
 
-            elif analyze_dota_interrupt() == Interruption.TAB_OUT:
-                print("Tabbed out of starting buy screen in Dota", end="\r")
-                continue
-
-            elif analyze_dota_interrupt() == Interruption.GAME_CANCELED:
-                print("Your game got canceled ! Resetting the script.")
-                game_phase.hero_pick = False
-                game_phase.starting_buy = False
-                await send_streamerbot_ws_request(ws, game_phase)
-                capture_area, template = await define_relevant_match(
-                    game_phase)
-
-            # If none of the above, we are in VS screen or left the app. As
-            # of now, I do not differentiate between the two (too much work)
-            else:
-                print("You're in VS screen, or left Dota")
-                game_phase.versus_screen = True
-                capture_area, template = await define_relevant_match(
-                    game_phase)
-                await send_streamerbot_ws_request(ws, game_phase)
-
-        elif (match_value >= 0.8 and game_phase.versus_screen
-              and not game_phase.in_game):
+        elif match_value >= 0.8 and game_phase.versus_screen:
             game_phase.in_game = True
             print("Woah ! You're in game now !")
             await send_streamerbot_ws_request(ws, game_phase)
-            print("script will exit in 5 seconds..")
-            await asyncio.sleep(5)
             break
 
         await asyncio.sleep(0.01)
