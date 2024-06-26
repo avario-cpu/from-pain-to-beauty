@@ -18,22 +18,31 @@ import logging
 import time
 
 
-class PregameState:
+class PreGamePhases:
 
     def __init__(self):
-        self.hero_pick = False
+        self.found_game = False
+        self.hero_picked = False
         self.starting_buy = False
         self.versus_screen = False
         self.in_game = False
 
 
-HERO_PICK_CAPTURE_AREA = {"left": 880, "top": 70, "width": 160, "height": 30}
-HERO_PICK_TEMPLATE = "opencv/all_pick.jpg"
+HERO_PICK_AREA = {"left": 880, "top": 70, "width": 160, "height": 30}
+STARTING_BUY_AREA = {"left": 860, "top": 120, "width": 400, "height": 30}
+IN_GAME_AREA = {"left": 1820, "top": 1020, "width": 80, "height": 60}
+DOTA_SETTINGS_AREA = {"left": 60, "top": 10, "width": 40, "height": 40}
+SEARCH_GAME_BUTTON_AREA = {"left": 1525, "top": 1005, "width": 340,
+                           "height": 55}
+
+ALL_PICK_TEMPLATE = "opencv/all_pick.jpg"
 STRATEGY_TIME_TEMPLATE = "opencv/strategy_time.jpg"
-START_BUY_CAPTURE_AREA = {"left": 860, "top": 120, "width": 400, "height": 30}
-START_BUY_TEMPLATE = "opencv/strategy-loadout-world-guides.jpg"
-IN_GAME_CAPTURE_AREA = {"left": 1820, "top": 1020, "width": 80, "height": 60}
+STARTING_BUY_TEMPLATE = "opencv/strategy-loadout-world-guides.jpg"
 IN_GAME_TEMPLATE = "opencv/deliver_items_icon.jpg"
+SETTINGS_WHEEL_TEMPLATE = "opencv/settings_wheel.jpg"
+PLAY_DOTA_BUTTON_TEMPLATE = "opencv/play_dota.jpg"
+RETURN_TO_GAME_TEMPLATE = "opencv/return_to_game.jpg"
+
 SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_hero_pick_scanner", 400, 100)]
 SCRIPT_NAME = constants.SCRIPT_NAME_SUFFIX + os.path.splitext(
     os.path.basename(__file__))[0] if __name__ == "__main__" else __name__
@@ -133,89 +142,130 @@ async def send_json_requests(ws, json_file_paths: str | list[str]):
             logger.error(f"WebSocket error: {e}")
 
 
-async def send_streamerbot_ws_request(ws, game_state):
-    if game_state.in_game:
+async def send_streamerbot_ws_request(ws, game_phase):
+    if game_phase.in_game:
         await send_json_requests(
             ws, "streamerbot_ws_requests/switch_to_meta_scene.json")
-    elif game_state.versus_screen:
+    elif game_phase.versus_screen:
         await send_json_requests(
             ws, "streamerbot_ws_requests/dslr_hide_for_VS_screen.json")
-    elif game_state.starting_buy:
+    elif game_phase.starting_buy:
         await send_json_requests(
             ws, "streamerbot_ws_requests/dslr_move_for_starting_buy.json")
-    elif game_state.hero_pick:
+    elif game_phase.hero_picked:
         await send_json_requests(
-            ws, "streamerbot_ws_requests/scene_change_for_hero_pick.json")
+            ws,
+            "streamerbot_ws_requests/scene_change_and_dslr_move_for_pick.json")
+
+
+async def capture_and_process_image(capture_area, template):
+    frame = await capture_window(capture_area)
+    gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+    match_value = await compare_images(gray_frame, template)
+    cv.imshow(SECONDARY_WINDOWS[0].name, gray_frame)
+    secondary_windows_have_spawned.set()
+    return match_value
+
+
+async def capture_new_area(capture_area, filename):
+    frame = await capture_window(capture_area)
+    gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+    cv.imshow(SECONDARY_WINDOWS[0].name, gray_frame)
+    secondary_windows_have_spawned.set()
+    cv.imwrite(filename, gray_frame)
+
+
+async def define_desired_match(game_phase: PreGamePhases):
+    capture_area = None
+    template = None
+    if game_phase.in_game:
+        pass
+    elif game_phase.versus_screen:
+        pass
+    elif game_phase.starting_buy or game_phase.hero_picked:
+        capture_area = STARTING_BUY_AREA
+        template = cv.imread(STARTING_BUY_TEMPLATE, cv.IMREAD_GRAYSCALE)
+    elif game_phase.found_game:
+        capture_area = HERO_PICK_AREA
+        template = cv.imread(ALL_PICK_TEMPLATE, cv.IMREAD_GRAYSCALE)
+    return capture_area, template
 
 
 async def detect_pregame_phase(ws):
-    game_sate = PregameState()
-    template = cv.imread(HERO_PICK_TEMPLATE, cv.IMREAD_GRAYSCALE)
-    capture_area = HERO_PICK_CAPTURE_AREA
+    game_phase = PreGamePhases()
+    game_phase.found_game = True
+    capture_area, template = await define_desired_match(game_phase)
 
     while not stop_loop.is_set():
-        frame = await capture_window(capture_area)
-        gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-        match_value = await compare_images(gray_frame, template)
-        cv.imshow(SECONDARY_WINDOWS[0].name, gray_frame)
-        secondary_windows_have_spawned.set()
+
+        match_value = await capture_and_process_image(capture_area, template)
+        # match_value = 0.7
+        # await capture_new_area(PLAY_DOTA_AREA, "opencv/return_to_game.jpg")
 
         if cv.waitKey(1) == ord("q"):
             break
         if not mute_main_loop_print_feedback.is_set():
             print(f"SSIM: {match_value:.6f}", end="\r")
-        if match_value >= 0.8 and not game_sate.hero_pick:
-            game_sate.hero_pick = True
-            print("Hey! You're picking :)")
-            capture_area = START_BUY_CAPTURE_AREA
-            template = cv.imread(START_BUY_TEMPLATE, cv.IMREAD_GRAYSCALE)
-            await send_streamerbot_ws_request(ws, game_sate)
 
-        elif match_value >= 0.8 and not game_sate.starting_buy:
-            game_sate.starting_buy = True
+        if match_value >= 0.8 and not game_phase.hero_picked:
+            print("On hero pick screen")
+            game_phase.hero_picked = True
+            capture_area, template = await define_desired_match(game_phase)
+            await send_streamerbot_ws_request(ws, game_phase)
+            continue
+
+        elif match_value <= 0.8 and game_phase.hero_picked:
+            print("Exited hero pick")
+            pass
+
+        elif match_value >= 0.8 and not game_phase.starting_buy:
             print("Now, this is the starting buy !")
-            await send_streamerbot_ws_request(ws, game_sate)
+            game_phase.starting_buy = True
+            await send_streamerbot_ws_request(ws, game_phase)
 
-        if (match_value <= 0.8 and game_sate.starting_buy and
-                not game_sate.versus_screen):
-            print("Back to picking, or in VS screen...")
-            # Check to see if "All pick" still shows up
-            template = cv.imread(HERO_PICK_TEMPLATE, cv.IMREAD_GRAYSCALE)
-            capture_area = HERO_PICK_CAPTURE_AREA
-            frame = await capture_window(capture_area)
-            gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-            match_value = await compare_images(gray_frame, template)
-            if match_value >= 0.8:
-                game_sate.hero_pick = False
-                game_sate.starting_buy = False
+        elif (match_value <= 0.8 and game_phase.starting_buy and
+              not game_phase.versus_screen):
+            print("You exited the starting buy screen...")
+            # Check if "All pick or Strategy time" still show up
+            if (await capture_and_process_image(
+                    HERO_PICK_AREA, ALL_PICK_TEMPLATE) >= 0.8
+                    or await capture_and_process_image(
+                        HERO_PICK_AREA, STRATEGY_TIME_TEMPLATE) >= 0.8):
+                print("Back to hero pick screen")
+                game_phase.starting_buy = False
+                await send_streamerbot_ws_request(ws, game_phase)
+                capture_area, template = await define_desired_match(
+                    game_phase)
                 continue
-            else:
-                # Check to see if "Strategy time" still shows up
-                template = cv.imread(STRATEGY_TIME_TEMPLATE,
-                                     cv.IMREAD_GRAYSCALE)
-                capture_area = HERO_PICK_CAPTURE_AREA
-                frame = await capture_window(capture_area)
-                gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-                match_value = await compare_images(gray_frame, template)
-                if match_value >= 0.8:
-                    game_sate.hero_pick = False
-                    game_sate.starting_buy = False
-                    continue
-                else:
-                    game_sate.versus_screen = True
-                    print("You're in VS screen, or tabbed out...")
-                    capture_area = IN_GAME_CAPTURE_AREA
-                    template = cv.imread(IN_GAME_TEMPLATE,
-                                         cv.IMREAD_GRAYSCALE)
-                    await send_streamerbot_ws_request(ws, game_sate)
 
-        elif (match_value >= 0.8
-              and game_sate.versus_screen
-              and not game_sate.in_game):
-            game_sate.in_game = True
+            elif (await capture_and_process_image(
+                    SEARCH_GAME_BUTTON_AREA, RETURN_TO_GAME_TEMPLATE)
+                  >= 0.8):
+                print("Tabbed out of starting buy screen in Dota", end="\r")
+                continue
+            elif (await capture_and_process_image(
+                    SEARCH_GAME_BUTTON_AREA, PLAY_DOTA_BUTTON_TEMPLATE)
+                  >= 0.8):
+                print("Your game got canceled ! Resetting the "
+                      "script.")
+                game_phase.found_game = False
+                game_phase.hero_picked = False
+                game_phase.starting_buy = False
+                capture_area, template = await define_desired_match(game_phase)
+
+            else:
+                print("You're in VS screen, or left Dota")
+                game_phase.versus_screen = True
+                capture_area = IN_GAME_AREA
+                template = cv.imread(IN_GAME_TEMPLATE,
+                                     cv.IMREAD_GRAYSCALE)
+                await send_streamerbot_ws_request(ws, game_phase)
+
+        elif (match_value >= 0.8 and game_phase.versus_screen
+              and not game_phase.in_game):
+            game_phase.in_game = True
             print("Woah ! You're in game now !")
-            await send_streamerbot_ws_request(ws, game_sate)
-            print("Okay, finished. Leaving the script now :)")
+            await send_streamerbot_ws_request(ws, game_phase)
             break
 
         await asyncio.sleep(0.01)
