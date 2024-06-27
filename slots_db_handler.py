@@ -197,6 +197,22 @@ def get_full_data(slot_id) -> list[str]:
         print(e)
 
 
+def get_slot_by_main_name(name: str) -> int | None:
+    """Get the slot id by the main name"""
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM slots WHERE name0 = ?", (name,))
+        row = cur.fetchone()
+        if row:
+            return row[0]
+        else:
+            print(f"No slot found with the main name: {name}")
+            return None
+    except sqlite3.Error as e:
+        print(e)
+        return None
+
+
 def get_all_names() -> list[str]:
     """Get a list of all the names, main and secondary, in the entire
     database"""

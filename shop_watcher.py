@@ -87,6 +87,7 @@ formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 logger.addHandler(fh)
+logger.info("\n\n\n\n<< New Log Entry >>")
 
 
 def exit_countdown():

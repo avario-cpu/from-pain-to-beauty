@@ -20,12 +20,16 @@ formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 logger.addHandler(fh)
+logger.info(f"\n\n\n\n<< New Log Entry >>")
 
 logger.info('Start test for shop_watcher')
 
 MAIN_WINDOW_WIDTH = 600
 MAIN_WINDOW_HEIGHT = 260
-MAX_WINDOWS_PER_COLUMN = 1040 // MAIN_WINDOW_HEIGHT  # considering taskbar
+MAX_WINDOWS_PER_COLUMN = 1040 // MAIN_WINDOW_HEIGHT  # So currently 4,
+
+
+# 1040p instead of 1080p to account for the windows bottom taskbar
 
 
 class WinType(Enum):
@@ -86,7 +90,7 @@ def set_window_title(title):
     os.system(f"title {title}")
 
 
-def find_window(title: str, timeout=3) -> gw.Win32Window | None:
+def find_window(title: str, timeout=2) -> gw.Win32Window | None:
     """Find window by title within a given timeout"""
     end_time = time.time() + timeout
     while time.time() < end_time:
@@ -147,6 +151,7 @@ def calculate_secondary_window_properties(
     """Set properties for a list of secondary windows"""
     properties = []
     x_pos_offset = 0
+    y_pos_offset = 0
 
     for i in range(0, len(secondary_windows)):
         width = secondary_windows[i].width
@@ -155,9 +160,19 @@ def calculate_secondary_window_properties(
                  + x_pos_offset)
         y_pos = MAIN_WINDOW_HEIGHT * (slot % MAX_WINDOWS_PER_COLUMN)
 
+        if x_pos < -MAIN_WINDOW_WIDTH * (1 + slot // MAX_WINDOWS_PER_COLUMN):
+            # move to the next line
+            x_pos_offset = 0
+            y_pos_offset += secondary_windows[0].height
+            x_pos = (-width - MAIN_WINDOW_WIDTH * (
+                    slot // MAX_WINDOWS_PER_COLUMN)
+                     + x_pos_offset)
+            y_pos = MAIN_WINDOW_HEIGHT * (
+                    slot % MAX_WINDOWS_PER_COLUMN) + y_pos_offset
         props = width, height, x_pos, y_pos
         properties.append(props)
-        logger.info(f"Secondary properties calculated are {props}")
+        logger.info(f"Secondary properties for '{secondary_windows[i].name}' "
+                    f"calculated are {props}")
         x_pos_offset -= width  # to avoid overlap
 
     return properties
@@ -175,7 +190,7 @@ def adjust_window(title: str,
         if move:
             window.moveTo(*properties[2:])
     else:
-        logger.error("Window not found for adjusting position.")
+        logger.error(f"Window '{title}' not found for adjusting position.")
 
 
 def generate_window_data(title: str,
