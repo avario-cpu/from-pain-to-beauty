@@ -16,11 +16,9 @@ def remove_lock(name):
 
 def lock_exists(name):
     lock = os.path.isfile(f"temp/lock_files/{name}.lock")
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    script_dir_name = os.path.basename(script_dir)
     if lock:
-        print(f"lock file for is present for {script_dir_name}")
+        print(f"lock file for is present for {name}")
         return True
     else:
-        print(f"no lock found for {script_dir_name}")
+        print(f"no lock found for {name}")
         return False

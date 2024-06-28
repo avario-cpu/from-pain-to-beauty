@@ -166,10 +166,10 @@ async def react_to_shop(status, ws):
     print(f"Shop just {status}")
     if status == "opened" and ws:
         await send_json_requests(
-            ws, "streamerbot_ws_requests/dslr_hide.json")
+            ws, "streamerbot_ws_requests/shop_scan_dslr_hide.json")
     elif status == "closed" and ws:
         await send_json_requests(
-            ws, "streamerbot_ws_requests/dslr_show.json", )
+            ws, "streamerbot_ws_requests/shop_scan_dslr_show.json", )
     pass
 
 

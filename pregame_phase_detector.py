@@ -31,32 +31,54 @@ class InterruptType(Enum):
 
 class Tabbed:
     def __init__(self):
-        self._in_game = False
-        self._out_game = False
+        self._out_to_desktop = False
+        self._in_dota_menu = False
+        self._in_settings_screen = False
 
     @property
-    def in_game(self):
-        return self._in_game
+    def out_to_desktop(self):
+        return self._out_to_desktop
 
-    @in_game.setter
-    def in_game(self, value):
+    @out_to_desktop.setter
+    def out_to_desktop(self, value):
         if value:
             self._set_all_false()
-        self._in_game = value
+        self._out_to_desktop = value
 
     @property
-    def out_game(self):
-        return self._out_game
+    def in_dota_menu(self):
+        return self._in_dota_menu
 
-    @out_game.setter
-    def out_game(self, value):
+    @in_dota_menu.setter
+    def in_dota_menu(self, value):
         if value:
             self._set_all_false()
-        self._out_game = value
+        self._in_dota_menu = value
+
+    @property
+    def in_settings_screen(self):
+        return self._in_settings_screen
+
+    @in_settings_screen.setter
+    def in_settings_screen(self, value):
+        if value:
+            self._set_all_false()
+        self._in_settings_screen = value
 
     def _set_all_false(self):
-        self._in_game = False
-        self._out_game = False
+        self._out_to_desktop = False
+        self._in_dota_menu = False
+        self._in_settings_screen = False
+
+    def current_state(self):
+        if self._out_to_desktop:
+            return "Out to desktop"
+        elif self._in_dota_menu:
+            return "In Dota menu"
+        elif self._in_settings_screen:
+            return "In settings screen"
+        else:
+            return "No state is True"
 
 
 class PreGamePhases:
@@ -65,6 +87,7 @@ class PreGamePhases:
         self._finding_game = False
         self._hero_pick = False
         self._starting_buy = False
+        self._in_settings = False
         self._versus_screen = False
         self._in_game = False
 
@@ -99,6 +122,16 @@ class PreGamePhases:
         self._starting_buy = value
 
     @property
+    def in_settings(self):
+        return self._in_settings
+
+    @in_settings.setter
+    def in_settings(self, value):
+        if value:
+            self._set_all_false()
+        self._in_settings = value
+
+    @property
     def versus_screen(self):
         return self._versus_screen
 
@@ -122,15 +155,9 @@ class PreGamePhases:
         self._finding_game = False
         self._hero_pick = False
         self._starting_buy = False
+        self._in_settings = False
         self._versus_screen = False
         self._in_game = False
-
-    def __str__(self):
-
-        return (
-            f"finding_game: {self._finding_game}, hero_pick: {self._hero_pick}"
-            f", starting_buy: {self._starting_buy}, versus_screen: "
-            f"{self._versus_screen}, in_game: {self._in_game}")
 
 
 DOTA_POWER_ICON_AREA = {"left": 1860, "top": 10, "width": 60, "height": 40}
@@ -140,6 +167,7 @@ STARTING_BUY_AREA = {"left": 860, "top": 120, "width": 400, "height": 30}
 IN_GAME_AREA = {"left": 1820, "top": 1020, "width": 80, "height": 60}
 PLAY_DOTA_BUTTON_AREA = {"left": 1525, "top": 1005, "width": 340, "height": 55}
 DESKTOP_ICONS_AREA = {"left": 1750, "top": 1040, "width": 50, "height": 40}
+SETTINGS_ICON_AREA = {"left": 170, "top": 85, "width": 40, "height": 40}
 
 DOTA_POWER_ICON_TEMPLATE = cv2.imread("opencv/dota_power_icon.jpg",
                                       cv.IMREAD_GRAYSCALE)
@@ -154,10 +182,11 @@ PLAY_DOTA_BUTTON_TEMPLATE = cv2.imread("opencv/play_dota.jpg",
                                        cv.IMREAD_GRAYSCALE)
 DESKTOP_ICONS_TEMPLATE = cv2.imread("opencv/desktop_icons.jpg",
                                     cv.IMREAD_GRAYSCALE)
+SETTINGS_ICON_TEMPLATE = cv2.imread("opencv/dota_settings_icon.jpg",
+                                    cv.IMREAD_GRAYSCALE)
 
 SECONDARY_WINDOWS = [my.SecondaryWindow("pick_timer_scanner", 200, 80),
-                     my.SecondaryWindow("starting_buy_scanner", 400, 80),
-                     my.SecondaryWindow("interruption_scanner", 200, 80)]
+                     my.SecondaryWindow("starting_buy_scanner", 400, 80)]
 SCRIPT_NAME = constants.SCRIPT_NAME_SUFFIX + os.path.splitext(
     os.path.basename(__file__))[0] if __name__ == "__main__" else __name__
 # suffix added to avoid window naming conflicts with cli manager
@@ -266,27 +295,33 @@ async def send_json_requests(ws, json_file_paths: str | list[str]):
 
 
 async def send_streamerbot_ws_request(ws: websockets.WebSocketClientProtocol,
-                                      game_phase: PreGamePhases):
-    if game_phase.in_game:
-        await send_json_requests(
-            ws,
-            "streamerbot_ws_requests/switch_to_meta_scene.json")
-    elif game_phase.versus_screen:
-        await send_json_requests(
-            ws,
-            "streamerbot_ws_requests/dslr_hide_for_VS_screen.json")
-    elif game_phase.starting_buy:
-        await send_json_requests(
-            ws,
-            "streamerbot_ws_requests/dslr_move_for_starting_buy.json")
-    elif game_phase.hero_pick:
-        await send_json_requests(
-            ws,
-            "streamerbot_ws_requests/scene_change_and_dslr_move_for_pick.json")
-    elif game_phase.finding_game:
-        await send_json_requests(
-            ws,
-            "streamerbot_ws_requests/switch_to_meta_scene.json")
+                                      game_phase: PreGamePhases,
+                                      tabbed: Tabbed = None):
+    if tabbed:
+        if tabbed.in_settings_screen:
+            await send_json_requests(
+                ws, "streamerbot_ws_requests/dslr_hide_for_VS_screen.json")
+        elif tabbed.in_dota_menu:
+            pass
+
+    elif not tabbed:
+        if game_phase.in_game:
+            await send_json_requests(
+                ws, "streamerbot_ws_requests/switch_to_meta_scene.json")
+        elif game_phase.versus_screen:
+            await send_json_requests(
+                ws, "streamerbot_ws_requests/dslr_hide_for_VS_screen.json")
+        elif game_phase.starting_buy:
+            await send_json_requests(
+                ws, "streamerbot_ws_requests/dslr_move_for_starting_buy.json")
+        elif game_phase.hero_pick:
+            await send_json_requests(
+                ws,
+                "streamerbot_ws_requests/scene_change_and_dslr_move_for_pick"
+                ".json")
+        elif game_phase.finding_game:
+            await send_json_requests(
+                ws, "streamerbot_ws_requests/switch_to_meta_scene.json")
 
 
 async def capture_new_area(capture_area, filename):
@@ -367,112 +402,160 @@ async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
             capture_area_a, template_a1, template_a2,
             capture_area_b, template_b)
 
-        # await capture_new_area(PICK_PHASE_MESSAGE_AREA,
-        #                        "opencv/strategy_time.jpg")
+        # await capture_new_area(SETTINGS_ICON_AREA,
+        #                        "opencv/dota_settings_icon.jpg")
         # match_value_1, match_value_2 = 0, 0
         if cv.waitKey(1) == ord("q"):
             break
 
         if not mute_main_loop_print_feedback.is_set():
+            # Inverted order of value 1 and 2 due to positioning order of
+            # secondary windows according to twm. Allows for visual match.
             print(f"SSIMs:{match_value_2:.4f} / {match_value_1:.4f}", end="\r")
 
-        if check_for_tabout:
-            if tabbed.out_game:
-                await asyncio.sleep(0.3)
+        if tabbed.in_settings_screen:
             if match_value_2 >= target_value_2:
-                tabbed.out_game = True
-                print(f"Detected Tab out... {counter}")
                 continue
-            elif (capture_area_b is not DESKTOP_ICONS_AREA
-                  and template_b is not DESKTOP_ICONS_TEMPLATE):
-                # Check for Desktop tabout
-                capture_area_b = DESKTOP_ICONS_AREA
-                template_b = DESKTOP_ICONS_TEMPLATE
+            else:
+                print("Exited settings screen. (0.5s delay)")
+                await asyncio.sleep(0.5)  # gives time for settings screen
+                # exit animation to play out. If we exit immediately we will
+                # get a fake mismatch for the all pick template.
+                tabbed.in_settings_screen = False
+                capture_area_b = STARTING_BUY_AREA
+                template_b = STARTING_BUY_TEMPLATE
                 continue
-            elif match_value_1 >= target_value_1:
+
+        if check_for_tabout:
+            # Set the initial scan area
+            if (template_b is not DOTA_POWER_ICON_TEMPLATE and
+                    template_b is not DESKTOP_ICONS_TEMPLATE):
+                print("setting << dota tabout >> template")
+                capture_area_b = DOTA_POWER_ICON_AREA
+                template_b = DOTA_POWER_ICON_TEMPLATE
+                continue
+
+            if tabbed.in_dota_menu or tabbed.out_to_desktop:
+                await asyncio.sleep(0.3)  # delay to allow dota to refresh
+                # the hero picking screen when tabbing back from the menus
+
+            if match_value_1 >= target_value_1:
+                # If we come back to the hero pick screen
                 capture_area_b = STARTING_BUY_AREA
                 template_b = STARTING_BUY_TEMPLATE
                 check_for_tabout = False
-                tabbed.in_game = True
                 continue
+
+            if match_value_2 >= target_value_2:
+                # Indentify tabout according to template who matched
+                if template_b is DOTA_POWER_ICON_TEMPLATE:
+                    tabbed.in_dota_menu = True
+                elif template_b is DESKTOP_ICONS_TEMPLATE:
+                    tabbed.out_to_desktop = True
+                print(f"Detected Tab out:{tabbed.current_state()}.. "
+                      f"{counter}")
+                continue
+            elif template_b is not DESKTOP_ICONS_TEMPLATE:
+                print("setting << desktop tabout >> template")
+                capture_area_b = DESKTOP_ICONS_AREA
+                template_b = DESKTOP_ICONS_TEMPLATE
+                continue
+            elif tabbed.out_to_desktop:
+                print("Are we coming back to a dota TABOUT ?")
+                dota_tabout_check, _ = await (
+                    capture_and_process_images(DOTA_POWER_ICON_AREA,
+                                               DOTA_POWER_ICON_TEMPLATE))
+                if dota_tabout_check >= 0.7:
+                    capture_area_b = DOTA_POWER_ICON_AREA
+                    template_b = DOTA_POWER_ICON_TEMPLATE
+                    continue
+                else:
+                    pass
             else:
-                # No tabout matches and no all pick/strategy UI
-                # if this last for more than 1sec, we are in vs screen,
-                # until then we need to re-check if we are not
-                # transitioning to a "starting buy" state
+                # No tabout matches and no "all pick/strategy time" UI:
+                # if this last for more than 1sec, we are in vs screen.
+                # Until then, we need to re-check if we are not
+                # transitioning to a "starting buy" state, or did not open
+                # some other window inside Dota, like the settings screen.
                 start_time = time.time()
-                duration = 0.7
-                while time.time() - start_time < duration:
+                duration = 1
+                while time.time() - start_time < duration:  # just a time delay
                     elapsed_time = time.time() - start_time
                     percentage = (elapsed_time / duration) * 100
                     print(f"Checking for Vs screen... {percentage:.2f}%",
                           end='\r')
-                match_value_1, match_value_2 = await (
+                pick_message_check, start_buy_check = await (
                     capture_and_process_images(
-                        STARTING_BUY_AREA, STARTING_BUY_TEMPLATE,
-                        capture_area_b=PICK_PHASE_MESSAGE_AREA,
-                        template_b=STRATEGY_TIME_TEMPLATE
+                        PICK_PHASE_MESSAGE_AREA,
+                        ALL_PICK_TEMPLATE,
+                        STRATEGY_TIME_TEMPLATE,
+                        capture_area_b=STARTING_BUY_AREA,
+                        template_b=STARTING_BUY_TEMPLATE
                     ))
-                if match_value_1 >= 0.7 or match_value_2 >= 0.7:
-                    print("Not in vs screen... resumed pick phase")
+                if pick_message_check >= 0.7 or start_buy_check >= 0.7:
+                    print("NOT in vs screen... resumed pick phase")
                     capture_area_b = STARTING_BUY_AREA
                     template_b = STARTING_BUY_TEMPLATE
                     check_for_tabout = False
-                    tabbed.in_game = True
+                    continue
                 else:
-                    print("\n We should be in VS screen...")
-                    game_phase.versus_screen = True
-                    check_for_tabout = False
-                    tabbed.in_game = True
-                    cv.destroyWindow(SECONDARY_WINDOWS[1].name)
-                    capture_area_a = IN_GAME_AREA
-                    template_a1 = IN_GAME_TEMPLATE
-                    template_a2 = None
-                    capture_area_b = None
-                    template_b = None
-                    await send_streamerbot_ws_request(ws, game_phase)
-                continue
+                    print("Checking for settings screen")
+                    settings_screen_check, _ = await (
+                        capture_and_process_images(SETTINGS_ICON_AREA,
+                                                   SETTINGS_ICON_TEMPLATE))
+                    if settings_screen_check >= 0.7:
+                        print("NOT in vs screen ... in settings screen")
+                        capture_area_b = SETTINGS_ICON_AREA
+                        template_b = SETTINGS_ICON_TEMPLATE
+                        tabbed.in_settings_screen = True
+                        check_for_tabout = False
+                        await send_streamerbot_ws_request(ws, game_phase,
+                                                          tabbed)
+                        continue
+                    else:
+                        print("We should be in VS screen...")
+                        game_phase.versus_screen = True
+                        cv.destroyWindow(SECONDARY_WINDOWS[1].name)
+                        capture_area_a = IN_GAME_AREA
+                        template_a1 = IN_GAME_TEMPLATE
+                        template_a2 = None
+                        capture_area_b = None
+                        template_b = None
+                        check_for_tabout = False
+                        await send_streamerbot_ws_request(ws, game_phase)
+                        continue
 
-        elif match_value_1 >= target_value_1 and game_phase.finding_game:
+        elif game_phase.finding_game and match_value_1 >= target_value_1:
             # Initial all pick phase detection
             print("Found game: arrived on hero pick screen")
             game_phase.hero_pick = True
-            tabbed.in_game = True
             await send_streamerbot_ws_request(ws, game_phase)
             continue
 
-        elif (match_value_1 >= target_value_1
-              and match_value_2 >= target_value_2
-              and game_phase.hero_pick):
+        elif game_phase.hero_pick and (match_value_1 >= target_value_1
+                                       and match_value_2 >= target_value_2):
             # We detect the starting buy screen
             print("Now, this is the starting buy !")
             game_phase.starting_buy = True
-            tabbed.in_game = True
             await send_streamerbot_ws_request(ws, game_phase)
             continue
 
-        elif (match_value_1 >= target_value_1
-              and match_value_2 < target_value_2
-              and game_phase.starting_buy):
+        elif game_phase.starting_buy and (match_value_1 >= target_value_1
+                                          and match_value_2 < target_value_2):
             # We are on the pick screen, but starting buy UI does not show.
             print("Back to hero select screen !")
             game_phase.hero_pick = True
-            tabbed.in_game = True
             await send_streamerbot_ws_request(ws, game_phase)
 
         elif (match_value_1 < target_value_1
               and (game_phase.hero_pick or game_phase.starting_buy)):
             # We've lost track of the "all pick" screen
             check_for_tabout = True
-            # Check for Dota Tab out
-            capture_area_b = DOTA_POWER_ICON_AREA
-            template_b = DOTA_POWER_ICON_TEMPLATE
             continue
 
         elif game_phase.versus_screen and match_value_1 >= 0.8:
             print("We are now in Game !")
             game_phase.in_game = True
-            tabbed.in_game = True
             await send_streamerbot_ws_request(ws, game_phase)
             break
 
