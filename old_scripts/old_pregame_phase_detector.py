@@ -112,17 +112,18 @@ PLAY_DOTA_BUTTON_AREA = {"left": 1525, "top": 1005, "width": 340,
                          "height": 55}
 POWER_ICON_AREA = {"left": 1860, "top": 10, "width": 60, "height": 40}
 
-ALL_PICK_TEMPLATE = cv2.imread("opencv/all_pick.jpg", cv.IMREAD_GRAYSCALE)
-STRATEGY_TIME_TEMPLATE = cv2.imread("opencv/strategy_time.jpg",
+ALL_PICK_TEMPLATE = cv2.imread("../opencv/all_pick.jpg", cv.IMREAD_GRAYSCALE)
+STRATEGY_TIME_TEMPLATE = cv2.imread("../opencv/strategy_time.jpg",
                                     cv.IMREAD_GRAYSCALE)
-STARTING_BUY_TEMPLATE = cv2.imread("opencv/strategy-load-out-world-guides.jpg",
-                                   cv.IMREAD_GRAYSCALE)
-IN_GAME_TEMPLATE = cv2.imread("opencv/deliver_items_icon.jpg",
+STARTING_BUY_TEMPLATE = cv2.imread(
+    "../opencv/strategy-load-out-world-guides.jpg",
+    cv.IMREAD_GRAYSCALE)
+IN_GAME_TEMPLATE = cv2.imread("../opencv/deliver_items_icon.jpg",
                               cv.IMREAD_GRAYSCALE)
-PLAY_DOTA_BUTTON_TEMPLATE = cv2.imread("opencv/play_dota.jpg",
+PLAY_DOTA_BUTTON_TEMPLATE = cv2.imread("../opencv/play_dota.jpg",
                                        cv.IMREAD_GRAYSCALE)
 
-POWER_ICON_TEMPLATE = cv2.imread("opencv/dota_power_icon.jpg",
+POWER_ICON_TEMPLATE = cv2.imread("../opencv/dota_power_icon.jpg",
                                  cv.IMREAD_GRAYSCALE)
 
 SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_hero_pick_scanner", 400, 100)]
@@ -227,20 +228,20 @@ async def send_json_requests(ws, json_file_paths: str | list[str]):
 async def send_streamerbot_ws_request(ws, game_phase):
     if game_phase.in_game:
         await send_json_requests(
-            ws, "streamerbot_ws_requests/switch_to_meta_scene.json")
+            ws, "../streamerbot_ws_requests/switch_to_meta_scene.json")
     elif game_phase.versus_screen:
         await send_json_requests(
-            ws, "streamerbot_ws_requests/dslr_hide_for_VS_screen.json")
+            ws, "../streamerbot_ws_requests/dslr_hide_for_VS_screen.json")
     elif game_phase.starting_buy:
         await send_json_requests(
-            ws, "streamerbot_ws_requests/dslr_move_for_starting_buy.json")
+            ws, "../streamerbot_ws_requests/dslr_move_for_starting_buy.json")
     elif game_phase.hero_pick:
         await send_json_requests(
             ws,
-            "streamerbot_ws_requests/scene_change_and_dslr_move_for_pick.json")
+            "../streamerbot_ws_requests/scene_change_and_dslr_move_for_pick.json")
     elif game_phase.finding_game:
         await send_json_requests(
-            ws, "streamerbot_ws_requests/switch_to_meta_scene.json")
+            ws, "../streamerbot_ws_requests/switch_to_meta_scene.json")
 
 
 async def capture_and_process_image(capture_area,
