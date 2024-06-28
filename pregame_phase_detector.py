@@ -29,6 +29,36 @@ class InterruptType(Enum):
     TRANSITION_MESSAGE = auto()
 
 
+class Tabbed:
+    def __init__(self):
+        self._in_game = False
+        self._out_game = False
+
+    @property
+    def in_game(self):
+        return self._in_game
+
+    @in_game.setter
+    def in_game(self, value):
+        if value:
+            self._set_all_false()
+        self._in_game = value
+
+    @property
+    def out_game(self):
+        return self._out_game
+
+    @out_game.setter
+    def out_game(self, value):
+        if value:
+            self._set_all_false()
+        self._out_game = value
+
+    def _set_all_false(self):
+        self._in_game = False
+        self._out_game = False
+
+
 class PreGamePhases:
 
     def __init__(self):
@@ -103,7 +133,7 @@ class PreGamePhases:
             f"{self._versus_screen}, in_game: {self._in_game}")
 
 
-POWER_ICON_AREA = {"left": 1860, "top": 10, "width": 60, "height": 40}
+DOTA_POWER_ICON_AREA = {"left": 1860, "top": 10, "width": 60, "height": 40}
 PICK_TIMER_DOTS_AREA = {"left": 937, "top": 24, "width": 14, "height": 40}
 PICK_PHASE_MESSAGE_AREA = {"left": 880, "top": 70, "width": 160, "height": 24}
 STARTING_BUY_AREA = {"left": 860, "top": 120, "width": 400, "height": 30}
@@ -111,14 +141,8 @@ IN_GAME_AREA = {"left": 1820, "top": 1020, "width": 80, "height": 60}
 PLAY_DOTA_BUTTON_AREA = {"left": 1525, "top": 1005, "width": 340, "height": 55}
 DESKTOP_ICONS_AREA = {"left": 1750, "top": 1040, "width": 50, "height": 40}
 
-POWER_ICON_TEMPLATE = cv2.imread("opencv/dota_power_icon.jpg",
-                                 cv.IMREAD_GRAYSCALE)
-TIMER_DOTS_TEMPLATE_1 = cv2.imread("opencv/pick_timer_dots_1.jpg",
-                                   cv.IMREAD_GRAYSCALE)
-TIMER_DOTS_TEMPLATE_2 = cv2.imread("opencv/pick_timer_dots_2.jpg",
-                                   cv.IMREAD_GRAYSCALE)
-TIMER_DOTS_TEMPLATE_3 = cv2.imread("opencv/pick_timer_dots_3.jpg",
-                                   cv.IMREAD_GRAYSCALE)
+DOTA_POWER_ICON_TEMPLATE = cv2.imread("opencv/dota_power_icon.jpg",
+                                      cv.IMREAD_GRAYSCALE)
 ALL_PICK_TEMPLATE = cv2.imread("opencv/all_pick.jpg", cv.IMREAD_GRAYSCALE)
 STRATEGY_TIME_TEMPLATE = cv2.imread("opencv/strategy_time.jpg",
                                     cv.IMREAD_GRAYSCALE)
@@ -288,41 +312,6 @@ async def match_interrupt_template(area, template):
     return match_value
 
 
-async def find_interrupt_reason(time_passed):
-    areas_template_interrupts = [
-        (DESKTOP_ICONS_AREA, DESKTOP_ICONS_TEMPLATE,
-         InterruptType.DESKTOP_TAB_OUT),
-        (POWER_ICON_AREA, POWER_ICON_TEMPLATE, InterruptType.DOTA_TAB_OUT),
-        (PICK_PHASE_MESSAGE_AREA, STRATEGY_TIME_TEMPLATE,
-         InterruptType.TRANSITION_MESSAGE)
-    ]
-
-    for area, template, interrupt_type in areas_template_interrupts:
-        interrupt_match = await match_interrupt_template(area, template)
-        interruption_counter = 0
-        if not secondary_windows_readjusted.is_set():
-            await readjust_secondary_windows()
-            secondary_windows_readjusted.set()
-        if interrupt_match >= 0.7:
-            print(f"Interrupt was : {interrupt_type}")
-            while (interrupt_match >= 0.7 and interrupt_type is not
-                   InterruptType.TRANSITION_MESSAGE):
-                # Will be stuck in the interruption loop if the template used
-                # to indentify the "strategy time" message also matches
-                # positively once the transition is complete.
-                interrupt_match = await match_interrupt_template(area,
-                                                                 template)
-                interruption_counter += 1
-                print(f"In interruption... {interruption_counter}", end='\r')
-            print(f"Interruption ended, back to pick screen")
-            return interrupt_type
-        elif time_passed >= 1:
-            # If no interrupt reasons are given after a while, assume we
-            # shifted to the vs screen
-            print("We must be in VS screen then")
-            return InterruptType.VERSUS_SCREEN
-
-
 async def capture_and_process_images(capture_area_a,
                                      template_a1: cv2.typing.MatLike,
                                      template_a2: cv2.typing.MatLike = None,
@@ -340,7 +329,7 @@ async def capture_and_process_images(capture_area_a,
 
     cv.imshow(SECONDARY_WINDOWS[0].name, gray_frame_1)
 
-    match_value_2 = 0
+    match_value_2 = 0.0
 
     if capture_area_b is not None:
         frame_2 = await capture_window(capture_area_b)
@@ -351,12 +340,16 @@ async def capture_and_process_images(capture_area_a,
             match_value_2 = await compare_images(gray_frame_2, template_b)
 
     initial_secondary_windows_spawned.set()
+
     return match_value_1, match_value_2
 
 
 async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
     game_phase = PreGamePhases()
+    tabbed = Tabbed()
     game_phase.finding_game = True
+    check_for_tabout = False
+    counter = 0
 
     capture_area_a = PICK_PHASE_MESSAGE_AREA
     template_a1 = ALL_PICK_TEMPLATE
@@ -365,10 +358,11 @@ async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
     capture_area_b = STARTING_BUY_AREA
     template_b = STARTING_BUY_TEMPLATE
 
-    target_value_1 = 0.6  # for picker timer message
-    target_value_2 = 0.7  # for starting buy
+    target_value_1 = 0.7  # for Pick timer message
+    target_value_2 = 0.7  # for Starting buy / Tab out
 
     while not stop_main_loop.is_set():
+        counter += 1
         match_value_1, match_value_2 = await capture_and_process_images(
             capture_area_a, template_a1, template_a2,
             capture_area_b, template_b)
@@ -382,10 +376,68 @@ async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
         if not mute_main_loop_print_feedback.is_set():
             print(f"SSIMs:{match_value_2:.4f} / {match_value_1:.4f}", end="\r")
 
-        if match_value_1 >= target_value_1 and game_phase.finding_game:
+        if check_for_tabout:
+            if tabbed.out_game:
+                await asyncio.sleep(0.3)
+            if match_value_2 >= target_value_2:
+                tabbed.out_game = True
+                print(f"Detected Tab out... {counter}")
+                continue
+            elif (capture_area_b is not DESKTOP_ICONS_AREA
+                  and template_b is not DESKTOP_ICONS_TEMPLATE):
+                # Check for Desktop tabout
+                capture_area_b = DESKTOP_ICONS_AREA
+                template_b = DESKTOP_ICONS_TEMPLATE
+                continue
+            elif match_value_1 >= target_value_1:
+                capture_area_b = STARTING_BUY_AREA
+                template_b = STARTING_BUY_TEMPLATE
+                check_for_tabout = False
+                tabbed.in_game = True
+                continue
+            else:
+                # No tabout matches and no all pick/strategy UI
+                # if this last for more than 1sec, we are in vs screen,
+                # until then we need to re-check if we are not
+                # transitioning to a "starting buy" state
+                start_time = time.time()
+                duration = 0.7
+                while time.time() - start_time < duration:
+                    elapsed_time = time.time() - start_time
+                    percentage = (elapsed_time / duration) * 100
+                    print(f"Checking for Vs screen... {percentage:.2f}%",
+                          end='\r')
+                match_value_1, match_value_2 = await (
+                    capture_and_process_images(
+                        STARTING_BUY_AREA, STARTING_BUY_TEMPLATE,
+                        capture_area_b=PICK_PHASE_MESSAGE_AREA,
+                        template_b=STRATEGY_TIME_TEMPLATE
+                    ))
+                if match_value_1 >= 0.7 or match_value_2 >= 0.7:
+                    print("Not in vs screen... resumed pick phase")
+                    capture_area_b = STARTING_BUY_AREA
+                    template_b = STARTING_BUY_TEMPLATE
+                    check_for_tabout = False
+                    tabbed.in_game = True
+                else:
+                    print("\n We should be in VS screen...")
+                    game_phase.versus_screen = True
+                    check_for_tabout = False
+                    tabbed.in_game = True
+                    cv.destroyWindow(SECONDARY_WINDOWS[1].name)
+                    capture_area_a = IN_GAME_AREA
+                    template_a1 = IN_GAME_TEMPLATE
+                    template_a2 = None
+                    capture_area_b = None
+                    template_b = None
+                    await send_streamerbot_ws_request(ws, game_phase)
+                continue
+
+        elif match_value_1 >= target_value_1 and game_phase.finding_game:
             # Initial all pick phase detection
             print("Found game: arrived on hero pick screen")
             game_phase.hero_pick = True
+            tabbed.in_game = True
             await send_streamerbot_ws_request(ws, game_phase)
             continue
 
@@ -395,6 +447,7 @@ async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
             # We detect the starting buy screen
             print("Now, this is the starting buy !")
             game_phase.starting_buy = True
+            tabbed.in_game = True
             await send_streamerbot_ws_request(ws, game_phase)
             continue
 
@@ -404,48 +457,22 @@ async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
             # We are on the pick screen, but starting buy UI does not show.
             print("Back to hero select screen !")
             game_phase.hero_pick = True
+            tabbed.in_game = True
             await send_streamerbot_ws_request(ws, game_phase)
 
         elif (match_value_1 < target_value_1
               and (game_phase.hero_pick or game_phase.starting_buy)):
             # We've lost track of the "all pick" screen
-            logger.debug(f"low value detected: {match_value_1}")
-            reason = None
-            start_time = time.time()
-            time_spent_in_loop = 0
-            while not reason:
-                reason = await find_interrupt_reason(time_spent_in_loop)
-                time_spent_in_loop = time.time() - start_time
-                print(f"time passed: {time_spent_in_loop:.3f}", end='\r')
-            if reason == InterruptType.DOTA_TAB_OUT:
-                print("Introducing delay for DOTA_TAB_OUT...")
-                await asyncio.sleep(0.5)
-                # this delay is necessary to allow dota to have a bit of
-                # lag when
-                # tabbing back into a hero pick phase from
-                # the menus. Otherwise, we would re-enter the condition
-                # immediately.
-                continue
-            elif reason == InterruptType.TRANSITION_MESSAGE:
-                logger.debug(f"max time spent in loop for transition message "
-                             f"was {time_spent_in_loop:.3f}")
-                continue
-            elif reason == InterruptType.VERSUS_SCREEN:
-                game_phase.versus_screen = True
-                await send_streamerbot_ws_request(ws, game_phase)
-                # Destroy all but main opencv window
-                for window in SECONDARY_WINDOWS[1:]:
-                    cv.destroyWindow(window.name)
-                capture_area_a = IN_GAME_AREA
-                template_a1 = IN_GAME_TEMPLATE
-                template_a2 = None
-                capture_area_b = None
-                template_b = None
-                continue
+            check_for_tabout = True
+            # Check for Dota Tab out
+            capture_area_b = DOTA_POWER_ICON_AREA
+            template_b = DOTA_POWER_ICON_TEMPLATE
+            continue
 
         elif game_phase.versus_screen and match_value_1 >= 0.8:
             print("We are now in Game !")
             game_phase.in_game = True
+            tabbed.in_game = True
             await send_streamerbot_ws_request(ws, game_phase)
             break
 
