@@ -168,6 +168,7 @@ IN_GAME_AREA = {"left": 1820, "top": 1020, "width": 80, "height": 60}
 PLAY_DOTA_BUTTON_AREA = {"left": 1525, "top": 1005, "width": 340, "height": 55}
 DESKTOP_ICONS_AREA = {"left": 1750, "top": 1040, "width": 50, "height": 40}
 SETTINGS_ICON_AREA = {"left": 170, "top": 85, "width": 40, "height": 40}
+CHAT_ICON_AREA = {"left": 1658, "top": 1028, "width": 62, "height": 38}
 
 DOTA_POWER_ICON_TEMPLATE = cv2.imread("opencv/dota_power_icon.jpg",
                                       cv.IMREAD_GRAYSCALE)
@@ -184,6 +185,8 @@ DESKTOP_ICONS_TEMPLATE = cv2.imread("opencv/desktop_icons.jpg",
                                     cv.IMREAD_GRAYSCALE)
 SETTINGS_ICON_TEMPLATE = cv2.imread("opencv/dota_settings_icon.jpg",
                                     cv.IMREAD_GRAYSCALE)
+CHAT_ICON_TEMPLATE = cv2.imread("opencv/hero_pick_chat_icons.jpg",
+                                cv.IMREAD_GRAYSCALE)
 
 SECONDARY_WINDOWS = [my.SecondaryWindow("pick_timer_scanner", 200, 80),
                      my.SecondaryWindow("starting_buy_scanner", 400, 80)]
@@ -379,6 +382,29 @@ async def capture_and_process_images(capture_area_a,
     return match_value_1, match_value_2
 
 
+async def check_if_still_picking():
+    pick_message_match, start_buy_match = await capture_and_process_images(
+        capture_area_a=PICK_PHASE_MESSAGE_AREA,
+        template_a1=ALL_PICK_TEMPLATE,
+        template_a2=STRATEGY_TIME_TEMPLATE,
+        capture_area_b=STARTING_BUY_AREA,
+        template_b=STARTING_BUY_TEMPLATE
+    )
+    return True if (pick_message_match >= 0.7
+                    or start_buy_match >= 0.7) else False
+
+
+async def check_if_in_tab_out():
+    dota_tabout_match, desktop_tabout_match = await capture_and_process_images(
+        capture_area_a=DOTA_POWER_ICON_AREA,
+        template_a1=DOTA_POWER_ICON_TEMPLATE,
+        capture_area_b=STARTING_BUY_AREA,
+        template_b=STARTING_BUY_TEMPLATE
+    )
+    return True if (dota_tabout_match >= 0.7
+                    or desktop_tabout_match >= 0.7) else False
+
+
 async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
     game_phase = PreGamePhases()
     tabbed = Tabbed()
@@ -396,14 +422,16 @@ async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
     target_value_1 = 0.7  # for Pick timer message
     target_value_2 = 0.7  # for Starting buy / Tab out
 
+    print("Waiting to find a game....")
+
     while not stop_main_loop.is_set():
         counter += 1
         match_value_1, match_value_2 = await capture_and_process_images(
             capture_area_a, template_a1, template_a2,
             capture_area_b, template_b)
 
-        # await capture_new_area(SETTINGS_ICON_AREA,
-        #                        "opencv/dota_settings_icon.jpg")
+        # await capture_new_area(CHAT_ICON_AREA,
+        #                        "opencv/hero_pick_chat_icons.jpg")
         # match_value_1, match_value_2 = 0, 0
         if cv.waitKey(1) == ord("q"):
             break
@@ -441,6 +469,7 @@ async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
 
             if match_value_1 >= target_value_1:
                 # If we come back to the hero pick screen
+                print("Back to hero picking")
                 capture_area_b = STARTING_BUY_AREA
                 template_b = STARTING_BUY_TEMPLATE
                 check_for_tabout = False
@@ -470,7 +499,8 @@ async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
                     template_b = DOTA_POWER_ICON_TEMPLATE
                     continue
                 else:
-                    pass
+                    tabbed.out_to_desktop = False
+                    print("We prob tabbed into IG / VS screen / Settings !")
             else:
                 # No tabout matches and no "all pick/strategy time" UI:
                 # if this last for more than 1sec, we are in vs screen.
@@ -478,33 +508,30 @@ async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
                 # transitioning to a "starting buy" state, or did not open
                 # some other window inside Dota, like the settings screen.
                 start_time = time.time()
-                duration = 1
+                duration = 0.5
                 while time.time() - start_time < duration:  # just a time delay
                     elapsed_time = time.time() - start_time
                     percentage = (elapsed_time / duration) * 100
                     print(f"Checking for Vs screen... {percentage:.2f}%",
                           end='\r')
-                pick_message_check, start_buy_check = await (
-                    capture_and_process_images(
-                        PICK_PHASE_MESSAGE_AREA,
-                        ALL_PICK_TEMPLATE,
-                        STRATEGY_TIME_TEMPLATE,
-                        capture_area_b=STARTING_BUY_AREA,
-                        template_b=STARTING_BUY_TEMPLATE
-                    ))
-                if pick_message_check >= 0.7 or start_buy_check >= 0.7:
-                    print("NOT in vs screen... resumed pick phase")
+                if await check_if_still_picking():
+                    print("VS CHECK FAILED: Resumed pick phase")
                     capture_area_b = STARTING_BUY_AREA
                     template_b = STARTING_BUY_TEMPLATE
                     check_for_tabout = False
+                    continue
+                elif await check_if_in_tab_out():
+                    capture_area_b = DOTA_POWER_ICON_AREA
+                    template_b = DOTA_POWER_ICON_TEMPLATE
+                    print("VS CHECK FAILED: We are in TABOUT")
                     continue
                 else:
                     print("Checking for settings screen")
                     settings_screen_check, _ = await (
                         capture_and_process_images(SETTINGS_ICON_AREA,
                                                    SETTINGS_ICON_TEMPLATE))
-                    if settings_screen_check >= 0.7:
-                        print("NOT in vs screen ... in settings screen")
+                    if settings_screen_check >= 0.6:  # generous value
+                        print("VS CHECK FAILED: In settings screen")
                         capture_area_b = SETTINGS_ICON_AREA
                         template_b = SETTINGS_ICON_TEMPLATE
                         tabbed.in_settings_screen = True
@@ -554,7 +581,7 @@ async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
             continue
 
         elif game_phase.versus_screen and match_value_1 >= 0.8:
-            print("We are now in Game !")
+            print("And now we are in Game !")
             game_phase.in_game = True
             await send_streamerbot_ws_request(ws, game_phase)
             break
