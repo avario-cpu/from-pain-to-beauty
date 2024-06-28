@@ -160,36 +160,34 @@ class PreGamePhases:
         self._in_game = False
 
 
-DOTA_POWER_ICON_AREA = {"left": 1860, "top": 10, "width": 60, "height": 40}
-PICK_TIMER_DOTS_AREA = {"left": 937, "top": 24, "width": 14, "height": 40}
-PICK_PHASE_MESSAGE_AREA = {"left": 880, "top": 70, "width": 160, "height": 24}
+DOTA_TAB_AREA = {"left": 1860, "top": 10, "width": 60, "height": 40}
 STARTING_BUY_AREA = {"left": 860, "top": 120, "width": 400, "height": 30}
 IN_GAME_AREA = {"left": 1820, "top": 1020, "width": 80, "height": 60}
 PLAY_DOTA_BUTTON_AREA = {"left": 1525, "top": 1005, "width": 340, "height": 55}
-DESKTOP_ICONS_AREA = {"left": 1750, "top": 1040, "width": 50, "height": 40}
-SETTINGS_ICON_AREA = {"left": 170, "top": 85, "width": 40, "height": 40}
-CHAT_ICON_AREA = {"left": 1658, "top": 1028, "width": 62, "height": 38}
+DESKTOP_TAB_AREA = {"left": 1750, "top": 1040, "width": 50, "height": 40}
+SETTINGS_AREA = {"left": 170, "top": 85, "width": 40, "height": 40}
+HERO_PICK_AREA = {"left": 1658, "top": 1028, "width": 62, "height": 38}
+NEW_AREA = {"left": 0, "top": 0, "width": 0, "height": 0}
 
-DOTA_POWER_ICON_TEMPLATE = cv2.imread("opencv/dota_power_icon.jpg",
-                                      cv.IMREAD_GRAYSCALE)
-ALL_PICK_TEMPLATE = cv2.imread("opencv/all_pick.jpg", cv.IMREAD_GRAYSCALE)
-STRATEGY_TIME_TEMPLATE = cv2.imread("opencv/strategy_time.jpg",
-                                    cv.IMREAD_GRAYSCALE)
+DOTA_TAB_TEMPLATE = cv2.imread("opencv/dota_power_icon.jpg",
+                               cv.IMREAD_GRAYSCALE)
 IN_GAME_TEMPLATE = cv2.imread("opencv/deliver_items_icon.jpg",
                               cv.IMREAD_GRAYSCALE)
 STARTING_BUY_TEMPLATE = cv2.imread("opencv/strategy-load-out-world-guides.jpg",
                                    cv.IMREAD_GRAYSCALE)
 PLAY_DOTA_BUTTON_TEMPLATE = cv2.imread("opencv/play_dota.jpg",
                                        cv.IMREAD_GRAYSCALE)
-DESKTOP_ICONS_TEMPLATE = cv2.imread("opencv/desktop_icons.jpg",
-                                    cv.IMREAD_GRAYSCALE)
-SETTINGS_ICON_TEMPLATE = cv2.imread("opencv/dota_settings_icon.jpg",
-                                    cv.IMREAD_GRAYSCALE)
-CHAT_ICON_TEMPLATE = cv2.imread("opencv/hero_pick_chat_icons.jpg",
+DESKTOP_TAB_TEMPLATE = cv2.imread("opencv/desktop_icons.jpg",
+                                  cv.IMREAD_GRAYSCALE)
+SETTINGS_TEMPLATE = cv2.imread("opencv/dota_settings_icon.jpg",
+                               cv.IMREAD_GRAYSCALE)
+HERO_PICK_TEMPLATE = cv2.imread("opencv/hero_pick_chat_icons.jpg",
                                 cv.IMREAD_GRAYSCALE)
 
-SECONDARY_WINDOWS = [my.SecondaryWindow("pick_timer_scanner", 200, 80),
-                     my.SecondaryWindow("starting_buy_scanner", 400, 80)]
+SECONDARY_WINDOWS = [my.SecondaryWindow("main_scanner", 200, 100),
+                     my.SecondaryWindow("second_scanner", 200, 100),
+                     my.SecondaryWindow("third_scanner", 200, 100),
+                     my.SecondaryWindow("fourth_scanner", 200, 100)]
 SCRIPT_NAME = constants.SCRIPT_NAME_SUFFIX + os.path.splitext(
     os.path.basename(__file__))[0] if __name__ == "__main__" else __name__
 # suffix added to avoid window naming conflicts with cli manager
@@ -198,7 +196,7 @@ STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
 initial_secondary_windows_spawned = asyncio.Event()
 secondary_windows_readjusted = asyncio.Event()
 mute_main_loop_print_feedback = asyncio.Event()
-stop_main_loop = asyncio.Event()
+stop_event = asyncio.Event()
 
 logger = logging.getLogger(SCRIPT_NAME)
 logger.setLevel(logging.DEBUG)
@@ -239,7 +237,7 @@ async def handle_socket_client(reader, writer):
             break
         message = data.decode()
         if message == constants.STOP_SUBPROCESS_MESSAGE:
-            stop_main_loop.set()
+            stop_event.set()
         print(f"Received: {message}")
         writer.write(b"ACK from WebSocket server")
         await writer.drain()
@@ -272,13 +270,6 @@ async def capture_window(area):
 
 async def compare_images(image_a, image_b):
     return ssim(image_a, image_b)
-
-
-async def compare_multiple_images_to_one(
-        image_a, image_b1, image_b2):
-    score1 = await compare_images(image_a, image_b1)
-    score2 = await compare_images(image_a, image_b2)
-    return max(score1, score2)
 
 
 async def send_json_requests(ws, json_file_paths: str | list[str]):
@@ -327,14 +318,6 @@ async def send_streamerbot_ws_request(ws: websockets.WebSocketClientProtocol,
                 ws, "streamerbot_ws_requests/switch_to_meta_scene.json")
 
 
-async def capture_new_area(capture_area, filename):
-    frame = await capture_window(capture_area)
-    gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-    cv.imshow("new_area_capture", gray_frame)
-    initial_secondary_windows_spawned.set()
-    cv.imwrite(filename, gray_frame)
-
-
 async def readjust_secondary_windows():
     sdh_slot = sdh.get_slot_by_main_name(SCRIPT_NAME)
     logger.debug(f"Obtained slot from db is {sdh_slot}. Resizing "
@@ -350,243 +333,119 @@ async def match_interrupt_template(area, template):
     return match_value
 
 
-async def capture_and_process_images(capture_area_a,
-                                     template_a1: cv2.typing.MatLike,
-                                     template_a2: cv2.typing.MatLike = None,
-                                     capture_area_b=None,
-                                     template_b: cv2.typing.MatLike = None):
-    # Capture and process first area
-    frame_1 = await capture_window(capture_area_a)
-    gray_frame_1 = cv.cvtColor(frame_1, cv.COLOR_BGR2GRAY)
+async def capture_and_process_images(*args: tuple[dict, cv.typing.MatLike]) \
+        -> list[float]:
+    """Compares a set of screen areas and cv2 templates between them"""
+    match_values = []
 
-    if template_a2 is not None:
-        match_value_1 = await compare_multiple_images_to_one(
-            gray_frame_1, template_a1, template_a2)
-    else:
-        match_value_1 = await compare_images(gray_frame_1, template_a1)
+    for index, (capture_area, template) in enumerate(args):
+        if capture_area is not None:
+            frame = await capture_window(capture_area)
+            gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
 
-    cv.imshow(SECONDARY_WINDOWS[0].name, gray_frame_1)
+            if template is not None:
+                match_value = await compare_images(gray_frame, template)
+            else:
+                match_value = 0.0
 
-    match_value_2 = 0.0
+            window_index = index
+            if window_index < len(SECONDARY_WINDOWS):
+                cv.imshow(SECONDARY_WINDOWS[window_index].name, gray_frame)
+            else:
+                cv.namedWindow(f"Window_{window_index}")
+                cv.imshow(f"Window_{window_index}", gray_frame)
 
-    if capture_area_b is not None:
-        frame_2 = await capture_window(capture_area_b)
-        gray_frame_2 = cv.cvtColor(frame_2, cv.COLOR_BGR2GRAY)
-        cv.imshow(SECONDARY_WINDOWS[1].name, gray_frame_2)
-
-        if template_b is not None:
-            match_value_2 = await compare_images(gray_frame_2, template_b)
+            cv.waitKey(1)
+            match_values.append(match_value)
+            formatted_match_values = [f"{value:.4f}" for value in match_values]
+            print(f"SSIMs: {formatted_match_values}", end="\r")
 
     initial_secondary_windows_spawned.set()
 
-    return match_value_1, match_value_2
+    return match_values
 
 
-async def check_if_still_picking():
-    pick_message_match, start_buy_match = await capture_and_process_images(
-        capture_area_a=PICK_PHASE_MESSAGE_AREA,
-        template_a1=ALL_PICK_TEMPLATE,
-        template_a2=STRATEGY_TIME_TEMPLATE,
-        capture_area_b=STARTING_BUY_AREA,
-        template_b=STARTING_BUY_TEMPLATE
+async def detect_hero_pick():
+    pick_screen_match = await capture_and_process_images(
+        (HERO_PICK_AREA, HERO_PICK_TEMPLATE)
     )
-    return True if (pick_message_match >= 0.7
-                    or start_buy_match >= 0.7) else False
+    return True if pick_screen_match[0] >= 0.7 else False
 
 
-async def check_if_in_tab_out():
+async def detect_starting_buy():
+    starting_buy_match = await capture_and_process_images(
+        (STARTING_BUY_AREA, STARTING_BUY_TEMPLATE))
+    return True if starting_buy_match[0] >= 0.7 else False
+
+
+async def detect_tab_out():
     dota_tabout_match, desktop_tabout_match = await capture_and_process_images(
-        capture_area_a=DOTA_POWER_ICON_AREA,
-        template_a1=DOTA_POWER_ICON_TEMPLATE,
-        capture_area_b=STARTING_BUY_AREA,
-        template_b=STARTING_BUY_TEMPLATE
+        (DOTA_TAB_AREA, DOTA_TAB_TEMPLATE),
+        (DESKTOP_TAB_AREA, DESKTOP_TAB_TEMPLATE)
     )
     return True if (dota_tabout_match >= 0.7
                     or desktop_tabout_match >= 0.7) else False
 
 
+async def detect_settings_screen():
+    settings_screen_match = await capture_and_process_images(
+        (SETTINGS_AREA, SETTINGS_TEMPLATE)
+    )
+    return True if settings_screen_match[0] >= 0.7 else False
+
+
+async def detect_vs_screen():
+    vs_screen_match = await capture_and_process_images(
+        (HERO_PICK_AREA, HERO_PICK_TEMPLATE),
+        (SETTINGS_AREA, SETTINGS_TEMPLATE),
+        (DOTA_TAB_AREA, DOTA_TAB_TEMPLATE),
+        (DESKTOP_TAB_AREA, DESKTOP_TAB_TEMPLATE)
+    )
+    return True if max(vs_screen_match) < 0.7 else False
+
+
+async def check_if_in_game():
+    settings_screen_match, _ = await capture_and_process_images(
+        (IN_GAME_AREA, IN_GAME_TEMPLATE)
+    )
+    return True if settings_screen_match >= 0.7 else False
+
+
+async def wait_for_duration(duration):
+    start_time = time.time()
+    while time.time() - start_time < duration:
+        elapsed_time = time.time() - start_time
+        percentage = (elapsed_time / duration) * 100
+        print(f"Waiting {duration}s... {percentage:.2f}%", end='\r')
+
+
+async def capture_new_area(capture_area, filename):
+    frame = await capture_window(capture_area)
+    gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+    cv.imshow("new_area_capture", gray_frame)
+    initial_secondary_windows_spawned.set()
+    cv.imwrite(filename, gray_frame)
+
+
 async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
+    new_capture = False  # Set manually to capture new screen area
+    while new_capture:
+        await capture_new_area(NEW_AREA, "opencv/XXX.jpg")
+
     game_phase = PreGamePhases()
     tabbed = Tabbed()
-    game_phase.finding_game = True
-    check_for_tabout = False
-    counter = 0
 
-    capture_area_a = PICK_PHASE_MESSAGE_AREA
-    template_a1 = ALL_PICK_TEMPLATE
-    template_a2 = STRATEGY_TIME_TEMPLATE
-
-    capture_area_b = STARTING_BUY_AREA
-    template_b = STARTING_BUY_TEMPLATE
-
-    target_value_1 = 0.7  # for Pick timer message
-    target_value_2 = 0.7  # for Starting buy / Tab out
-
-    print("Waiting to find a game....")
-
-    while not stop_main_loop.is_set():
-        counter += 1
-        match_value_1, match_value_2 = await capture_and_process_images(
-            capture_area_a, template_a1, template_a2,
-            capture_area_b, template_b)
-
-        # await capture_new_area(CHAT_ICON_AREA,
-        #                        "opencv/hero_pick_chat_icons.jpg")
-        # match_value_1, match_value_2 = 0, 0
-        if cv.waitKey(1) == ord("q"):
-            break
-
-        if not mute_main_loop_print_feedback.is_set():
-            # Inverted order of value 1 and 2 due to positioning order of
-            # secondary windows according to twm. Allows for visual match.
-            print(f"SSIMs:{match_value_2:.4f} / {match_value_1:.4f}", end="\r")
-
-        if tabbed.in_settings_screen:
-            if match_value_2 >= target_value_2:
-                continue
-            else:
-                print("Exited settings screen. (0.5s delay)")
-                await asyncio.sleep(0.5)  # gives time for settings screen
-                # exit animation to play out. If we exit immediately we will
-                # get a fake mismatch for the all pick template.
-                tabbed.in_settings_screen = False
-                capture_area_b = STARTING_BUY_AREA
-                template_b = STARTING_BUY_TEMPLATE
-                continue
-
-        if check_for_tabout:
-            # Set the initial scan area
-            if (template_b is not DOTA_POWER_ICON_TEMPLATE and
-                    template_b is not DESKTOP_ICONS_TEMPLATE):
-                print("setting << dota tabout >> template")
-                capture_area_b = DOTA_POWER_ICON_AREA
-                template_b = DOTA_POWER_ICON_TEMPLATE
-                continue
-
-            if tabbed.in_dota_menu or tabbed.out_to_desktop:
-                await asyncio.sleep(0.3)  # delay to allow dota to refresh
-                # the hero picking screen when tabbing back from the menus
-
-            if match_value_1 >= target_value_1:
-                # If we come back to the hero pick screen
-                print("Back to hero picking")
-                capture_area_b = STARTING_BUY_AREA
-                template_b = STARTING_BUY_TEMPLATE
-                check_for_tabout = False
-                continue
-
-            if match_value_2 >= target_value_2:
-                # Indentify tabout according to template who matched
-                if template_b is DOTA_POWER_ICON_TEMPLATE:
-                    tabbed.in_dota_menu = True
-                elif template_b is DESKTOP_ICONS_TEMPLATE:
-                    tabbed.out_to_desktop = True
-                print(f"Detected Tab out:{tabbed.current_state()}.. "
-                      f"{counter}")
-                continue
-            elif template_b is not DESKTOP_ICONS_TEMPLATE:
-                print("setting << desktop tabout >> template")
-                capture_area_b = DESKTOP_ICONS_AREA
-                template_b = DESKTOP_ICONS_TEMPLATE
-                continue
-            elif tabbed.out_to_desktop:
-                print("Are we coming back to a dota TABOUT ?")
-                dota_tabout_check, _ = await (
-                    capture_and_process_images(DOTA_POWER_ICON_AREA,
-                                               DOTA_POWER_ICON_TEMPLATE))
-                if dota_tabout_check >= 0.7:
-                    capture_area_b = DOTA_POWER_ICON_AREA
-                    template_b = DOTA_POWER_ICON_TEMPLATE
-                    continue
-                else:
-                    tabbed.out_to_desktop = False
-                    print("We prob tabbed into IG / VS screen / Settings !")
-            else:
-                # No tabout matches and no "all pick/strategy time" UI:
-                # if this last for more than 1sec, we are in vs screen.
-                # Until then, we need to re-check if we are not
-                # transitioning to a "starting buy" state, or did not open
-                # some other window inside Dota, like the settings screen.
-                start_time = time.time()
-                duration = 0.5
-                while time.time() - start_time < duration:  # just a time delay
-                    elapsed_time = time.time() - start_time
-                    percentage = (elapsed_time / duration) * 100
-                    print(f"Checking for Vs screen... {percentage:.2f}%",
-                          end='\r')
-                if await check_if_still_picking():
-                    print("VS CHECK FAILED: Resumed pick phase")
-                    capture_area_b = STARTING_BUY_AREA
-                    template_b = STARTING_BUY_TEMPLATE
-                    check_for_tabout = False
-                    continue
-                elif await check_if_in_tab_out():
-                    capture_area_b = DOTA_POWER_ICON_AREA
-                    template_b = DOTA_POWER_ICON_TEMPLATE
-                    print("VS CHECK FAILED: We are in TABOUT")
-                    continue
-                else:
-                    print("Checking for settings screen")
-                    settings_screen_check, _ = await (
-                        capture_and_process_images(SETTINGS_ICON_AREA,
-                                                   SETTINGS_ICON_TEMPLATE))
-                    if settings_screen_check >= 0.6:  # generous value
-                        print("VS CHECK FAILED: In settings screen")
-                        capture_area_b = SETTINGS_ICON_AREA
-                        template_b = SETTINGS_ICON_TEMPLATE
-                        tabbed.in_settings_screen = True
-                        check_for_tabout = False
-                        await send_streamerbot_ws_request(ws, game_phase,
-                                                          tabbed)
-                        continue
-                    else:
-                        print("We should be in VS screen...")
-                        game_phase.versus_screen = True
-                        cv.destroyWindow(SECONDARY_WINDOWS[1].name)
-                        capture_area_a = IN_GAME_AREA
-                        template_a1 = IN_GAME_TEMPLATE
-                        template_a2 = None
-                        capture_area_b = None
-                        template_b = None
-                        check_for_tabout = False
-                        await send_streamerbot_ws_request(ws, game_phase)
-                        continue
-
-        elif game_phase.finding_game and match_value_1 >= target_value_1:
-            # Initial all pick phase detection
-            print("Found game: arrived on hero pick screen")
-            game_phase.hero_pick = True
-            await send_streamerbot_ws_request(ws, game_phase)
+    while not stop_event.is_set():
+        print("Waiting to find a game...")
+        while not await detect_hero_pick():
+            # look for initial game find
+            print("test")
+            await asyncio.sleep(0.01)
             continue
-
-        elif game_phase.hero_pick and (match_value_1 >= target_value_1
-                                       and match_value_2 >= target_value_2):
-            # We detect the starting buy screen
-            print("Now, this is the starting buy !")
-            game_phase.starting_buy = True
-            await send_streamerbot_ws_request(ws, game_phase)
-            continue
-
-        elif game_phase.starting_buy and (match_value_1 >= target_value_1
-                                          and match_value_2 < target_value_2):
-            # We are on the pick screen, but starting buy UI does not show.
-            print("Back to hero select screen !")
-            game_phase.hero_pick = True
-            await send_streamerbot_ws_request(ws, game_phase)
-
-        elif (match_value_1 < target_value_1
-              and (game_phase.hero_pick or game_phase.starting_buy)):
-            # We've lost track of the "all pick" screen
-            check_for_tabout = True
-            continue
-
-        elif game_phase.versus_screen and match_value_1 >= 0.8:
-            print("And now we are in Game !")
-            game_phase.in_game = True
-            await send_streamerbot_ws_request(ws, game_phase)
-            break
+        print("Found a game !")
 
         await asyncio.sleep(0.01)
+    pass
 
 
 async def main():
@@ -602,13 +461,15 @@ async def main():
         atexit.register(sdh.free_slot_named, SCRIPT_NAME)
         socket_server_task = asyncio.create_task(run_socket_server())
         mute_main_loop_print_feedback.set()
-
         ws = None
         try:
             ws = await establish_ws_connection()
             main_task = asyncio.create_task(detect_pregame_phase(ws))
+            print("1")
             await initial_secondary_windows_spawned.wait()
+            print("2")
             twm.manage_secondary_windows(slot, SECONDARY_WINDOWS)
+            print("3")
             mute_main_loop_print_feedback.clear()
             await main_task
         except KeyboardInterrupt:
