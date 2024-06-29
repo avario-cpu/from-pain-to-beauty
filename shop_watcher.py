@@ -2,8 +2,6 @@ import asyncio
 import atexit
 import logging
 import time
-import os
-
 import cv2 as cv
 import mss
 import numpy as np
@@ -14,6 +12,7 @@ from websockets import WebSocketException
 import constants as const
 import denied_slots_db_handler as denied_sdh
 import my_classes as my
+import my_utils
 import single_instance
 import slots_db_handler as sdh
 import terminal_window_manager_v4 as twm
@@ -69,26 +68,19 @@ class ShopTracker:
 
 
 SCREEN_CAPTURE_AREA = {"left": 1853, "top": 50, "width": 30, "height": 35}
-TEMPLATE_IMAGE_PATH = 'opencv/shop_top_right_icon.jpg'
+SHOP_TEMPLATE_IMAGE_PATH = 'opencv/shop_top_right_icon.jpg'
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
-SCRIPT_NAME = const.SCRIPT_NAME_SUFFIX + os.path.splitext(
-    os.path.basename(__file__))[0] if __name__ == "__main__" else __name__
+
 # suffix added to avoid window naming conflicts with cli manager
 SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_shop_scanner", 150, 100)]
+SCRIPT_NAME = my_utils.construct_script_name(__file__,
+                                             const.SCRIPT_NAME_SUFFIX)
+
+logger = my_utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 secondary_windows_have_spawned = asyncio.Event()
 mute_main_loop_print_feedback = asyncio.Event()
 stop_loop = asyncio.Event()
-
-logger = logging.getLogger(SCRIPT_NAME)
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler(f'temp/logs/{SCRIPT_NAME}.log')
-fh.setLevel(logging.DEBUG)
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-logger.addHandler(fh)
-logger.info("\n\n\n\n<< New Log Entry >>")
 
 
 async def establish_ws_connection():
@@ -205,7 +197,7 @@ async def react_to_shop_stayed_open(ws: websockets.WebSocketClientProtocol,
 
 async def scan_for_shop_and_notify(ws: websockets.WebSocketClientProtocol):
     shop_tracker = ShopTracker()
-    template = cv.imread(TEMPLATE_IMAGE_PATH, cv.IMREAD_GRAYSCALE)
+    template = cv.imread(SHOP_TEMPLATE_IMAGE_PATH, cv.IMREAD_GRAYSCALE)
 
     while not stop_loop.is_set():
         frame = await capture_window(SCREEN_CAPTURE_AREA)

@@ -7,7 +7,6 @@ about later.
 
 import asyncio
 import os
-import re
 import subprocess
 
 import aiosqlite
@@ -15,9 +14,15 @@ import websockets
 from websockets import WebSocketServerProtocol
 import constants as const
 import denied_slots_db_handler as denied_sdh
+import my_utils
+import logging
 
 import slots_db_handler as sdh
 import terminal_window_manager_v4 as twm
+
+SCRIPT_NAME = my_utils.construct_script_name(__file__,
+                                             const.SCRIPT_NAME_SUFFIX)
+logger = my_utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 venv_python_path = "venv/Scripts/python.exe"
 subprocess_names = list(const.SUBPROCESSES.keys())

@@ -1,6 +1,4 @@
 import atexit
-import os
-
 import aiosqlite
 import cv2
 import cv2 as cv
@@ -9,13 +7,14 @@ import numpy as np
 from skimage.metrics import structural_similarity as ssim
 import asyncio
 import my_classes as my
+import my_utils
 import single_instance
 import terminal_window_manager_v4 as twm
 import denied_slots_db_handler as denied_sdh
 import slots_db_handler as sdh
 import websockets
 from websockets import WebSocketException, ConnectionClosedError
-import constants
+import constants as const
 import logging
 from enum import Enum, auto
 import time
@@ -189,33 +188,17 @@ SECONDARY_WINDOWS = [my.SecondaryWindow("main_scanner", 200, 100),
                      my.SecondaryWindow("second_scanner", 200, 100),
                      my.SecondaryWindow("third_scanner", 200, 100),
                      my.SecondaryWindow("fourth_scanner", 200, 100)]
-SCRIPT_NAME = constants.SCRIPT_NAME_SUFFIX + os.path.splitext(
-    os.path.basename(__file__))[0] if __name__ == "__main__" else __name__
+SCRIPT_NAME = my_utils.construct_script_name(__file__,
+                                             const.SCRIPT_NAME_SUFFIX)
 # suffix added to avoid window naming conflicts with cli manager
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
+
+logger = my_utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 initial_secondary_windows_spawned = asyncio.Event()
 secondary_windows_readjusted = asyncio.Event()
 mute_main_loop_print_feedback = asyncio.Event()
 stop_event = asyncio.Event()
-
-logger = logging.getLogger(SCRIPT_NAME)
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler(f'temp/logs/{SCRIPT_NAME}.log')
-fh.setLevel(logging.DEBUG)
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-logger.addHandler(fh)
-logger.info("\n\n\n\n<< New Log Entry >>")
-
-
-def exit_countdown():
-    """Give a bit of time to read terminal exit statements"""
-    for seconds in reversed(range(1, 5)):
-        print("\r" + f'cmd will close in {seconds} seconds...', end="\r")
-        time.sleep(1)
-    exit()
 
 
 async def establish_ws_connection():
@@ -237,7 +220,7 @@ async def handle_socket_client(reader, writer):
             print("Socket client disconnected")
             break
         message = data.decode()
-        if message == constants.STOP_SUBPROCESS_MESSAGE:
+        if message == const.STOP_SUBPROCESS_MESSAGE:
             stop_event.set()
         print(f"Received: {message}")
         writer.write(b"ACK from WebSocket server")
@@ -248,7 +231,7 @@ async def handle_socket_client(reader, writer):
 async def run_socket_server():
     logger.info("Starting run_socket_server")
     server = await asyncio.start_server(handle_socket_client, 'localhost',
-                                        constants.SUBPROCESSES[SCRIPT_NAME])
+                                        const.SUBPROCESSES[SCRIPT_NAME])
     addr = server.sockets[0].getsockname()
     print(f"Serving on {addr}")
     logger.info(f"Serving on {addr}")
@@ -455,7 +438,7 @@ async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
 async def main():
     db_conn = None
     try:
-        db_conn = await sdh.create_connection(constants.SLOTS_DB_FILE)
+        db_conn = await sdh.create_connection(const.SLOTS_DB_FILE)
         if single_instance.lock_exists(SCRIPT_NAME):
             slot = await twm.manage_window(db_conn, twm.WinType.DENIED,
                                            SCRIPT_NAME)

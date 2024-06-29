@@ -8,6 +8,7 @@ import aiosqlite
 import pygetwindow as gw
 import win32con
 import win32gui
+import my_utils
 
 import constants as const
 import denied_slots_db_handler as denied_sdh
@@ -15,22 +16,14 @@ import my_classes as my
 import slots_db_handler as sdh
 from constants import SERVER_WINDOW_NAME
 
-SCRIPT_NAME = const.SCRIPT_NAME_SUFFIX + os.path.splitext(
-    os.path.basename(__file__))[0] if __name__ == "__main__" else __name__
 MAIN_WINDOW_WIDTH = 600
 MAIN_WINDOW_HEIGHT = 260
-MAX_WINDOWS_PER_COLUMN = 1040 // MAIN_WINDOW_HEIGHT  # So currently 4, 1040p
-# instead of 1080p to account for the windows bottom taskbar
+MAX_WINDOWS_PER_COLUMN = 1040 // MAIN_WINDOW_HEIGHT  # So currently 4
 
-logger = logging.getLogger(SCRIPT_NAME)
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler(f'temp/logs/{SCRIPT_NAME}.log')
-fh.setLevel(logging.DEBUG)
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-logger.addHandler(fh)
-logger.info(f"\n\n\n\n<< New Log Entry >>")
+SCRIPT_NAME = my_utils.construct_script_name(__file__,
+                                             const.SCRIPT_NAME_SUFFIX)
+
+logger = my_utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 
 class WinType(Enum):
@@ -107,7 +100,7 @@ async def find_window(title: str, timeout: int = 2) -> gw.Win32Window | None:
         if window:
             return window[0]
         await asyncio.sleep(0.01)
-    logger.warning(f"Window '{title}' not found within timeout.")
+    logger.warning(f"Window '{title}' not found within {timeout}s.")
     return None
 
 
@@ -201,7 +194,7 @@ async def adjust_window(title: str,
         if move:
             window.moveTo(*properties[2:])
     else:
-        logger.error(f"Window '{title}' not found for adjusting position.")
+        logger.error(f"{window} Not found.")
 
 
 def generate_window_data(title: str,
@@ -309,10 +302,10 @@ async def manage_window(conn: aiosqlite.Connection,
 
 
 async def main():
-    logger.info("Window Manager Script Started")
     # Example usage
     conn = await sdh.create_connection("slots.db")
     await manage_window(conn, WinType.ACCEPTED, "Example Script")
+    await sdh.free_all_slots(conn)
 
 
 if __name__ == '__main__':
