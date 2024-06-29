@@ -37,7 +37,7 @@ async def main():
 
         single_instance.create_lock_file()
         atexit.register(single_instance.remove_lock)
-        atexit.register(sdh.free_slot_named, script_name)
+        atexit.register(sdh.free_slot_by_name, script_name)
 
         shop_watcher.mute_main_loop_print_feedback.set()
         task = asyncio.create_task(shop_watcher.main())

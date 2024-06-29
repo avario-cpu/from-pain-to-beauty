@@ -10,28 +10,29 @@ import os
 import re
 import subprocess
 
+import aiosqlite
 import websockets
 from websockets import WebSocketServerProtocol
-import constants
-import denied_slots_db_handler
+import constants as const
+import denied_slots_db_handler as denied_sdh
 
-import slots_db_handler
+import slots_db_handler as sdh
 import terminal_window_manager_v4 as twm
 
 venv_python_path = "venv/Scripts/python.exe"
-subprocess_names = list(constants.SUBPROCESSES.keys())
+subprocess_names = list(const.SUBPROCESSES.keys())
 
 
-def reset_databases():
-    slots_db_handler.delete_table()
-    slots_db_handler.create_table()
-    slots_db_handler.initialize_slots()
-    denied_slots_db_handler.delete_table()
-    denied_slots_db_handler.create_table()
-    denied_slots_db_handler.initialize_slots()
+def reset_databases(conn: aiosqlite.Connection):
+    sdh.delete_table(conn)
+    sdh.create_table(conn)
+    sdh.initialize_slots(conn)
+    denied_sdh.delete_table(conn)
+    denied_sdh.create_table(conn)
+    denied_sdh.initialize_slots(conn)
 
 
-async def control_subprocess(instruction, target, target_name):
+async def control_subprocess(instruction: str, target: str):
     if instruction == "start":
         # Open the process in a new separate cmd window: this is done to be
         # able to manipulate the position of the script's terminal with the
@@ -42,22 +43,23 @@ async def control_subprocess(instruction, target, target_name):
 
     elif instruction == "stop":
         await send_message_to_subprocess_socket(
-            constants.STOP_SUBPROCESS_MESSAGE,
-            constants.SUBPROCESSES[f'{target_name}'])
+            const.STOP_SUBPROCESS_MESSAGE,
+            const.SUBPROCESSES[f'{const.SCRIPT_NAME_SUFFIX + target}'])
 
     elif instruction == "unlock":
-        if os.path.exists(f"temp/lock_files/{target_name}.lock"):
-            os.remove(f"temp/lock_files/{target_name}.lock")
+        if os.path.exists(f"temp/lock_files/"
+                          f"{const.SCRIPT_NAME_SUFFIX + target}.lock"):
+            os.remove(f"temp/lock_files/"
+                      f"{const.SCRIPT_NAME_SUFFIX + target}.lock")
 
 
-async def operate_launcher(message):
+async def operate_launcher(message: str):
     parts = message.split()
     if len(parts) >= 2:
         instruction = parts[0]
         target = parts[1]
-        target_name = constants.SCRIPT_NAME_SUFFIX + target
-        if target_name in subprocess_names:
-            await control_subprocess(instruction, target, target_name)
+        if const.SCRIPT_NAME_SUFFIX + target in subprocess_names:
+            await control_subprocess(instruction, target)
         else:
             print(f"Unknown target {target}")
     else:
@@ -65,48 +67,50 @@ async def operate_launcher(message):
               "target >>")
 
 
-def manage_windows(message):
+async def manage_windows(conn: aiosqlite.Connection, message: str):
     if message == "bring to top":
-        twm.bring_window_to_foreground()
+        await twm.bring_windows_to_foreground(conn)
     elif message == "set topmost":
-        twm.set_windows_to_topmost()
+        await twm.set_windows_to_topmost(conn)
     elif message == "unset topmost":
-        twm.unset_windows_to_topmost()
+        await twm.unset_windows_to_topmost(conn)
     elif message == "readjust":
-        twm.rearrange_windows()
+        await twm.refit_all_windows(conn)
     elif message == "restore":
-        twm.restore_all_windows()
+        await twm.restore_all_windows(conn)
         pass
 
 
-def manage_database(message):
+async def manage_database(conn: aiosqlite.Connection, message: str):
     if message == "free all slots":
-        slots_db_handler.free_all_slots()
-        denied_slots_db_handler.free_all_slots()
+        await sdh.free_all_slots(conn)
+        await denied_sdh.free_all_slots(conn)
 
 
-async def websocket_handler(websocket: WebSocketServerProtocol, path: str):
-    async for message in websocket:
-        print(f"WS Received: '{message}' on path: {path}")
+def create_websocket_handler(conn: aiosqlite.Connection):
+    async def websocket_handler(websocket: WebSocketServerProtocol, path: str):
+        async for message in websocket:
+            print(f"WS Received: '{message}' on path: {path}")
 
-        if path == "/launcher":  # Path to start and end scripts
-            await operate_launcher(message)
+            if path == "/launcher":  # Path to start and end scripts
+                await operate_launcher(message)
 
-        elif path == "/windows":  # Path to manipulate windows properties
-            manage_windows(message)
+            elif path == "/windows":  # Path to manipulate windows properties
+                await manage_windows(conn, message)
 
-        elif path == "/database":  # Path to manipulate db entries
-            manage_database(message)
+            elif path == "/database":  # Path to manipulate db entries
+                await manage_database(conn, message)
 
-        elif path == "/test":  # Path to test stuff
-            if message == "get windows":
-                print(twm.get_all_windows_names())
+            elif path == "/test":  # Path to test stuff
+                if message == "get windows":
+                    windows_names = await twm.get_all_windows_names(conn)
+                    print(windows_names)
 
-        else:
-            print(f"Unknown path: {path}.")
+    return websocket_handler
 
 
-async def send_message_to_subprocess_socket(message, port, host='localhost'):
+async def send_message_to_subprocess_socket(message: str, port: int,
+                                            host='localhost'):
     """Client function to send messages to subprocesses servers"""
     reader, writer = await asyncio.open_connection(host, port)
 
@@ -122,12 +126,14 @@ async def send_message_to_subprocess_socket(message, port, host='localhost'):
 
 async def main():
     print("Welcome to the server, bro. You know what to do.")
+    conn = await sdh.create_connection(const.SLOTS_DB_FILE)
     if not os.path.exists("temp"):
         os.makedirs("temp")  # just in case git remove the dir
 
-    twm.manage_window(twm.WinType.SERVER, 'SERVER')
-    websocket_server = await websockets.serve(websocket_handler, "localhost",
-                                              50000)
+    await twm.manage_window(conn, twm.WinType.SERVER, 'SERVER')
+    websocket_server = await websockets.serve(create_websocket_handler(conn),
+                                              "localhost", 50000)
+
     try:
         await asyncio.Future()
     except KeyboardInterrupt:

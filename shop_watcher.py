@@ -11,7 +11,7 @@ import websockets
 from skimage.metrics import structural_similarity as ssim
 from websockets import WebSocketException
 
-import constants
+import constants as const
 import denied_slots_db_handler as denied_sdh
 import my_classes as my
 import single_instance
@@ -33,7 +33,8 @@ class ShopTracker:
             self.flags[key] = False
         pass
 
-    async def track_shop_open_duration(self, ws):
+    async def track_shop_open_duration(self,
+                                       ws: websockets.WebSocketClientProtocol):
         while self.shop_is_currently_open:
             elapsed_time = round(time.time() - self.shop_opening_time)
             print(f"Shop has been open for {elapsed_time} seconds")
@@ -45,7 +46,7 @@ class ShopTracker:
                 self.flags["reacted_to_open_long"] = True
             await asyncio.sleep(1)  # Adjust the sleep time as necessary
 
-    async def open_shop(self, ws):
+    async def open_shop(self, ws: websockets.WebSocketClientProtocol):
         if not self.shop_is_currently_open:
             self.shop_is_currently_open = True
             self.shop_opening_time = time.time()
@@ -53,7 +54,7 @@ class ShopTracker:
                 self.track_shop_open_duration(ws))
             await react_to_shop("opened", ws)
 
-    async def close_shop(self, ws):
+    async def close_shop(self, ws: websockets.WebSocketClientProtocol):
         if self.shop_is_currently_open:
             self.shop_is_currently_open = False
             if (self.shop_open_duration_task
@@ -70,7 +71,7 @@ class ShopTracker:
 SCREEN_CAPTURE_AREA = {"left": 1853, "top": 50, "width": 30, "height": 35}
 TEMPLATE_IMAGE_PATH = 'opencv/shop_top_right_icon.jpg'
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
-SCRIPT_NAME = constants.SCRIPT_NAME_SUFFIX + os.path.splitext(
+SCRIPT_NAME = const.SCRIPT_NAME_SUFFIX + os.path.splitext(
     os.path.basename(__file__))[0] if __name__ == "__main__" else __name__
 # suffix added to avoid window naming conflicts with cli manager
 SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_shop_scanner", 150, 100)]
@@ -88,14 +89,6 @@ formatter = logging.Formatter(
 fh.setFormatter(formatter)
 logger.addHandler(fh)
 logger.info("\n\n\n\n<< New Log Entry >>")
-
-
-def exit_countdown():
-    """Give a bit of time to read terminal exit statements"""
-    for seconds in reversed(range(1, 5)):
-        print("\r" + f'cmd will close in {seconds} seconds...', end="\r")
-        time.sleep(1)
-    exit()
 
 
 async def establish_ws_connection():
@@ -117,7 +110,7 @@ async def handle_socket_client(reader, writer):
             print("Socket client disconnected")
             break
         message = data.decode()
-        if message == constants.STOP_SUBPROCESS_MESSAGE:
+        if message == const.STOP_SUBPROCESS_MESSAGE:
             stop_loop.set()
         print(f"Received: {message}")
         writer.write(b"ACK from WebSocket server")
@@ -127,7 +120,7 @@ async def handle_socket_client(reader, writer):
 
 async def run_socket_server():
     server = await asyncio.start_server(handle_socket_client, 'localhost',
-                                        constants.SUBPROCESSES[SCRIPT_NAME])
+                                        const.SUBPROCESSES[SCRIPT_NAME])
     addr = server.sockets[0].getsockname()
     print(f"Serving on {addr}")
 
@@ -141,17 +134,19 @@ async def run_socket_server():
         print("Server closed")
 
 
-async def capture_window(area):
+async def capture_window(area: dict[str, int]):
     with mss.mss() as sct:
         img = sct.grab(area)
     return np.array(img)
 
 
-async def compare_images(image_a, image_b):
+async def compare_images(image_a: cv.typing.MatLike,
+                         image_b: cv.typing.MatLike):
     return ssim(image_a, image_b)
 
 
-async def send_json_requests(ws, json_file_paths: str | list[str]):
+async def send_json_requests(ws: websockets.WebSocketClientProtocol,
+                             json_file_paths: str | list[str]):
     if isinstance(json_file_paths, str):
         json_file_paths = [json_file_paths]
 
@@ -162,7 +157,7 @@ async def send_json_requests(ws, json_file_paths: str | list[str]):
         logger.info(f"WebSocket response: {response}")
 
 
-async def react_to_shop(status, ws):
+async def react_to_shop(status: str, ws: websockets.WebSocketClientProtocol):
     print(f"Shop just {status}")
     if status == "opened" and ws:
         await send_json_requests(
@@ -173,7 +168,8 @@ async def react_to_shop(status, ws):
     pass
 
 
-async def react_to_shop_stayed_open(ws, duration, seconds=None):
+async def react_to_shop_stayed_open(ws: websockets.WebSocketClientProtocol,
+                                    duration: str, seconds: float = None):
     if duration == "short":
         print(
             "rolling for a reaction to shop staying open for a short while...")
@@ -207,7 +203,7 @@ async def react_to_shop_stayed_open(ws, duration, seconds=None):
             print("not reacting !")
 
 
-async def scan_for_shop_and_notify(ws):
+async def scan_for_shop_and_notify(ws: websockets.WebSocketClientProtocol):
     shop_tracker = ShopTracker()
     template = cv.imread(TEMPLATE_IMAGE_PATH, cv.IMREAD_GRAYSCALE)
 
@@ -238,41 +234,47 @@ async def scan_for_shop_and_notify(ws):
 async def main():
     """If there are no single instance lock file, start the Dota2 shop_watcher
      module. Reposition the terminal right at launch."""
-    if single_instance.lock_exists(SCRIPT_NAME):
-        slot = twm.manage_window(twm.WinType.DENIED, SCRIPT_NAME)
-        atexit.register(denied_sdh.free_slot, slot)
-        print("\n>>> Lock file is present: exiting... <<<")
-        return
-
-    else:
-        slot = twm.manage_window(twm.WinType.ACCEPTED,
-                                 SCRIPT_NAME, SECONDARY_WINDOWS)
-
-        single_instance.create_lock_file(SCRIPT_NAME)
-        atexit.register(single_instance.remove_lock, SCRIPT_NAME)
-        atexit.register(sdh.free_slot_named, SCRIPT_NAME)
-        socket_server_task = asyncio.create_task(run_socket_server())
-        mute_main_loop_print_feedback.set()  # avoid ugly lines due to caret
-        # replacement print
-
-        ws = None
-        try:
-            ws = await establish_ws_connection()
-            main_task = asyncio.create_task(scan_for_shop_and_notify(ws))
-            await secondary_windows_have_spawned.wait()
-            twm.manage_secondary_windows(slot, SECONDARY_WINDOWS)
-            mute_main_loop_print_feedback.clear()
-            await main_task
-        except KeyboardInterrupt:
-            print("KeyboardInterrupt")
-        finally:
-            socket_server_task.cancel()
-            await socket_server_task
-            cv.destroyAllWindows()
-            if ws:
-                await ws.close()
+    db_conn = None
+    try:
+        db_conn = await sdh.create_connection(const.SLOTS_DB_FILE)
+        if single_instance.lock_exists(SCRIPT_NAME):
+            slot = await twm.manage_window(db_conn, twm.WinType.DENIED,
+                                           SCRIPT_NAME)
+            atexit.register(denied_sdh.free_slot_sync, slot)
+            print("\n>>> Lock file is present: exiting... <<<")
+        else:
+            slot = await twm.manage_window(db_conn, twm.WinType.ACCEPTED,
+                                           SCRIPT_NAME, SECONDARY_WINDOWS)
+            single_instance.create_lock_file(SCRIPT_NAME)
+            atexit.register(single_instance.remove_lock, SCRIPT_NAME)
+            atexit.register(sdh.free_slot_by_name_sync, SCRIPT_NAME)
+            socket_server_task = asyncio.create_task(run_socket_server())
+            mute_main_loop_print_feedback.set()
+            ws = None
+            try:
+                ws = await establish_ws_connection()
+                main_task = asyncio.create_task(scan_for_shop_and_notify(ws))
+                await secondary_windows_have_spawned.wait()
+                await twm.manage_secondary_windows(slot, SECONDARY_WINDOWS)
+                mute_main_loop_print_feedback.clear()
+                await main_task
+            except KeyboardInterrupt:
+                print("KeyboardInterrupt")
+            finally:
+                socket_server_task.cancel()
+                await socket_server_task
+                await db_conn.close()
+                cv.destroyAllWindows()
+                if ws:
+                    await ws.close()
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        raise
+    finally:
+        if db_conn:
+            await db_conn.close()
 
 
 if __name__ == "__main__":
     asyncio.run(main())
-    exit_countdown()
+    twm.window_exit_countdown(5)

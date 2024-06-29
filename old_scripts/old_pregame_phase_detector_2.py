@@ -170,22 +170,23 @@ DESKTOP_ICONS_AREA = {"left": 1750, "top": 1040, "width": 50, "height": 40}
 SETTINGS_ICON_AREA = {"left": 170, "top": 85, "width": 40, "height": 40}
 CHAT_ICON_AREA = {"left": 1658, "top": 1028, "width": 62, "height": 38}
 
-DOTA_POWER_ICON_TEMPLATE = cv2.imread("opencv/dota_power_icon.jpg",
+DOTA_POWER_ICON_TEMPLATE = cv2.imread("../opencv/dota_power_icon.jpg",
                                       cv.IMREAD_GRAYSCALE)
-ALL_PICK_TEMPLATE = cv2.imread("opencv/all_pick.jpg", cv.IMREAD_GRAYSCALE)
-STRATEGY_TIME_TEMPLATE = cv2.imread("opencv/strategy_time.jpg",
+ALL_PICK_TEMPLATE = cv2.imread("../opencv/all_pick.jpg", cv.IMREAD_GRAYSCALE)
+STRATEGY_TIME_TEMPLATE = cv2.imread("../opencv/strategy_time.jpg",
                                     cv.IMREAD_GRAYSCALE)
-IN_GAME_TEMPLATE = cv2.imread("opencv/deliver_items_icon.jpg",
+IN_GAME_TEMPLATE = cv2.imread("../opencv/deliver_items_icon.jpg",
                               cv.IMREAD_GRAYSCALE)
-STARTING_BUY_TEMPLATE = cv2.imread("opencv/strategy-load-out-world-guides.jpg",
-                                   cv.IMREAD_GRAYSCALE)
-PLAY_DOTA_BUTTON_TEMPLATE = cv2.imread("opencv/play_dota.jpg",
+STARTING_BUY_TEMPLATE = cv2.imread(
+    "../opencv/strategy-load-out-world-guides.jpg",
+    cv.IMREAD_GRAYSCALE)
+PLAY_DOTA_BUTTON_TEMPLATE = cv2.imread("../opencv/play_dota.jpg",
                                        cv.IMREAD_GRAYSCALE)
-DESKTOP_ICONS_TEMPLATE = cv2.imread("opencv/desktop_icons.jpg",
+DESKTOP_ICONS_TEMPLATE = cv2.imread("../opencv/desktop_icons.jpg",
                                     cv.IMREAD_GRAYSCALE)
-SETTINGS_ICON_TEMPLATE = cv2.imread("opencv/dota_settings_icon.jpg",
+SETTINGS_ICON_TEMPLATE = cv2.imread("../opencv/dota_settings_icon.jpg",
                                     cv.IMREAD_GRAYSCALE)
-CHAT_ICON_TEMPLATE = cv2.imread("opencv/hero_pick_chat_icons.jpg",
+CHAT_ICON_TEMPLATE = cv2.imread("../opencv/hero_pick_chat_icons.jpg",
                                 cv.IMREAD_GRAYSCALE)
 
 SECONDARY_WINDOWS = [my.SecondaryWindow("pick_timer_scanner", 200, 80),
@@ -303,28 +304,28 @@ async def send_streamerbot_ws_request(ws: websockets.WebSocketClientProtocol,
     if tabbed:
         if tabbed.in_settings_screen:
             await send_json_requests(
-                ws, "streamerbot_ws_requests/dslr_hide_for_VS_screen.json")
+                ws, "../streamerbot_ws_requests/dslr_hide_for_VS_screen.json")
         elif tabbed.in_dota_menu:
             pass
 
     elif not tabbed:
         if game_phase.in_game:
             await send_json_requests(
-                ws, "streamerbot_ws_requests/switch_to_meta_scene.json")
+                ws, "../streamerbot_ws_requests/switch_to_meta_scene.json")
         elif game_phase.versus_screen:
             await send_json_requests(
-                ws, "streamerbot_ws_requests/dslr_hide_for_VS_screen.json")
+                ws, "../streamerbot_ws_requests/dslr_hide_for_VS_screen.json")
         elif game_phase.starting_buy:
             await send_json_requests(
-                ws, "streamerbot_ws_requests/dslr_move_for_starting_buy.json")
+                ws,
+                "../streamerbot_ws_requests/dslr_move_for_starting_buy.json")
         elif game_phase.hero_pick:
             await send_json_requests(
                 ws,
-                "streamerbot_ws_requests/scene_change_and_dslr_move_for_pick"
-                ".json")
+                "../streamerbot_ws_requests/scene_change_and_dslr_move_for_pick.json")
         elif game_phase.finding_game:
             await send_json_requests(
-                ws, "streamerbot_ws_requests/switch_to_meta_scene.json")
+                ws, "../streamerbot_ws_requests/switch_to_meta_scene.json")
 
 
 async def capture_new_area(capture_area, filename):
@@ -599,7 +600,7 @@ async def main():
                                  SCRIPT_NAME, SECONDARY_WINDOWS)
         single_instance.create_lock_file(SCRIPT_NAME)
         atexit.register(single_instance.remove_lock, SCRIPT_NAME)
-        atexit.register(sdh.free_slot_named, SCRIPT_NAME)
+        atexit.register(sdh.free_slot_by_name, SCRIPT_NAME)
         socket_server_task = asyncio.create_task(run_socket_server())
         mute_main_loop_print_feedback.set()
 

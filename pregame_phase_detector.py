@@ -1,6 +1,7 @@
 import atexit
 import os
 
+import aiosqlite
 import cv2
 import cv2 as cv
 import mss
@@ -262,7 +263,7 @@ async def run_socket_server():
         print("Server closed")
 
 
-async def capture_window(area):
+async def capture_window(area: dict[str, int]):
     with mss.mss() as sct:
         img = sct.grab(area)
     return np.array(img)
@@ -272,7 +273,8 @@ async def compare_images(image_a, image_b):
     return ssim(image_a, image_b)
 
 
-async def send_json_requests(ws, json_file_paths: str | list[str]):
+async def send_json_requests(ws: websockets.WebSocketClientProtocol,
+                             json_file_paths: str | list[str]):
     if isinstance(json_file_paths, str):
         json_file_paths = [json_file_paths]
 
@@ -318,14 +320,15 @@ async def send_streamerbot_ws_request(ws: websockets.WebSocketClientProtocol,
                 ws, "streamerbot_ws_requests/switch_to_meta_scene.json")
 
 
-async def readjust_secondary_windows():
-    sdh_slot = sdh.get_slot_by_main_name(SCRIPT_NAME)
+async def readjust_secondary_windows(conn: aiosqlite.Connection):
+    sdh_slot = await sdh.get_slot_by_main_name(conn, SCRIPT_NAME)
     logger.debug(f"Obtained slot from db is {sdh_slot}. Resizing "
                  f"secondary windows ")
-    twm.manage_secondary_windows(sdh_slot, SECONDARY_WINDOWS)
+    await twm.manage_secondary_windows(sdh_slot, SECONDARY_WINDOWS)
 
 
-async def match_interrupt_template(area, template):
+async def match_interrupt_template(area: dict[str, int],
+                                   template: cv.typing.MatLike):
     frame = await capture_window(area)
     gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     cv.imshow(SECONDARY_WINDOWS[2].name, gray_frame)
@@ -355,7 +358,8 @@ async def capture_and_process_images(*args: tuple[dict, cv.typing.MatLike]) \
                 cv.namedWindow(f"Window_{window_index}")
                 cv.imshow(f"Window_{window_index}", gray_frame)
 
-            cv.waitKey(1)
+            if cv.waitKey(1) == ord("q"):
+                break
             match_values.append(match_value)
             formatted_match_values = [f"{value:.4f}" for value in match_values]
             print(f"SSIMs: {formatted_match_values}", end="\r")
@@ -411,7 +415,7 @@ async def check_if_in_game():
     return True if settings_screen_match >= 0.7 else False
 
 
-async def wait_for_duration(duration):
+async def wait_for_duration(duration: float):
     start_time = time.time()
     while time.time() - start_time < duration:
         elapsed_time = time.time() - start_time
@@ -419,7 +423,7 @@ async def wait_for_duration(duration):
         print(f"Waiting {duration}s... {percentage:.2f}%", end='\r')
 
 
-async def capture_new_area(capture_area, filename):
+async def capture_new_area(capture_area: dict[str, int], filename: str):
     frame = await capture_window(capture_area)
     gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     cv.imshow("new_area_capture", gray_frame)
@@ -449,39 +453,47 @@ async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
 
 
 async def main():
-    if single_instance.lock_exists(SCRIPT_NAME):
-        slot = twm.manage_window(twm.WinType.DENIED, SCRIPT_NAME)
-        atexit.register(denied_sdh.free_slot, slot)
-        print("\n>>> Lock file is present: exiting... <<<")
-    else:
-        slot = twm.manage_window(twm.WinType.ACCEPTED,
-                                 SCRIPT_NAME, SECONDARY_WINDOWS)
-        single_instance.create_lock_file(SCRIPT_NAME)
-        atexit.register(single_instance.remove_lock, SCRIPT_NAME)
-        atexit.register(sdh.free_slot_named, SCRIPT_NAME)
-        socket_server_task = asyncio.create_task(run_socket_server())
-        mute_main_loop_print_feedback.set()
-        ws = None
-        try:
-            ws = await establish_ws_connection()
-            main_task = asyncio.create_task(detect_pregame_phase(ws))
-            print("1")
-            await initial_secondary_windows_spawned.wait()
-            print("2")
-            twm.manage_secondary_windows(slot, SECONDARY_WINDOWS)
-            print("3")
-            mute_main_loop_print_feedback.clear()
-            await main_task
-        except KeyboardInterrupt:
-            print("KeyboardInterrupt")
-        finally:
-            socket_server_task.cancel()
-            await socket_server_task
-            cv.destroyAllWindows()
-            if ws:
-                await ws.close()
+    db_conn = None
+    try:
+        db_conn = await sdh.create_connection(constants.SLOTS_DB_FILE)
+        if single_instance.lock_exists(SCRIPT_NAME):
+            slot = await twm.manage_window(db_conn, twm.WinType.DENIED,
+                                           SCRIPT_NAME)
+            atexit.register(denied_sdh.free_slot_sync, slot)
+            print("\n>>> Lock file is present: exiting... <<<")
+        else:
+            slot = await twm.manage_window(db_conn, twm.WinType.ACCEPTED,
+                                           SCRIPT_NAME, SECONDARY_WINDOWS)
+            single_instance.create_lock_file(SCRIPT_NAME)
+            atexit.register(single_instance.remove_lock, SCRIPT_NAME)
+            atexit.register(sdh.free_slot_by_name_sync, SCRIPT_NAME)
+            socket_server_task = asyncio.create_task(run_socket_server())
+            mute_main_loop_print_feedback.set()
+            ws = None
+            try:
+                ws = await establish_ws_connection()
+                main_task = asyncio.create_task(detect_pregame_phase(ws))
+                await initial_secondary_windows_spawned.wait()
+                await twm.manage_secondary_windows(slot, SECONDARY_WINDOWS)
+                mute_main_loop_print_feedback.clear()
+                await main_task
+            except KeyboardInterrupt:
+                print("KeyboardInterrupt")
+            finally:
+                socket_server_task.cancel()
+                await socket_server_task
+                await db_conn.close()
+                cv.destroyAllWindows()
+                if ws:
+                    await ws.close()
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        raise
+    finally:
+        if db_conn:
+            await db_conn.close()
 
 
 if __name__ == "__main__":
     asyncio.run(main())
-    exit_countdown()
+    twm.window_exit_countdown(5)
