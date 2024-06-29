@@ -449,7 +449,7 @@ async def main():
                                  SCRIPT_NAME, SECONDARY_WINDOWS)
         single_instance.create_lock_file(SCRIPT_NAME)
         atexit.register(single_instance.remove_lock, SCRIPT_NAME)
-        atexit.register(sdh.free_slot_named, SCRIPT_NAME)
+        atexit.register(sdh.free_slot_by_name, SCRIPT_NAME)
         socket_server_task = asyncio.create_task(run_socket_server())
         mute_main_loop_print_feedback.set()
 

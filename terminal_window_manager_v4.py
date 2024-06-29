@@ -1,35 +1,36 @@
+import asyncio
 import logging
 import os
 import time
 from enum import Enum, auto
 
+import aiosqlite
 import pygetwindow as gw
 import win32con
 import win32gui
 
+import constants as const
 import denied_slots_db_handler as denied_sdh
 import my_classes as my
 import slots_db_handler as sdh
 from constants import SERVER_WINDOW_NAME
 
-logger = logging.getLogger('terminal_window_manager')
+SCRIPT_NAME = const.SCRIPT_NAME_SUFFIX + os.path.splitext(
+    os.path.basename(__file__))[0] if __name__ == "__main__" else __name__
+MAIN_WINDOW_WIDTH = 600
+MAIN_WINDOW_HEIGHT = 260
+MAX_WINDOWS_PER_COLUMN = 1040 // MAIN_WINDOW_HEIGHT  # So currently 4, 1040p
+# instead of 1080p to account for the windows bottom taskbar
+
+logger = logging.getLogger(SCRIPT_NAME)
 logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('temp/logs/twm_v4.log')
+fh = logging.FileHandler(f'temp/logs/{SCRIPT_NAME}.log')
 fh.setLevel(logging.DEBUG)
 formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 logger.addHandler(fh)
 logger.info(f"\n\n\n\n<< New Log Entry >>")
-
-logger.info('Start test for shop_watcher')
-
-MAIN_WINDOW_WIDTH = 600
-MAIN_WINDOW_HEIGHT = 260
-MAX_WINDOWS_PER_COLUMN = 1040 // MAIN_WINDOW_HEIGHT  # So currently 4,
-
-
-# 1040p instead of 1080p to account for the windows bottom taskbar
 
 
 class WinType(Enum):
@@ -38,14 +39,22 @@ class WinType(Enum):
     SERVER = auto()
 
 
-def get_all_windows_names():
-    names = sdh.get_all_names()
+def window_exit_countdown(duration: int):
+    """Give a bit of time to read terminal exit statements"""
+    for seconds in reversed(range(1, duration)):
+        print("\r" + f'cmd will close in {seconds} seconds...', end="\r")
+        time.sleep(1)
+    exit()
+
+
+async def get_all_windows_names(conn: aiosqlite.Connection) -> list[str]:
+    names = await sdh.get_all_names(conn)
     return names
 
 
-def set_windows_to_topmost():
+async def set_windows_to_topmost(conn: aiosqlite.Connection):
     """Set the scripts windows to be on top of the screen."""
-    windows_names = get_all_windows_names()
+    windows_names = await get_all_windows_names(conn)
     windows_names.reverse()  # helps with having secondary windows (who spawn
     # later) on top of the main terminal.
     for name in windows_names:
@@ -57,9 +66,9 @@ def set_windows_to_topmost():
                                   win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
 
 
-def unset_windows_to_topmost():
+async def unset_windows_to_topmost(conn: aiosqlite.Connection):
     """Set the scripts windows fore/background behavior back to normal."""
-    windows_names = get_all_windows_names()
+    windows_names = await get_all_windows_names(conn)
     for name in windows_names:
         window = win32gui.FindWindow(None, name)
         if window:
@@ -69,9 +78,9 @@ def unset_windows_to_topmost():
                                   win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
 
 
-def restore_all_windows():
+async def restore_all_windows(conn: aiosqlite.Connection):
     """Restore to normal size all windows who have been minimized/maximized"""
-    windows_names = get_all_windows_names()
+    windows_names = await get_all_windows_names(conn)
     for name in windows_names:
         window = gw.getWindowsWithTitle(name)
         if window:
@@ -79,39 +88,41 @@ def restore_all_windows():
             window.restore()
 
 
-def bring_window_to_foreground():
+async def bring_windows_to_foreground(conn: aiosqlite.Connection):
     """Bring the script windows to the foreground"""
-    restore_all_windows()
-    set_windows_to_topmost()
-    unset_windows_to_topmost()
+    await restore_all_windows(conn)
+    await set_windows_to_topmost(conn)
+    await unset_windows_to_topmost(conn)
 
 
-def set_window_title(title):
+def set_window_title(title: str):
     os.system(f"title {title}")
 
 
-def find_window(title: str, timeout=2) -> gw.Win32Window | None:
+async def find_window(title: str, timeout: int = 2) -> gw.Win32Window | None:
     """Find window by title within a given timeout"""
     end_time = time.time() + timeout
     while time.time() < end_time:
         window = gw.getWindowsWithTitle(title)
         if window:
             return window[0]
-        time.sleep(0.01)
+        await asyncio.sleep(0.01)
     logger.warning(f"Window '{title}' not found within timeout.")
     return None
 
 
-def find_slot_and_name_window(window_type: WinType, window_name: str):
+async def assign_slot_and_name_window(conn: aiosqlite.Connection,
+                                      window_type: WinType,
+                                      window_name: str):
     """Assign a slot and sets window title based on window type."""
     if window_type == WinType.ACCEPTED:
-        slot_id = sdh.get_first_free_slot()
+        slot_id = await sdh.get_first_free_slot(conn)
         title = window_name
         set_window_title(title)
         return slot_id, title
 
     elif window_type == WinType.DENIED:
-        slot_id = denied_sdh.occupy_first_free_slot()
+        slot_id = await denied_sdh.occupy_first_free_slot(conn)
         title = f"{window_name}_denied({slot_id})"
         set_window_title(title)
         return slot_id, title
@@ -178,11 +189,11 @@ def calculate_secondary_window_properties(
     return properties
 
 
-def adjust_window(title: str,
-                  properties: tuple[int, int, int, int],
-                  resize=True, move=True):
+async def adjust_window(title: str,
+                        properties: tuple[int, int, int, int],
+                        resize: bool = True, move: bool = True):
     """Adjust window position and size."""
-    window = find_window(title)
+    window = await find_window(title)
     if window:
         window.restore()
         if resize:
@@ -204,13 +215,13 @@ def generate_window_data(title: str,
     return data
 
 
-def search_for_vacant_slots() -> dict[int:int]:
+async def search_for_vacant_slots(conn: aiosqlite.Connection) -> dict[int:int]:
     """Look if they are free slots available in the database before the ones
     currently occupied. E.g. slot 7 is occupied while slot 3 is free.
     :return: a dict with (occupied slot : free slot) pairs
     """
-    free_slots = sdh.get_all_free_slots()
-    occupied_slots = sdh.get_all_occupied_slots()
+    free_slots = await sdh.get_all_free_slots(conn)
+    occupied_slots = await sdh.get_all_occupied_slots(conn)
     occupied_slots.reverse()  # we want to match the highest occupied slot
     # with the lowest free slot
     pairs = {}
@@ -228,81 +239,81 @@ def search_for_vacant_slots() -> dict[int:int]:
     return pairs
 
 
-def rearrange_main_window(free_slot, data):
-    main_properties = calculate_main_window_properties(WinType.ACCEPTED,
-                                                       free_slot)
-    adjust_window(data[0][0], main_properties)
+async def readjust_main_window(slot: int, title: str):
+    """Move and transform main window to a new slot"""
+    props = calculate_main_window_properties(WinType.ACCEPTED, slot)
+    await adjust_window(title, props)
 
 
-def rearrange_secondary_windows(free_slot, data):
+async def readjust_secondary_windows(free_slot: int,
+                                     data: list[tuple[str, int, int]]):
     secondary_windows = [
         my.SecondaryWindow(data[i][0], data[i][1], data[i][2]) for i in
         range(1, len(data))]
 
-    secondary_properties = calculate_secondary_window_properties(
+    props = calculate_secondary_window_properties(
         free_slot, secondary_windows)
 
     for i in range(len(secondary_windows)):
-        adjust_window(secondary_windows[i].name, secondary_properties[i])
+        await adjust_window(secondary_windows[i].name, props[i])
 
 
-def obtain_window_data(current_slot):
-    """Obtain main and secondary window data from a database slot"""
-    data = sdh.get_full_data(current_slot)
-    data = [(data[i], data[i + 1], data[i + 2])
-            for i in range(0, len(data) - 2, 3)
-            if None not in (data[i], data[i + 1], data[i + 2])]
-    # yea the expression is complicated, but you'll get it bro, read again :)
-    logger.info(f"Rearrangement data obtained: {data}")
-    return data
-
-
-def refit_windows():
+async def reset_windows_positions(conn: aiosqlite.Connection):
     """Move all active windows back to their allocated positions"""
-    for active_window_slot in sdh.get_all_occupied_slots():
-        data = obtain_window_data(active_window_slot)
-        rearrange_main_window(active_window_slot, data)
-        rearrange_secondary_windows(active_window_slot, data)
+    occupied_slots = await sdh.get_all_occupied_slots(conn)
+    for slot in occupied_slots:
+        data = await sdh.get_full_data(conn, slot)
+        logger.info(f"Rearrangement data obtained: {data}")
+        await readjust_main_window(slot, data[0][0])
+        await readjust_secondary_windows(slot, data)
 
 
-def rearrange_windows():
+async def refit_all_windows(conn: aiosqlite.Connection):
     """Rearrange windows to fill empty slots in a more compact way. Also
     makes them return back to their position and to the foreground"""
-    pairs = search_for_vacant_slots() if not None else {}
-    for current_slot, free_slot in pairs.items():
-        data = obtain_window_data(current_slot)
-        sdh.free_slot(current_slot)
-        sdh.occupy_slot_with_data(free_slot, data)
+    pairs = await search_for_vacant_slots(conn) if not None else {}
+    for slot, new_slot in pairs.items():
+        data = await sdh.get_full_data(conn, slot)
+        logger.info(f"Rearrangement data obtained: {data}")
+        await sdh.free_slot(conn, slot)
+        await sdh.occupy_slot_with_data(conn, new_slot, data)
+        await readjust_main_window(new_slot, data[0][0])
+        await readjust_secondary_windows(new_slot, data)
+    await reset_windows_positions(conn)
+    await bring_windows_to_foreground(conn)
 
-        rearrange_main_window(free_slot, data)
-        rearrange_secondary_windows(free_slot, data)
-    refit_windows()
-    bring_window_to_foreground()
 
-
-def manage_secondary_windows(
+async def manage_secondary_windows(
         slot: int, secondary_windows: list[my.SecondaryWindow]):
     """Fit secondary windows next to main one"""
     properties = calculate_secondary_window_properties(slot, secondary_windows)
     for i in range(0, len(secondary_windows)):
-        adjust_window(secondary_windows[i].name, properties[i])
+        await adjust_window(secondary_windows[i].name, properties[i])
 
 
-def manage_window(window_type, window_name,
-                  secondary_windows: list[my.SecondaryWindow] = None):
+async def manage_window(conn: aiosqlite.Connection,
+                        window_type: WinType,
+                        window_name: str,
+                        secondary_windows: list[my.SecondaryWindow] = None):
     """Manage window allocation and positioning."""
-    slot, title = find_slot_and_name_window(window_type, window_name)
+    slot, title = await assign_slot_and_name_window(conn, window_type,
+                                                    window_name)
 
     properties = calculate_main_window_properties(window_type, slot)
-    adjust_window(title, properties)
+    await adjust_window(title, properties)
 
     if window_type == WinType.ACCEPTED and slot is not None:
         data = generate_window_data(title, secondary_windows)
-        sdh.occupy_slot_with_data(slot, data)
+        await sdh.occupy_slot_with_data(conn, slot, data)
     return slot
 
 
-if __name__ == '__main__':
+async def main():
     logger.info("Window Manager Script Started")
     # Example usage
-    manage_window(WinType.ACCEPTED, "Example Script")
+    conn = await sdh.create_connection("slots.db")
+    await manage_window(conn, WinType.ACCEPTED, "Example Script")
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
