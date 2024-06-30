@@ -154,30 +154,31 @@ def calculate_secondary_window_properties(
         -> list[tuple[int, int, int, int]]:
     """Set properties for a list of secondary windows"""
     properties = []
-    x_pos_offset = 0
+    x_pos_offset = MAIN_WINDOW_WIDTH
     y_pos_offset = 0
+    logger.debug(f"Calculating with slot {slot}")
 
-    for i in range(0, len(secondary_windows)):
+    for i in range(len(secondary_windows)):
         width = secondary_windows[i].width
         height = secondary_windows[i].height
-        x_pos = (-width - MAIN_WINDOW_WIDTH * (slot // MAX_WINDOWS_PER_COLUMN)
-                 + x_pos_offset)
-        y_pos = MAIN_WINDOW_HEIGHT * (slot % MAX_WINDOWS_PER_COLUMN)
 
-        if x_pos < -MAIN_WINDOW_WIDTH * (1 + slot // MAX_WINDOWS_PER_COLUMN):
+        if x_pos_offset - width < 0:
             # move to the next line
-            x_pos_offset = 0
-            y_pos_offset += secondary_windows[0].height
-            x_pos = (-width - MAIN_WINDOW_WIDTH * (
-                    slot // MAX_WINDOWS_PER_COLUMN)
-                     + x_pos_offset)
-            y_pos = MAIN_WINDOW_HEIGHT * (
-                    slot % MAX_WINDOWS_PER_COLUMN) + y_pos_offset
+            x_pos_offset = MAIN_WINDOW_WIDTH
+            y_pos_offset += height
+
+        x_pos = (x_pos_offset - width -
+                 MAIN_WINDOW_WIDTH * (1 + slot // MAX_WINDOWS_PER_COLUMN))
+        y_pos = (y_pos_offset +
+                 (MAIN_WINDOW_HEIGHT * (slot % MAX_WINDOWS_PER_COLUMN)))
+
         props = width, height, x_pos, y_pos
         properties.append(props)
-        logger.info(f"Secondary properties for '{secondary_windows[i].name}' "
-                    f"calculated are {props}")
-        x_pos_offset -= width  # to avoid overlap
+
+        logger.info(f"Secondary properties calculated for "
+                    f"'{secondary_windows[i].name}' are {props}")
+
+        x_pos_offset -= width  # decrement x_pos_offset for the next window
 
     return properties
 
@@ -194,7 +195,7 @@ async def adjust_window(title: str,
         if move:
             window.moveTo(*properties[2:])
     else:
-        logger.error(f"{window} Not found.")
+        logger.error(f"Window {title} Not found.")
 
 
 def generate_window_data(title: str,
@@ -256,7 +257,7 @@ async def reset_windows_positions(conn: aiosqlite.Connection):
     occupied_slots = await sdh.get_all_occupied_slots(conn)
     for slot in occupied_slots:
         data = await sdh.get_full_data(conn, slot)
-        logger.info(f"Rearrangement data obtained: {data}")
+        logger.info(f"Rearrangement data obtained for slot {slot}: {data}")
         await readjust_main_window(slot, data[0][0])
         await readjust_secondary_windows(slot, data)
 

@@ -31,51 +31,63 @@ class InterruptType(Enum):
 
 class Tabbed:
     def __init__(self):
-        self._out_to_desktop = False
-        self._in_dota_menu = False
-        self._in_settings_screen = False
+        self._to_desktop = False
+        self._to_dota_menu = False
+        self._to_settings_screen = False
+        self._in_game = False
 
     @property
-    def out_to_desktop(self):
-        return self._out_to_desktop
+    def to_desktop(self):
+        return self._to_desktop
 
-    @out_to_desktop.setter
-    def out_to_desktop(self, value):
+    @to_desktop.setter
+    def to_desktop(self, value):
         if value:
             self._set_all_false()
-        self._out_to_desktop = value
+        self._to_desktop = value
 
     @property
-    def in_dota_menu(self):
-        return self._in_dota_menu
+    def to_dota_menu(self):
+        return self._to_dota_menu
 
-    @in_dota_menu.setter
-    def in_dota_menu(self, value):
+    @to_dota_menu.setter
+    def to_dota_menu(self, value):
         if value:
             self._set_all_false()
-        self._in_dota_menu = value
+        self._to_dota_menu = value
 
     @property
-    def in_settings_screen(self):
-        return self._in_settings_screen
+    def to_settings_screen(self):
+        return self._to_settings_screen
 
-    @in_settings_screen.setter
-    def in_settings_screen(self, value):
+    @to_settings_screen.setter
+    def to_settings_screen(self, value):
         if value:
             self._set_all_false()
-        self._in_settings_screen = value
+        self._to_settings_screen = value
+
+    @property
+    def in_game(self):
+        return self._in_game
+
+    @in_game.setter
+    def in_game(self, value):
+        if value:
+            self._set_all_false()
+        self._in_game = value
 
     def _set_all_false(self):
-        self._out_to_desktop = False
-        self._in_dota_menu = False
-        self._in_settings_screen = False
+        self._to_desktop = False
+        self._to_dota_menu = False
+        self._to_settings_screen = False
+        self._in_game = False
 
     def current_state(self):
-        if self._out_to_desktop:
+        if self._to_desktop:
             return "Out to desktop"
-        elif self._in_dota_menu:
+        elif self._to_dota_menu:
             return "In Dota menu"
-        elif self._in_settings_screen:
+        elif self._to_settings_screen:
             return "In settings screen"
         else:
             return "No state is True"
@@ -87,7 +99,6 @@ class PreGamePhases:
         self._finding_game = False
         self._hero_pick = False
         self._starting_buy = False
-        self._in_settings = False
         self._versus_screen = False
         self._in_game = False
 
@@ -122,16 +133,6 @@ class PreGamePhases:
         self._starting_buy = value
 
     @property
-    def in_settings(self):
-        return self._in_settings
-
-    @in_settings.setter
-    def in_settings(self, value):
-        if value:
-            self._set_all_false()
-        self._in_settings = value
-
-    @property
     def versus_screen(self):
         return self._versus_screen
 
@@ -155,7 +156,6 @@ class PreGamePhases:
         self._finding_game = False
         self._hero_pick = False
         self._starting_buy = False
-        self._in_settings = False
         self._versus_screen = False
         self._in_game = False
 
@@ -184,10 +184,12 @@ SETTINGS_TEMPLATE = cv2.imread("opencv/dota_settings_icon.jpg",
 HERO_PICK_TEMPLATE = cv2.imread("opencv/hero_pick_chat_icons.jpg",
                                 cv.IMREAD_GRAYSCALE)
 
-SECONDARY_WINDOWS = [my.SecondaryWindow("main_scanner", 200, 100),
+SECONDARY_WINDOWS = [my.SecondaryWindow("first_scanner", 200, 100),
                      my.SecondaryWindow("second_scanner", 200, 100),
                      my.SecondaryWindow("third_scanner", 200, 100),
-                     my.SecondaryWindow("fourth_scanner", 200, 100)]
+                     my.SecondaryWindow("fourth_scanner", 200, 100),
+                     my.SecondaryWindow("fifth_scanner", 200, 100),
+                     my.SecondaryWindow("sixth_scanner", 200, 100)]
 SCRIPT_NAME = my_utils.construct_script_name(__file__,
                                              const.SCRIPT_NAME_SUFFIX)
 # suffix added to avoid window naming conflicts with cli manager
@@ -229,7 +231,7 @@ async def handle_socket_client(reader, writer):
 
 
 async def run_socket_server():
-    logger.info("Starting run_socket_server")
+    logger.info("Starting script socket server")
     server = await asyncio.start_server(handle_socket_client, 'localhost',
                                         const.SUBPROCESSES[SCRIPT_NAME])
     addr = server.sockets[0].getsockname()
@@ -277,10 +279,10 @@ async def send_streamerbot_ws_request(ws: websockets.WebSocketClientProtocol,
                                       game_phase: PreGamePhases,
                                       tabbed: Tabbed = None):
     if tabbed:
-        if tabbed.in_settings_screen:
+        if tabbed.to_settings_screen:
             await send_json_requests(
                 ws, "streamerbot_ws_requests/dslr_hide_for_VS_screen.json")
-        elif tabbed.in_dota_menu:
+        elif tabbed.to_dota_menu:
             pass
 
     elif not tabbed:
@@ -295,9 +297,8 @@ async def send_streamerbot_ws_request(ws: websockets.WebSocketClientProtocol,
                 ws, "streamerbot_ws_requests/dslr_move_for_starting_buy.json")
         elif game_phase.hero_pick:
             await send_json_requests(
-                ws,
-                "streamerbot_ws_requests/scene_change_and_dslr_move_for_pick"
-                ".json")
+                ws, "streamerbot_ws_requests/"
+                    "scene_change_and_dslr_move_for_pick.json")
         elif game_phase.finding_game:
             await send_json_requests(
                 ws, "streamerbot_ws_requests/switch_to_meta_scene.json")
@@ -319,12 +320,14 @@ async def match_interrupt_template(area: dict[str, int],
     return match_value
 
 
-async def capture_and_process_images(*args: tuple[dict, cv.typing.MatLike]) \
-        -> list[float]:
+async def capture_and_process_images(
+        *args: tuple[int, dict, cv.typing.MatLike]) -> dict[int, float]:
     """Compares a set of screen areas and cv2 templates between them"""
-    match_values = []
+    match_values = {}
 
-    for index, (capture_area, template) in enumerate(args):
+    for arg in args:
+        index, capture_area, template = arg
+
         if capture_area is not None:
             frame = await capture_window(capture_area)
             gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
@@ -334,68 +337,57 @@ async def capture_and_process_images(*args: tuple[dict, cv.typing.MatLike]) \
             else:
                 match_value = 0.0
 
-            window_index = index
-            if window_index < len(SECONDARY_WINDOWS):
-                cv.imshow(SECONDARY_WINDOWS[window_index].name, gray_frame)
+            if index is not None:
+                window_name = SECONDARY_WINDOWS[index].name
             else:
-                cv.namedWindow(f"Window_{window_index}")
-                cv.imshow(f"Window_{window_index}", gray_frame)
+                window_name = "Default Window"
+
+            cv.imshow(window_name, gray_frame)
 
             if cv.waitKey(1) == ord("q"):
                 break
-            match_values.append(match_value)
-            formatted_match_values = [f"{value:.4f}" for value in match_values]
-            print(f"SSIMs: {formatted_match_values}", end="\r")
-
-    initial_secondary_windows_spawned.set()
+            match_values[index] = match_value
 
     return match_values
 
 
 async def detect_hero_pick():
-    pick_screen_match = await capture_and_process_images(
-        (HERO_PICK_AREA, HERO_PICK_TEMPLATE)
-    )
-    return True if pick_screen_match[0] >= 0.7 else False
+    return await capture_and_process_images(
+        (0, HERO_PICK_AREA, HERO_PICK_TEMPLATE))
 
 
 async def detect_starting_buy():
-    starting_buy_match = await capture_and_process_images(
-        (STARTING_BUY_AREA, STARTING_BUY_TEMPLATE))
-    return True if starting_buy_match[0] >= 0.7 else False
+    return await capture_and_process_images(
+        (1, STARTING_BUY_AREA, STARTING_BUY_TEMPLATE))
 
 
-async def detect_tab_out():
-    dota_tabout_match, desktop_tabout_match = await capture_and_process_images(
-        (DOTA_TAB_AREA, DOTA_TAB_TEMPLATE),
-        (DESKTOP_TAB_AREA, DESKTOP_TAB_TEMPLATE)
-    )
-    return True if (dota_tabout_match >= 0.7
-                    or desktop_tabout_match >= 0.7) else False
+async def detect_dota_tab_out():
+    return await capture_and_process_images(
+        (2, DOTA_TAB_AREA, DOTA_TAB_TEMPLATE))
+
+
+async def detect_desktop_tab_out():
+    return await capture_and_process_images(
+        (3, DESKTOP_TAB_AREA, DESKTOP_TAB_TEMPLATE))
 
 
 async def detect_settings_screen():
-    settings_screen_match = await capture_and_process_images(
-        (SETTINGS_AREA, SETTINGS_TEMPLATE)
-    )
-    return True if settings_screen_match[0] >= 0.7 else False
+    return await capture_and_process_images(
+        (4, SETTINGS_AREA, SETTINGS_TEMPLATE))
 
 
 async def detect_vs_screen():
     vs_screen_match = await capture_and_process_images(
-        (HERO_PICK_AREA, HERO_PICK_TEMPLATE),
-        (SETTINGS_AREA, SETTINGS_TEMPLATE),
-        (DOTA_TAB_AREA, DOTA_TAB_TEMPLATE),
-        (DESKTOP_TAB_AREA, DESKTOP_TAB_TEMPLATE)
-    )
+        (0, HERO_PICK_AREA, HERO_PICK_TEMPLATE),
+        (1, SETTINGS_AREA, SETTINGS_TEMPLATE),
+        (2, DOTA_TAB_AREA, DOTA_TAB_TEMPLATE),
+        (3, DESKTOP_TAB_AREA, DESKTOP_TAB_TEMPLATE))
     return True if max(vs_screen_match) < 0.7 else False
 
 
-async def check_if_in_game():
-    settings_screen_match, _ = await capture_and_process_images(
-        (IN_GAME_AREA, IN_GAME_TEMPLATE)
-    )
-    return True if settings_screen_match >= 0.7 else False
+async def detect_in_game():
+    return await capture_and_process_images(
+        (5, IN_GAME_AREA, IN_GAME_TEMPLATE))
 
 
 async def wait_for_duration(duration: float):
@@ -421,18 +413,89 @@ async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
 
     game_phase = PreGamePhases()
     tabbed = Tabbed()
+    game_phase.finding_game = True  # initial game phase
+    print("\n\n\n\n\n\n\nWaiting to find a game...")  # a few newlines to
+    # read the outputs in cli below the secondary windows :)
 
     while not stop_event.is_set():
-        print("Waiting to find a game...")
-        while not await detect_hero_pick():
-            # look for initial game find
-            print("test")
-            await asyncio.sleep(0.01)
-            continue
-        print("Found a game !")
+
+        mute_main_loop_print_feedback.set()
+
+        (hero_pick_result, starting_buy_result, dota_tab_out_results,
+         desktop_tab_out_results, settings_screens_results, in_game_results) \
+            = await (
+            asyncio.gather(
+                detect_hero_pick(),  # index 0
+                detect_starting_buy(),  # index 1
+                detect_dota_tab_out(),  # index 2
+                detect_desktop_tab_out(),  # index 3
+                detect_settings_screen(),  # index 4
+                detect_in_game()  # index 5
+            ))
+
+        initial_secondary_windows_spawned.set()
+
+        combined_results = {**hero_pick_result, **starting_buy_result,
+                            **dota_tab_out_results, **desktop_tab_out_results,
+                            **settings_screens_results, **in_game_results}
+        logger.debug(combined_results)
+
+        formatted_combined_results = [f"{index}:{value:.3f}" for index, value
+                                      in combined_results.items()]
+        formatted_combined_results = ", ".join(formatted_combined_results)
+        print(f"SSIMs: {formatted_combined_results}", end='\r')
+
+        target_value = 0.7
+
+        if combined_results[0] > target_value and game_phase.finding_game:
+            tabbed.in_game = True
+            game_phase.hero_pick = True
+            print("Found a game !")
+
+        if combined_results[1] > target_value and not game_phase.starting_buy:
+            tabbed.in_game = True
+            game_phase.starting_buy = True
+            print("Starting buy !")
+
+        if ((combined_results[0] > target_value > combined_results[1]
+             and combined_results[4] < target_value
+             and not game_phase.hero_pick)
+                or
+                combined_results[0] > target_value
+                and tabbed.to_dota_menu
+                or
+                combined_results[0] > target_value
+                and tabbed.to_desktop):
+            tabbed.in_game = True
+            game_phase.hero_pick = True
+            print("Back to hero select !")
+
+        if combined_results[2] > target_value and not tabbed.to_dota_menu:
+            tabbed.to_dota_menu = True
+            print("We tabbed out to Dota Menus !")
+
+        if combined_results[3] > target_value and not tabbed.to_desktop:
+            tabbed.to_desktop = True
+            print("We tabbed out to desktop !")
+
+        if (combined_results[4] > target_value
+                and not tabbed.to_settings_screen):
+            tabbed.to_settings_screen = True
+            print("We tabbed out to settings !")
+
+        if (max(combined_results.values()) < target_value
+                and not game_phase.versus_screen):
+            # no know match detected = vs screen.
+            tabbed.in_game = True
+            game_phase.versus_screen = True
+            print("We are in vs screen !")
+
+        if combined_results[5] > target_value and not game_phase.in_game:
+            tabbed.in_game = True
+            game_phase.in_game = True
+            print("We are in now game !")
 
         await asyncio.sleep(0.01)
-    pass
 
 
 async def main():

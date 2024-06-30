@@ -1,11 +1,16 @@
+import logging
 import sqlite3
 
 import aiosqlite
 import asyncio
 import constants as const
+import my_utils
 
 AMOUNT_OF_SLOTS = 8
-MAX_AMOUNT_OF_WINDOWS = 5  # main win counts for 1, add to that 4 secondaries
+MAX_AMOUNT_OF_WINDOWS = 7  # main win counts for 1, add to that 6 secondaries
+SCRIPT_NAME = my_utils.construct_script_name(__file__,
+                                             const.SCRIPT_NAME_SUFFIX)
+logger = my_utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 database = const.SLOTS_DB_FILE
 
 
@@ -43,9 +48,9 @@ async def delete_table(conn: aiosqlite.Connection):
             sql = "DROP TABLE IF EXISTS slots"
             await cursor.execute(sql)
             await conn.commit()
-            print(f"The table has been deleted successfully.")
+            logger.info(f"The table has been deleted successfully.")
     except aiosqlite.Error as e:
-        print(f"The table has not been deleted successfully.")
+        logger.info(f"The table has not been deleted successfully.")
         print(e)
         await conn.rollback()
 
@@ -85,9 +90,10 @@ async def occupy_slot_with_data(conn: aiosqlite.Connection, slot_id: int,
                             (name, width, height, slot_id,)
                         )
                 await conn.commit()
-                print(f"Slot {slot_id} is now occupied.")
+                logger.info(f"Slot {slot_id} is now occupied.")
             else:
-                print(f"Slot {slot_id} is already occupied or does not exist")
+                logger.error(
+                    f"Slot {slot_id} is already occupied or does not exist")
     except aiosqlite.Error as e:
         print(e)
         await conn.rollback()
@@ -104,7 +110,7 @@ async def get_first_free_slot(conn: aiosqlite.Connection) -> int | None:
             if row:
                 slot_id = row[0]
                 await conn.commit()
-                print(f"Slot {slot_id} is the first available")
+                logger.info(f"Slot {slot_id} is the first available")
                 return slot_id
             else:
                 print("No free slot available.")
@@ -132,9 +138,10 @@ async def free_slot(conn: aiosqlite.Connection, slot_id: int):
                         (None, None, None, slot_id,)
                     )
                 await conn.commit()
-                print(f"Slot {slot_id} is now free.")
+                logger.info(f"Slot {slot_id} is now free.")
             else:
-                print(f"Slot {slot_id} is already free or does not exist.")
+                logger.error(f"Slot {slot_id} is already free or does not "
+                             f"exist.")
     except aiosqlite.Error as e:
         print(e)
         await conn.rollback()
@@ -148,7 +155,7 @@ def free_slot_by_name_sync(name: str):
     try:
         conn = sqlite3.connect(const.SLOTS_DB_FILE)
         cursor = conn.cursor()
-        cursor.execute("SELECT is_open, is_open FROM slots WHERE name0 = ?",
+        cursor.execute("SELECT id, is_open FROM slots WHERE name0 = ?",
                        (name,))
         row = cursor.fetchone()
         if row:
@@ -157,9 +164,9 @@ def free_slot_by_name_sync(name: str):
                 free_slot_sync(conn, slot_id)
                 conn.commit()
             else:
-                print(f"Slot {slot_id} is already free.")
+                logger.debug(f"Slot {slot_id} is already free.")
         else:
-            print(f"Slot named {name} does not exist.")
+            logger.error(f"Slot named {name} does not exist.")
     except sqlite3.Error as e:
         if conn:
             conn.rollback()
@@ -249,7 +256,7 @@ async def get_slot_by_main_name(conn: aiosqlite.Connection,
             if row:
                 return row[0]
             else:
-                print(f"No slot found with the main name: {name}")
+                logger.error(f"No slot found with the main name: {name}")
                 return None
     except aiosqlite.Error as e:
         print(e)
@@ -287,9 +294,10 @@ async def get_all_occupied_slots(conn: aiosqlite.Connection) -> list[int]:
             if rows is not None:
                 for row in rows:
                     slot_ids.append(row[0])
+                logger.info(f"obtained occupied slots: {slot_ids}")
                 return slot_ids
             else:
-                print('No occupied slots found')
+                logger.info('No occupied slots found')
             pass
     except aiosqlite.Error as e:
         print(e)
@@ -308,7 +316,7 @@ async def get_all_free_slots(conn: aiosqlite.Connection) -> list[int]:
                     slot_ids.append(row[0])
                 return slot_ids
             else:
-                print('No free slots found')
+                logger.info('No free slots found')
     except aiosqlite.Error as e:
         print(e)
         return []
@@ -328,9 +336,15 @@ async def main():
     print(all_names)
     print(all_occupied)
     print(all_free)
+    await free_all_slots(conn)
 
     await conn.close()  # Ensure to close the connection when done
 
 
+async def test():
+    free_slot_by_name_sync("my_pregame_phase_detector")
+
+
 if __name__ == "__main__":
     asyncio.run(main())
+    # asyncio.run(test())
