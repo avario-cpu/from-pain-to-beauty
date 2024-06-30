@@ -168,7 +168,8 @@ async def react_to_shop_stayed_open(ws: websockets.WebSocketClientProtocol,
         if random.randint(1, 4) == 1:
             print("reacting !")
             await send_json_requests(
-                ws, "streamerbot_ws_requests/brb_buying_milk_show.json")
+                ws,
+                "streamerbot_ws_requests/shop_scan_brb_buying_milk_show.json")
         else:
             print("not reacting !")
     if duration == "long":
@@ -177,7 +178,8 @@ async def react_to_shop_stayed_open(ws: websockets.WebSocketClientProtocol,
         if random.randint(1, 3) == 1:
             print("reacting !")
             await send_json_requests(
-                ws, "streamerbot_ws_requests/brb_buying_milk_hide.json")
+                ws,
+                "streamerbot_ws_requests/shop_scan_brb_buying_milk_hide.json")
             start_time = time.time()
             while True:
                 elapsed_time = time.time() - start_time + seconds

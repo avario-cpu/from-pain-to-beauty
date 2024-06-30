@@ -228,20 +228,24 @@ async def send_json_requests(ws, json_file_paths: str | list[str]):
 async def send_streamerbot_ws_request(ws, game_phase):
     if game_phase.in_game:
         await send_json_requests(
-            ws, "../streamerbot_ws_requests/switch_to_meta_scene.json")
+            ws,
+            "../streamerbot_ws_requests/pregame_scene_change_for_in_game.json")
     elif game_phase.versus_screen:
         await send_json_requests(
-            ws, "../streamerbot_ws_requests/dslr_hide_for_VS_screen.json")
+            ws,
+            "../streamerbot_ws_requests/pregame_dslr_hide_for_vs_screen.json")
     elif game_phase.starting_buy:
         await send_json_requests(
-            ws, "../streamerbot_ws_requests/dslr_move_for_starting_buy.json")
+            ws,
+            "../streamerbot_ws_requests/pregame_dslr_move_for_starting_buy.json")
     elif game_phase.hero_pick:
         await send_json_requests(
             ws,
-            "../streamerbot_ws_requests/scene_change_and_dslr_move_for_pick.json")
+            "../streamerbot_ws_requests/pregame_scene_change_dslr_move_for_hero_pick.json")
     elif game_phase.finding_game:
         await send_json_requests(
-            ws, "../streamerbot_ws_requests/switch_to_meta_scene.json")
+            ws,
+            "../streamerbot_ws_requests/pregame_scene_change_for_in_game.json")
 
 
 async def capture_and_process_image(capture_area,
