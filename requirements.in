@@ -3,6 +3,7 @@ librosa
 mss
 numpy
 opencv-python
+pip-tools
 pygetwindow
 pywin32
 scikit-image
