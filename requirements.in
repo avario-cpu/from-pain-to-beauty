@@ -1,0 +1,10 @@
+aiosqlite
+librosa
+mss
+numpy
+opencv-python
+pygetwindow
+pywin32
+scikit-image
+sounddevice
+websockets
