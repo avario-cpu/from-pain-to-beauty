@@ -1,6 +1,5 @@
 import atexit
 import aiosqlite
-import cv2
 import cv2 as cv
 import mss
 import numpy as np
@@ -13,7 +12,8 @@ import terminal_window_manager_v4 as twm
 import denied_slots_db_handler as denied_sdh
 import slots_db_handler as sdh
 import websockets
-from websockets import WebSocketException, ConnectionClosedError
+from websockets import WebSocketException, ConnectionClosedError, \
+    WebSocketClientProtocol
 import constants as const
 import logging
 from enum import Enum, auto
@@ -180,20 +180,20 @@ SETTINGS_AREA = {"left": 170, "top": 85, "width": 40, "height": 40}
 HERO_PICK_AREA = {"left": 1658, "top": 1028, "width": 62, "height": 38}
 NEW_AREA = {"left": 0, "top": 0, "width": 0, "height": 0}
 
-DOTA_TAB_TEMPLATE = cv2.imread("opencv/dota_power_icon.jpg",
-                               cv.IMREAD_GRAYSCALE)
-IN_GAME_TEMPLATE = cv2.imread("opencv/deliver_items_icon.jpg",
+DOTA_TAB_TEMPLATE = cv.imread("opencv/dota_power_icon.jpg",
                               cv.IMREAD_GRAYSCALE)
-STARTING_BUY_TEMPLATE = cv2.imread("opencv/strategy-load-out-world-guides.jpg",
-                                   cv.IMREAD_GRAYSCALE)
-PLAY_DOTA_BUTTON_TEMPLATE = cv2.imread("opencv/play_dota.jpg",
-                                       cv.IMREAD_GRAYSCALE)
-DESKTOP_TAB_TEMPLATE = cv2.imread("opencv/desktop_icons.jpg",
+IN_GAME_TEMPLATE = cv.imread("opencv/deliver_items_icon.jpg",
+                             cv.IMREAD_GRAYSCALE)
+STARTING_BUY_TEMPLATE = cv.imread("opencv/strategy-load-out-world-guides.jpg",
                                   cv.IMREAD_GRAYSCALE)
-SETTINGS_TEMPLATE = cv2.imread("opencv/dota_settings_icon.jpg",
+PLAY_DOTA_BUTTON_TEMPLATE = cv.imread("opencv/play_dota.jpg",
+                                      cv.IMREAD_GRAYSCALE)
+DESKTOP_TAB_TEMPLATE = cv.imread("opencv/desktop_icons.jpg",
+                                 cv.IMREAD_GRAYSCALE)
+SETTINGS_TEMPLATE = cv.imread("opencv/dota_settings_icon.jpg",
+                              cv.IMREAD_GRAYSCALE)
+HERO_PICK_TEMPLATE = cv.imread("opencv/hero_pick_chat_icons.jpg",
                                cv.IMREAD_GRAYSCALE)
-HERO_PICK_TEMPLATE = cv2.imread("opencv/hero_pick_chat_icons.jpg",
-                                cv.IMREAD_GRAYSCALE)
 
 SECONDARY_WINDOWS = [my.SecondaryWindow("first_scanner", 150, 80),
                      my.SecondaryWindow("second_scanner", 150, 80),
@@ -270,7 +270,7 @@ async def compare_images(image_a, image_b):
     return ssim(image_a, image_b)
 
 
-async def send_json_requests(ws: websockets.WebSocketClientProtocol,
+async def send_json_requests(ws: WebSocketClientProtocol,
                              json_file_paths: str | list[str]):
     if isinstance(json_file_paths, str):
         json_file_paths = [json_file_paths]
@@ -288,7 +288,7 @@ async def send_json_requests(ws: websockets.WebSocketClientProtocol,
 
 
 async def send_streamerbot_ws_request(tabbed: Tabbed, game_phase: PreGamePhase,
-                                      ws: websockets.WebSocketClientProtocol):
+                                      ws: WebSocketClientProtocol):
     if tabbed.in_game:
         pass
     elif tabbed.to_dota_menu:
@@ -462,7 +462,7 @@ async def set_state_finding_game() -> tuple[Tabbed, PreGamePhase, float]:
 
 
 async def set_state_game_found(tabbed: Tabbed, game_phase: PreGamePhase,
-                               ws: websockets.WebSocketClientProtocol) \
+                               ws: WebSocketClientProtocol) \
         -> tuple[Tabbed, PreGamePhase]:
     tabbed.in_game = True
     game_phase.hero_pick = True
@@ -472,7 +472,7 @@ async def set_state_game_found(tabbed: Tabbed, game_phase: PreGamePhase,
 
 
 async def set_state_hero_pick(tabbed: Tabbed, game_phase: PreGamePhase,
-                              ws: websockets.WebSocketClientProtocol) \
+                              ws: WebSocketClientProtocol) \
         -> tuple[Tabbed, PreGamePhase]:
     tabbed.in_game = True
     game_phase.hero_pick = True
@@ -482,7 +482,7 @@ async def set_state_hero_pick(tabbed: Tabbed, game_phase: PreGamePhase,
 
 
 async def set_state_starting_buy(tabbed: Tabbed, game_phase: PreGamePhase,
-                                 ws: websockets.WebSocketClientProtocol) \
+                                 ws: WebSocketClientProtocol) \
         -> tuple[Tabbed, PreGamePhase]:
     tabbed.in_game = True
     game_phase.starting_buy = True
@@ -492,7 +492,7 @@ async def set_state_starting_buy(tabbed: Tabbed, game_phase: PreGamePhase,
 
 
 async def set_state_vs_screen(tabbed: Tabbed, game_phase: PreGamePhase,
-                              ws: websockets.WebSocketClientProtocol) \
+                              ws: WebSocketClientProtocol) \
         -> tuple[Tabbed, PreGamePhase]:
     tabbed.in_game = True
     game_phase.versus_screen = True
@@ -502,7 +502,7 @@ async def set_state_vs_screen(tabbed: Tabbed, game_phase: PreGamePhase,
 
 
 async def set_state_in_game(tabbed: Tabbed, game_phase: PreGamePhase,
-                            ws: websockets.WebSocketClientProtocol) \
+                            ws: WebSocketClientProtocol) \
         -> tuple[Tabbed, PreGamePhase]:
     tabbed.in_game = True
     game_phase.in_game = True
@@ -512,7 +512,7 @@ async def set_state_in_game(tabbed: Tabbed, game_phase: PreGamePhase,
 
 
 async def set_state_dota_menu(tabbed: Tabbed, game_phase: PreGamePhase,
-                              ws: websockets.WebSocketClientProtocol) \
+                              ws: WebSocketClientProtocol) \
         -> tuple[Tabbed, PreGamePhase]:
     tabbed.to_dota_menu = True
     game_phase.unknown = True
@@ -522,7 +522,7 @@ async def set_state_dota_menu(tabbed: Tabbed, game_phase: PreGamePhase,
 
 
 async def set_state_desktop(tabbed: Tabbed, game_phase: PreGamePhase,
-                            ws: websockets.WebSocketClientProtocol) \
+                            ws: WebSocketClientProtocol) \
         -> tuple[Tabbed, PreGamePhase]:
     tabbed.to_desktop = True
     game_phase.unknown = True
@@ -533,7 +533,7 @@ async def set_state_desktop(tabbed: Tabbed, game_phase: PreGamePhase,
 
 async def set_state_settings_screen(
         tabbed: Tabbed, game_phase: PreGamePhase,
-        ws: websockets.WebSocketClientProtocol) \
+        ws: WebSocketClientProtocol) \
         -> tuple[Tabbed, PreGamePhase]:
     tabbed.to_settings_screen = True
     game_phase.unknown = True
@@ -544,7 +544,7 @@ async def set_state_settings_screen(
 
 async def confirm_transition_to_vs_screen(
         tabbed: Tabbed, game_phase: PreGamePhase, target_value: float,
-        ws: websockets.WebSocketClientProtocol) -> tuple[Tabbed, PreGamePhase]:
+        ws: WebSocketClientProtocol) -> tuple[Tabbed, PreGamePhase]:
     """Nothing matches: we might be in vs screen. Make sure nothing keeps
     matching for a while before asserting this, because we might just
     otherwise be in some transitional state: for example, in dota tab-out;
@@ -602,7 +602,7 @@ async def capture_new_area(capture_area: dict[str, int], filename: str):
     cv.imwrite(filename, gray_frame)
 
 
-async def detect_pregame_phase(ws: websockets.WebSocketClientProtocol):
+async def detect_pregame_phase(ws: WebSocketClientProtocol):
     #  ----------- The code below is not part of the main logic ------------
     new_capture = False  # Set manually to capture new screen area
     while new_capture:

@@ -7,7 +7,7 @@ import mss
 import numpy as np
 import websockets
 from skimage.metrics import structural_similarity as ssim
-from websockets import WebSocketException
+from websockets import WebSocketException, WebSocketClientProtocol
 
 import constants as const
 import denied_slots_db_handler as denied_sdh
@@ -33,7 +33,7 @@ class ShopTracker:
         pass
 
     async def track_shop_open_duration(self,
-                                       ws: websockets.WebSocketClientProtocol):
+                                       ws: WebSocketClientProtocol):
         while self.shop_is_currently_open:
             elapsed_time = round(time.time() - self.shop_opening_time)
             print(f"Shop has been open for {elapsed_time} seconds")
@@ -45,7 +45,7 @@ class ShopTracker:
                 self.flags["reacted_to_open_long"] = True
             await asyncio.sleep(1)  # Adjust the sleep time as necessary
 
-    async def open_shop(self, ws: websockets.WebSocketClientProtocol):
+    async def open_shop(self, ws: WebSocketClientProtocol):
         if not self.shop_is_currently_open:
             self.shop_is_currently_open = True
             self.shop_opening_time = time.time()
@@ -53,7 +53,7 @@ class ShopTracker:
                 self.track_shop_open_duration(ws))
             await react_to_shop("opened", ws)
 
-    async def close_shop(self, ws: websockets.WebSocketClientProtocol):
+    async def close_shop(self, ws: WebSocketClientProtocol):
         if self.shop_is_currently_open:
             self.shop_is_currently_open = False
             if (self.shop_open_duration_task
@@ -137,7 +137,7 @@ async def compare_images(image_a: cv.typing.MatLike,
     return ssim(image_a, image_b)
 
 
-async def send_json_requests(ws: websockets.WebSocketClientProtocol,
+async def send_json_requests(ws: WebSocketClientProtocol,
                              json_file_paths: str | list[str]):
     if isinstance(json_file_paths, str):
         json_file_paths = [json_file_paths]
@@ -149,7 +149,7 @@ async def send_json_requests(ws: websockets.WebSocketClientProtocol,
         logger.info(f"WebSocket response: {response}")
 
 
-async def react_to_shop(status: str, ws: websockets.WebSocketClientProtocol):
+async def react_to_shop(status: str, ws: WebSocketClientProtocol):
     print(f"Shop just {status}")
     if status == "opened" and ws:
         await send_json_requests(
@@ -160,7 +160,7 @@ async def react_to_shop(status: str, ws: websockets.WebSocketClientProtocol):
     pass
 
 
-async def react_to_shop_stayed_open(ws: websockets.WebSocketClientProtocol,
+async def react_to_shop_stayed_open(ws: WebSocketClientProtocol,
                                     duration: str, seconds: float = None):
     if duration == "short":
         print(
@@ -197,7 +197,7 @@ async def react_to_shop_stayed_open(ws: websockets.WebSocketClientProtocol,
             print("not reacting !")
 
 
-async def scan_for_shop_and_notify(ws: websockets.WebSocketClientProtocol):
+async def scan_for_shop_and_notify(ws: WebSocketClientProtocol):
     shop_tracker = ShopTracker()
     template = cv.imread(SHOP_TEMPLATE_IMAGE_PATH, cv.IMREAD_GRAYSCALE)
 
