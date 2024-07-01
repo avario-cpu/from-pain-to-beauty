@@ -8,12 +8,9 @@ import numpy as np
 import websockets
 from skimage.metrics import structural_similarity as ssim
 from websockets import WebSocketException, WebSocketClientProtocol
-
 import constants as const
-import denied_slots_db_handler as denied_sdh
-import my_classes as my
-import my_utils
-import single_instance
+import utils
+from classes import SecondaryWindow
 import slots_db_handler as sdh
 import terminal_window_manager_v4 as twm
 import random
@@ -68,15 +65,15 @@ class ShopTracker:
 
 
 SCREEN_CAPTURE_AREA = {"left": 1853, "top": 50, "width": 30, "height": 35}
-SHOP_TEMPLATE_IMAGE_PATH = 'opencv/shop_top_right_icon.jpg'
+SHOP_TEMPLATE_IMAGE_PATH = '../../data/opencv/dota_shop_top_right_icon.jpg'
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
 
 # suffix added to avoid window naming conflicts with cli manager
-SECONDARY_WINDOWS = [my.SecondaryWindow("opencv_shop_scanner", 150, 100)]
-SCRIPT_NAME = my_utils.construct_script_name(__file__,
-                                             const.SCRIPT_NAME_SUFFIX)
+SECONDARY_WINDOWS = [SecondaryWindow("opencv_shop_scanner", 150, 100)]
+SCRIPT_NAME = utils.construct_script_name(__file__,
+                                          const.SCRIPT_NAME_SUFFIX)
 
-logger = my_utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
+logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 secondary_windows_have_spawned = asyncio.Event()
 mute_main_loop_print_feedback = asyncio.Event()
@@ -153,10 +150,10 @@ async def react_to_shop(status: str, ws: WebSocketClientProtocol):
     print(f"Shop just {status}")
     if status == "opened" and ws:
         await send_json_requests(
-            ws, "streamerbot_ws_requests/shop_scan_dslr_hide.json")
+            ws, "../../data/streamerbot_ws_requests/shop_scan_dslr_hide.json")
     elif status == "closed" and ws:
         await send_json_requests(
-            ws, "streamerbot_ws_requests/shop_scan_dslr_show.json", )
+            ws, "../../data/streamerbot_ws_requests/shop_scan_dslr_show.json", )
     pass
 
 
@@ -169,7 +166,7 @@ async def react_to_shop_stayed_open(ws: WebSocketClientProtocol,
             print("reacting !")
             await send_json_requests(
                 ws,
-                "streamerbot_ws_requests/shop_scan_brb_buying_milk_show.json")
+                "../../data/streamerbot_ws_requests/shop_scan_brb_buying_milk_show.json")
         else:
             print("not reacting !")
     if duration == "long":
@@ -179,13 +176,13 @@ async def react_to_shop_stayed_open(ws: WebSocketClientProtocol,
             print("reacting !")
             await send_json_requests(
                 ws,
-                "streamerbot_ws_requests/shop_scan_brb_buying_milk_hide.json")
+                "../../data/streamerbot_ws_requests/shop_scan_brb_buying_milk_hide.json")
             start_time = time.time()
             while True:
                 elapsed_time = time.time() - start_time + seconds
                 seconds_only = int(round(elapsed_time))
                 formatted_time = f"{seconds_only:02d}"
-                with (open("streamerbot_watched/time_with_shop_open.txt",
+                with (open("../streamerbot_watched/time_with_shop_open.txt",
                            "w") as file):
                     file.write(
                         f"Bro you've been in the shop for {formatted_time} "
@@ -229,18 +226,19 @@ async def main():
     """If there are no single instance lock file, start the Dota2 shop_watcher
      module. Reposition the terminal right at launch."""
     db_conn = None
+    lock_file_manager = utils.LockFileManager()
     try:
         db_conn = await sdh.create_connection(const.SLOTS_DB_FILE)
-        if single_instance.lock_exists(SCRIPT_NAME):
+        if lock_file_manager.lock_exists(SCRIPT_NAME):
             slot = await twm.manage_window(db_conn, twm.WinType.DENIED,
                                            SCRIPT_NAME)
-            atexit.register(denied_sdh.free_slot_sync, slot)
+            atexit.register(sdh.free_denied_slot_sync, slot)
             print("\n>>> Lock file is present: exiting... <<<")
         else:
             slot = await twm.manage_window(db_conn, twm.WinType.ACCEPTED,
                                            SCRIPT_NAME, SECONDARY_WINDOWS)
-            single_instance.create_lock_file(SCRIPT_NAME)
-            atexit.register(single_instance.remove_lock, SCRIPT_NAME)
+            lock_file_manager.create_lock_file(SCRIPT_NAME)
+            atexit.register(lock_file_manager.remove_lock_file, SCRIPT_NAME)
             atexit.register(sdh.free_slot_by_name_sync, SCRIPT_NAME)
             socket_server_task = asyncio.create_task(run_socket_server())
             mute_main_loop_print_feedback.set()

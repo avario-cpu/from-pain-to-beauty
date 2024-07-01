@@ -8,33 +8,30 @@ about later.
 import asyncio
 import os
 import subprocess
-
+import constants as const
+import utils
 import aiosqlite
 import websockets
 from websockets import WebSocketServerProtocol
-import constants as const
-import denied_slots_db_handler as denied_sdh
-import my_utils
 import logging
-
 import slots_db_handler as sdh
 import terminal_window_manager_v4 as twm
 
-SCRIPT_NAME = my_utils.construct_script_name(__file__,
-                                             const.SCRIPT_NAME_SUFFIX)
-logger = my_utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
+SCRIPT_NAME = utils.construct_script_name(__file__,
+                                          const.SCRIPT_NAME_SUFFIX)
+logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
-venv_python_path = "venv/Scripts/python.exe"
+venv_python_path = "../../venv/Scripts/python.exe"
 subprocess_names = list(const.SUBPROCESSES.keys())
 
 
-def reset_databases(conn: aiosqlite.Connection):
-    sdh.delete_table(conn)
-    sdh.create_table(conn)
-    sdh.initialize_slots(conn)
-    denied_sdh.delete_table(conn)
-    denied_sdh.create_table(conn)
-    denied_sdh.initialize_slots(conn)
+async def reset_databases(conn: aiosqlite.Connection):
+    await sdh.delete_slots_table(conn)
+    await sdh.create_slots_table(conn)
+    await sdh.initialize_slots(conn)
+    await sdh.delete_denied_slots_table(conn)
+    await sdh.create_denied_slots_table(conn)
+    await sdh.initialize_denied_slots(conn)
 
 
 async def control_subprocess(instruction: str, target: str):
@@ -52,9 +49,9 @@ async def control_subprocess(instruction: str, target: str):
             const.SUBPROCESSES[f'{const.SCRIPT_NAME_SUFFIX + target}'])
 
     elif instruction == "unlock":
-        if os.path.exists(f"temp/lock_files/"
+        if os.path.exists(f"../temp/lock_files/"
                           f"{const.SCRIPT_NAME_SUFFIX + target}.lock"):
-            os.remove(f"temp/lock_files/"
+            os.remove(f"../temp/lock_files/"
                       f"{const.SCRIPT_NAME_SUFFIX + target}.lock")
 
 
@@ -89,7 +86,7 @@ async def manage_windows(conn: aiosqlite.Connection, message: str):
 async def manage_database(conn: aiosqlite.Connection, message: str):
     if message == "free all slots":
         await sdh.free_all_slots(conn)
-        await denied_sdh.free_all_slots(conn)
+        await sdh.free_all_denied_slots(conn)
 
 
 def create_websocket_handler(conn: aiosqlite.Connection):
@@ -132,9 +129,6 @@ async def send_message_to_subprocess_socket(message: str, port: int,
 async def main():
     print("Welcome to the server, bro. You know what to do.")
     conn = await sdh.create_connection(const.SLOTS_DB_FILE)
-    if not os.path.exists("temp"):
-        os.makedirs("temp")  # just in case git remove the dir
-
     await twm.manage_window(conn, twm.WinType.SERVER, 'SERVER')
     websocket_server = await websockets.serve(create_websocket_handler(conn),
                                               "localhost", 50000)

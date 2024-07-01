@@ -123,6 +123,8 @@ websockets==12.0
     # via -r requirements.in
 wheel==0.43.0
     # via pip-tools
+win32gui
+    # Set manually to stop Pycharm from annoying me with it...
 
 # The following packages are considered to be unsafe in a requirements file:
 # pip

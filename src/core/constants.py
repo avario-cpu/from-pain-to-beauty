@@ -1,7 +1,7 @@
 STOP_SUBPROCESS_MESSAGE = "stop subprocess"
 SERVER_WINDOW_NAME = "MY SERVER"
 SCRIPT_NAME_SUFFIX = "my_"
-SLOTS_DB_FILE = "slots.db"
+SLOTS_DB_FILE = "../../data/slots.db"
 
 
 SUBPROCESSES = {

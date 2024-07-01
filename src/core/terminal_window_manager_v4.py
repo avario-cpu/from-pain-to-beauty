@@ -8,22 +8,20 @@ import aiosqlite
 import pygetwindow as gw
 import win32con
 import win32gui
-import my_utils
-
 import constants as const
-import denied_slots_db_handler as denied_sdh
-import my_classes as my
+from classes import SecondaryWindow
+import utils
+
 import slots_db_handler as sdh
-from constants import SERVER_WINDOW_NAME
 
 MAIN_WINDOW_WIDTH = 600
 MAIN_WINDOW_HEIGHT = 260
 MAX_WINDOWS_PER_COLUMN = 1040 // MAIN_WINDOW_HEIGHT  # So currently 4
 
-SCRIPT_NAME = my_utils.construct_script_name(__file__,
-                                             const.SCRIPT_NAME_SUFFIX)
+SCRIPT_NAME = utils.construct_script_name(__file__,
+                                          const.SCRIPT_NAME_SUFFIX)
 
-logger = my_utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
+logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 
 class WinType(Enum):
@@ -115,14 +113,14 @@ async def assign_slot_and_name_window(conn: aiosqlite.Connection,
         return slot_id, title
 
     elif window_type == WinType.DENIED:
-        slot_id = await denied_sdh.occupy_first_free_slot(conn)
+        slot_id = await sdh.occupy_first_free_denied_slot(conn)
         title = f"{window_name}_denied({slot_id})"
         set_window_title(title)
         return slot_id, title
 
     elif window_type is WinType.SERVER:
         # Server doesnt take a slot in the database
-        title = SERVER_WINDOW_NAME
+        title = const.SERVER_WINDOW_NAME
         set_window_title(title)
         return None, title
 
@@ -150,7 +148,7 @@ def calculate_main_window_properties(window_type: WinType, slot: int):
 
 
 def calculate_secondary_window_properties(
-        slot: int, secondary_windows: list[my.SecondaryWindow]) \
+        slot: int, secondary_windows: list[SecondaryWindow]) \
         -> list[tuple[int, int, int, int]]:
     """Set properties for a list of secondary windows"""
     properties = []
@@ -199,7 +197,7 @@ async def adjust_window(title: str,
 
 
 def generate_window_data(title: str,
-                         secondary_windows: list[my.SecondaryWindow]):
+                         secondary_windows: list[SecondaryWindow]):
     data = [(title, MAIN_WINDOW_WIDTH, MAIN_WINDOW_HEIGHT)]
     if secondary_windows:
         sw = secondary_windows
@@ -242,7 +240,7 @@ async def readjust_main_window(slot: int, title: str):
 async def readjust_secondary_windows(free_slot: int,
                                      data: list[tuple[str, int, int]]):
     secondary_windows = [
-        my.SecondaryWindow(data[i][0], data[i][1], data[i][2]) for i in
+        SecondaryWindow(data[i][0], data[i][1], data[i][2]) for i in
         range(1, len(data))]
 
     props = calculate_secondary_window_properties(
@@ -278,7 +276,7 @@ async def refit_all_windows(conn: aiosqlite.Connection):
 
 
 async def manage_secondary_windows(
-        slot: int, secondary_windows: list[my.SecondaryWindow]):
+        slot: int, secondary_windows: list[SecondaryWindow]):
     """Fit secondary windows next to main one"""
     properties = calculate_secondary_window_properties(slot, secondary_windows)
     for i in range(0, len(secondary_windows)):
@@ -288,7 +286,7 @@ async def manage_secondary_windows(
 async def manage_window(conn: aiosqlite.Connection,
                         window_type: WinType,
                         window_name: str,
-                        secondary_windows: list[my.SecondaryWindow] = None):
+                        secondary_windows: list[SecondaryWindow] = None):
     """Manage window allocation and positioning."""
     slot, title = await assign_slot_and_name_window(conn, window_type,
                                                     window_name)
@@ -304,7 +302,7 @@ async def manage_window(conn: aiosqlite.Connection,
 
 async def main():
     # Example usage
-    conn = await sdh.create_connection("slots.db")
+    conn = await sdh.create_connection("../../data/slots.db")
     await manage_window(conn, WinType.ACCEPTED, "Example Script")
     await sdh.free_all_slots(conn)
 

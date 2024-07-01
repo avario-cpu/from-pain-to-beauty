@@ -162,7 +162,7 @@ cython_debug/
 
 
 # Project specific files
-slots.db
+data/slots.db
 temp/*
 !temp/.gitkeep
 old_files/*

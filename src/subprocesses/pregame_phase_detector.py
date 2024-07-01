@@ -5,11 +5,9 @@ import mss
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
 import asyncio
-import my_classes as my
-import my_utils
-import single_instance
+from classes import SecondaryWindow
+import utils
 import terminal_window_manager_v4 as twm
-import denied_slots_db_handler as denied_sdh
 import slots_db_handler as sdh
 import websockets
 from websockets import WebSocketException, ConnectionClosedError, \
@@ -180,39 +178,43 @@ SETTINGS_AREA = {"left": 170, "top": 85, "width": 40, "height": 40}
 HERO_PICK_AREA = {"left": 1658, "top": 1028, "width": 62, "height": 38}
 NEW_AREA = {"left": 0, "top": 0, "width": 0, "height": 0}
 
-DOTA_TAB_TEMPLATE = cv.imread("opencv/dota_power_icon.jpg",
+DOTA_TAB_TEMPLATE = cv.imread("../../data/opencv/dota_menu_power_icon.jpg",
                               cv.IMREAD_GRAYSCALE)
-IN_GAME_TEMPLATE = cv.imread("opencv/deliver_items_icon.jpg",
-                             cv.IMREAD_GRAYSCALE)
-STARTING_BUY_TEMPLATE = cv.imread("opencv/strategy-load-out-world-guides.jpg",
-                                  cv.IMREAD_GRAYSCALE)
-PLAY_DOTA_BUTTON_TEMPLATE = cv.imread("opencv/play_dota.jpg",
-                                      cv.IMREAD_GRAYSCALE)
-DESKTOP_TAB_TEMPLATE = cv.imread("opencv/desktop_icons.jpg",
+IN_GAME_TEMPLATE = cv.imread(
+    "../../data/opencv/dota_courier_deliver_items_icon.jpg",
+    cv.IMREAD_GRAYSCALE)
+STARTING_BUY_TEMPLATE = cv.imread(
+    "../../data/opencv/dota_strategy-load-out-world-guides.jpg",
+    cv.IMREAD_GRAYSCALE)
+PLAY_DOTA_BUTTON_TEMPLATE = cv.imread(
+    "../../data/opencv/dota_play_dota_button.jpg",
+    cv.IMREAD_GRAYSCALE)
+DESKTOP_TAB_TEMPLATE = cv.imread("../../data/opencv/windows_desktop_icons.jpg",
                                  cv.IMREAD_GRAYSCALE)
-SETTINGS_TEMPLATE = cv.imread("opencv/dota_settings_icon.jpg",
+SETTINGS_TEMPLATE = cv.imread("../../data/opencv/dota_settings_icon.jpg",
                               cv.IMREAD_GRAYSCALE)
-HERO_PICK_TEMPLATE = cv.imread("opencv/hero_pick_chat_icons.jpg",
-                               cv.IMREAD_GRAYSCALE)
+HERO_PICK_TEMPLATE = cv.imread(
+    "../../data/opencv/dota_hero_select_chat_icons.jpg",
+    cv.IMREAD_GRAYSCALE)
 
-SECONDARY_WINDOWS = [my.SecondaryWindow("first_scanner", 150, 80),
-                     my.SecondaryWindow("second_scanner", 150, 80),
-                     my.SecondaryWindow("third_scanner", 150, 80),
-                     my.SecondaryWindow("fourth_scanner", 150, 80),
-                     my.SecondaryWindow("fifth_scanner", 150, 80),
-                     my.SecondaryWindow("sixth_scanner", 150, 100)]
-SCRIPT_NAME = my_utils.construct_script_name(__file__,
-                                             const.SCRIPT_NAME_SUFFIX)
+SECONDARY_WINDOWS = [SecondaryWindow("first_scanner", 150, 80),
+                     SecondaryWindow("second_scanner", 150, 80),
+                     SecondaryWindow("third_scanner", 150, 80),
+                     SecondaryWindow("fourth_scanner", 150, 80),
+                     SecondaryWindow("fifth_scanner", 150, 80),
+                     SecondaryWindow("sixth_scanner", 150, 100)]
+SCRIPT_NAME = utils.construct_script_name(__file__,
+                                          const.SCRIPT_NAME_SUFFIX)
 # suffix added to avoid window naming conflicts with cli manager
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
 
-logger = my_utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
-last_log_time = time.time()
+logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 initial_secondary_windows_spawned = asyncio.Event()
 secondary_windows_readjusted = asyncio.Event()
 mute_ssim_prints = asyncio.Event()
 stop_event = asyncio.Event()
+log_results_once = False
 
 
 async def establish_ws_connection():
@@ -297,27 +299,35 @@ async def send_streamerbot_ws_request(tabbed: Tabbed, game_phase: PreGamePhase,
         pass
     elif tabbed.to_settings_screen:
         await send_json_requests(
-            ws, "streamerbot_ws_requests/pregame_dslr_hide_for_vs_screen.json")
+            ws,
+            "../../data/streamerbot_ws_requests/"
+            "pregame_dslr_hide_for_vs_screen.json")
 
     elif game_phase.finding_game:
         await send_json_requests(
             ws,
-            "streamerbot_ws_requests/pregame_scene_change_for_in_game.json")
+            "../../data/streamerbot_ws_requests/"
+            "pregame_scene_change_for_in_game.json")
     elif game_phase.hero_pick:
         await send_json_requests(
-            ws, "streamerbot_ws_requests/"
-                "pregame_scene_change_dslr_move_for_hero_pick.json")
+            ws,
+            "../../data/streamerbot_ws_requests/"
+            "pregame_scene_change_dslr_move_for_hero_pick.json")
     elif game_phase.starting_buy:
         await send_json_requests(
             ws,
-            "streamerbot_ws_requests/pregame_dslr_move_for_starting_buy.json")
+            "../../data/streamerbot_ws_requests/"
+            "pregame_dslr_move_for_starting_buy.json")
     elif game_phase.versus_screen:
         await send_json_requests(
-            ws, "streamerbot_ws_requests/pregame_dslr_hide_for_vs_screen.json")
+            ws,
+            "../../data/streamerbot_ws_requests/"
+            "pregame_dslr_hide_for_vs_screen.json")
     elif game_phase.in_game:
         await send_json_requests(
             ws,
-            "streamerbot_ws_requests/pregame_scene_change_for_in_game.json")
+            "../../data/streamerbot_ws_requests/"
+            "pregame_scene_change_for_in_game.json")
     elif game_phase.unknown:
         pass
 
@@ -417,7 +427,7 @@ async def wait_for_duration(duration: float):
 
 
 async def scan_screen_for_matches() -> dict[int:float]:
-    global last_log_time
+    global log_results_once
     (hero_pick_result, starting_buy_result, dota_tab_out_results,
      desktop_tab_out_results, settings_screens_results, in_game_results) \
         = await (
@@ -436,10 +446,9 @@ async def scan_screen_for_matches() -> dict[int:float]:
                         **dota_tab_out_results, **desktop_tab_out_results,
                         **settings_screens_results, **in_game_results}
 
-    if time.time() - last_log_time > 1:
-        # Only log every 1s
+    if not log_results_once:
         logger.debug(f"combined_results ={combined_results}")
-        last_log_time = time.time()
+        log_results_once = True
 
     formatted_combined_results = ", ".join(
         [f"{index}:{value:.3f}" for
@@ -680,19 +689,21 @@ async def detect_pregame_phase(ws: WebSocketClientProtocol):
 
 async def main():
     db_conn = None
+    lock_file_manager = utils.LockFileManager()
     try:
         db_conn = await sdh.create_connection(const.SLOTS_DB_FILE)
-        if single_instance.lock_exists(SCRIPT_NAME):
+        if lock_file_manager.lock_exists(SCRIPT_NAME):
             slot = await twm.manage_window(db_conn, twm.WinType.DENIED,
                                            SCRIPT_NAME)
-            atexit.register(denied_sdh.free_slot_sync, slot)
+            atexit.register(sdh.free_denied_slot_sync, slot)
             print("\n>>> Lock file is present: exiting... <<<")
         else:
             mute_ssim_prints.set()
             slot = await twm.manage_window(db_conn, twm.WinType.ACCEPTED,
                                            SCRIPT_NAME, SECONDARY_WINDOWS)
-            single_instance.create_lock_file(SCRIPT_NAME)
-            atexit.register(single_instance.remove_lock, SCRIPT_NAME)
+
+            lock_file_manager.create_lock_file(SCRIPT_NAME)
+            atexit.register(lock_file_manager.remove_lock_file, SCRIPT_NAME)
             atexit.register(sdh.free_slot_by_name_sync, SCRIPT_NAME)
             socket_server_task = asyncio.create_task(run_socket_server())
             ws = None
