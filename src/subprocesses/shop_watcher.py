@@ -15,6 +15,13 @@ import slots_db_handler as sdh
 import terminal_window_manager_v4 as twm
 import random
 
+import os
+import sys
+
+print(os.getcwd())
+for i in sys.path:
+    print(i)
+
 
 class ShopTracker:
     def __init__(self):
@@ -153,7 +160,8 @@ async def react_to_shop(status: str, ws: WebSocketClientProtocol):
             ws, "../../data/streamerbot_ws_requests/shop_scan_dslr_hide.json")
     elif status == "closed" and ws:
         await send_json_requests(
-            ws, "../../data/streamerbot_ws_requests/shop_scan_dslr_show.json", )
+            ws,
+            "../../data/streamerbot_ws_requests/shop_scan_dslr_show.json", )
     pass
 
 

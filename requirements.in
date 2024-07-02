@@ -1,13 +1,20 @@
 aiosqlite
+google-cloud-speech
 librosa
 mss
 numpy
 opencv-python
 pip-tools
+pyaudio
+python-dotenv
 pygetwindow
 pywin32
 scikit-image
 sounddevice
 websockets
-# torch torchvision torchaudio --index-url https://download.pytorch
-.org/whl/cu121 (check the website for cuda version)
+
+--index-url https://download.pytorch.org/whl/cu121
+
+torch
+torchaudio
+torchvision
