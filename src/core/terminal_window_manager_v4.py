@@ -8,18 +8,18 @@ import aiosqlite
 import pygetwindow as gw
 import win32con
 import win32gui
-import constants as const
-from classes import SecondaryWindow
-import utils
 
-import slots_db_handler as sdh
+from src import constants as const
+from src import slots_db_handler as sdh
+from src import utils
+from src.core.classes import SecondaryWindow
 
 MAIN_WINDOW_WIDTH = 600
 MAIN_WINDOW_HEIGHT = 260
 MAX_WINDOWS_PER_COLUMN = 1040 // MAIN_WINDOW_HEIGHT  # So currently 4
 
-SCRIPT_NAME = utils.construct_script_name(__file__,
-                                          const.SCRIPT_NAME_SUFFIX)
+SCRIPT_NAME = utils.construct_script_name(__file__)
+WINDOW_NAME_SUFFIX = "twm_"
 
 logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
@@ -28,14 +28,6 @@ class WinType(Enum):
     DENIED = auto()
     ACCEPTED = auto()
     SERVER = auto()
-
-
-def window_exit_countdown(duration: int):
-    """Give a bit of time to read terminal exit statements"""
-    for seconds in reversed(range(1, duration)):
-        print("\r" + f'cmd will close in {seconds} seconds...', end="\r")
-        time.sleep(1)
-    exit()
 
 
 async def get_all_windows_names(conn: aiosqlite.Connection) -> list[str]:
@@ -287,7 +279,11 @@ async def manage_window(conn: aiosqlite.Connection,
                         window_type: WinType,
                         window_name: str,
                         secondary_windows: list[SecondaryWindow] = None):
-    """Manage window allocation and positioning."""
+    """ Assign a name to the window with a suffix, to avoid repositioning of
+    the IDE window with the script open in it rather than the CLI...
+    Then, assign a slot to the window in the database and resize and
+    reposition it accordingly. """
+    window_name = WINDOW_NAME_SUFFIX + window_name
     slot, title = await assign_slot_and_name_window(conn, window_type,
                                                     window_name)
 

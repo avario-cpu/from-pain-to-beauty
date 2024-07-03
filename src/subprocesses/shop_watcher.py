@@ -1,26 +1,21 @@
 import asyncio
 import atexit
 import logging
+import random
 import time
+
 import cv2 as cv
 import mss
 import numpy as np
 import websockets
 from skimage.metrics import structural_similarity as ssim
 from websockets import WebSocketException, WebSocketClientProtocol
-import constants as const
-import utils
-from classes import SecondaryWindow
-import slots_db_handler as sdh
-import terminal_window_manager_v4 as twm
-import random
 
-import os
-import sys
-
-print(os.getcwd())
-for i in sys.path:
-    print(i)
+from src import constants as const
+from src import slots_db_handler as sdh
+from src import terminal_window_manager_v4 as twm
+from src import utils
+from src.core.classes import SecondaryWindow
 
 
 class ShopTracker:
@@ -77,8 +72,7 @@ STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
 
 # suffix added to avoid window naming conflicts with cli manager
 SECONDARY_WINDOWS = [SecondaryWindow("opencv_shop_scanner", 150, 100)]
-SCRIPT_NAME = utils.construct_script_name(__file__,
-                                          const.SCRIPT_NAME_SUFFIX)
+SCRIPT_NAME = utils.construct_script_name(__file__)
 
 logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
@@ -116,7 +110,7 @@ async def handle_socket_client(reader, writer):
 
 async def run_socket_server():
     server = await asyncio.start_server(handle_socket_client, 'localhost',
-                                        const.SUBPROCESSES[SCRIPT_NAME])
+                                        const.SUBPROCESSES_PORTS[SCRIPT_NAME])
     addr = server.sockets[0].getsockname()
     print(f"Serving on {addr}")
 
@@ -157,11 +151,11 @@ async def react_to_shop(status: str, ws: WebSocketClientProtocol):
     print(f"Shop just {status}")
     if status == "opened" and ws:
         await send_json_requests(
-            ws, "../../data/streamerbot_ws_requests/shop_scan_dslr_hide.json")
+            ws, "data/streamerbot_ws_requests/shop_scan_dslr_hide.json")
     elif status == "closed" and ws:
         await send_json_requests(
             ws,
-            "../../data/streamerbot_ws_requests/shop_scan_dslr_show.json", )
+            "data/streamerbot_ws_requests/shop_scan_dslr_show.json", )
     pass
 
 
@@ -174,7 +168,8 @@ async def react_to_shop_stayed_open(ws: WebSocketClientProtocol,
             print("reacting !")
             await send_json_requests(
                 ws,
-                "../../data/streamerbot_ws_requests/shop_scan_brb_buying_milk_show.json")
+                "data/streamerbot_ws_requests/shop_scan_brb_buying_milk_show"
+                ".json")
         else:
             print("not reacting !")
     if duration == "long":
@@ -184,7 +179,8 @@ async def react_to_shop_stayed_open(ws: WebSocketClientProtocol,
             print("reacting !")
             await send_json_requests(
                 ws,
-                "../../data/streamerbot_ws_requests/shop_scan_brb_buying_milk_hide.json")
+                "data/streamerbot_ws_requests/shop_scan_brb_buying_milk_hide"
+                ".json")
             start_time = time.time()
             while True:
                 elapsed_time = time.time() - start_time + seconds
@@ -236,7 +232,7 @@ async def main():
     db_conn = None
     lock_file_manager = utils.LockFileManager()
     try:
-        db_conn = await sdh.create_connection(const.SLOTS_DB_FILE)
+        db_conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
         if lock_file_manager.lock_exists(SCRIPT_NAME):
             slot = await twm.manage_window(db_conn, twm.WinType.DENIED,
                                            SCRIPT_NAME)
@@ -245,9 +241,11 @@ async def main():
         else:
             slot = await twm.manage_window(db_conn, twm.WinType.ACCEPTED,
                                            SCRIPT_NAME, SECONDARY_WINDOWS)
+
             lock_file_manager.create_lock_file(SCRIPT_NAME)
             atexit.register(lock_file_manager.remove_lock_file, SCRIPT_NAME)
-            atexit.register(sdh.free_slot_by_name_sync, SCRIPT_NAME)
+            atexit.register(sdh.free_slot_by_name_sync,
+                            twm.WINDOW_NAME_SUFFIX + SCRIPT_NAME)
             socket_server_task = asyncio.create_task(run_socket_server())
             mute_main_loop_print_feedback.set()
             ws = None
@@ -277,4 +275,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    twm.window_exit_countdown(5)
+    utils.exit_countdown(5)

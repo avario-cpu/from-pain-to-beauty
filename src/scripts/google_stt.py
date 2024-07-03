@@ -5,31 +5,12 @@ I'll call from my subprocesses....
 """
 import asyncio
 import os
-import sys
+import queue
 
 import pyaudio
-import queue
 from google.cloud import speech_v1p1beta1 as speech
 
-print("Initial sys.path are :")
-for p in sys.path:
-    print(p)
-#
-# project_root = os.path.abspath(os.path.join(os.path.dirname(__file__),
-#                                             '../..'))
-
-project_root = "C:\\Users\\ville\\MyMegaScript"
-
-print(f"project root: {project_root}")
-
-# Add the project root to the sys.path
-if project_root not in sys.path:
-    sys.path.append(project_root)
-    print("Added project root to sys.path\n")
-    for p in sys.path:
-        print(p)
-
-from src.config import settings
+from src import settings
 
 # Audio recording parameters
 RATE = 16000

@@ -1,19 +1,18 @@
+import asyncio
 import logging
 import sqlite3
 
 import aiosqlite
-import asyncio
-import constants as const
-import utils
+
+from src import constants as const
+from src import utils
 
 AMOUNT_OF_SLOTS = 8
 MAX_AMOUNT_OF_WINDOWS = 7  # main and secondaries included
 DENIED_SLOTS_AMOUNT = 10
 
-SCRIPT_NAME = utils.construct_script_name(__file__,
-                                          const.SCRIPT_NAME_SUFFIX)
+SCRIPT_NAME = utils.construct_script_name(__file__)
 logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
-database = const.SLOTS_DB_FILE
 
 
 async def create_connection(db_file: str) -> aiosqlite.Connection | None:
@@ -155,7 +154,7 @@ def free_slot_by_name_sync(name: str):
     conn = None
     cursor = None
     try:
-        conn = sqlite3.connect(const.SLOTS_DB_FILE)
+        conn = sqlite3.connect(const.SLOTS_DB_FILE_PATH)
         cursor = conn.cursor()
         cursor.execute("SELECT id, is_open FROM slots WHERE name0 = ?",
                        (name,))
@@ -418,7 +417,7 @@ def free_denied_slot_sync(slot_id: int):
     conn = None
     cursor = None
     try:
-        conn = sqlite3.connect(const.SLOTS_DB_FILE)
+        conn = sqlite3.connect(const.SLOTS_DB_FILE_PATH)
         cursor = conn.cursor()
         cursor.execute(
             "UPDATE denied_slots SET is_open = True WHERE id = ?", (slot_id,))
@@ -445,6 +444,7 @@ async def free_all_denied_slots(conn: aiosqlite.Connection):
 
 
 async def main():
+    database = const.SLOTS_DB_FILE_PATH
     conn = await create_connection(database)
     await delete_slots_table(conn)
     await create_slots_table(conn)

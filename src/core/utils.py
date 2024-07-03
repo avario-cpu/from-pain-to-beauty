@@ -1,10 +1,12 @@
-import os
 import logging
-import constants as const
+import os
+import time
+
+from src import constants as const
 
 
 class LockFileManager:
-    def __init__(self, lock_dir="../../temp/lock_files"):
+    def __init__(self, lock_dir=const.LOCK_FILES_DIR_PATH):
         self.lock_dir = lock_dir
         if not os.path.exists(self.lock_dir):
             os.makedirs(self.lock_dir)
@@ -35,21 +37,11 @@ class LockFileManager:
 
 
 def setup_logger(script_name: str, level: int = logging.DEBUG,
-                 log_dir: str = '../../temp/logs'):
-    if script_name[:len(const.SCRIPT_NAME_SUFFIX)] == const.SCRIPT_NAME_SUFFIX:
-        script_name = script_name[len(const.SCRIPT_NAME_SUFFIX):]
-        # Insane high level jutsu to remove the suffix from the script name.
-        # This suffix is initially implemented to avoid having the PyCharm
-        # window (with the same name as the script) be moved by the
-        # terminal window manager... However, now that the log file are
-        # generated according to that new name too, well, THEIR windows,
-        # if they are opened get moved by my cli moving tool. So yeah...
-        # that fixes it ! :)
-
+                 log_dir: str = const.LOG_DIR_PATH):
     log_file_path = os.path.join(log_dir, f'{script_name}.log')
 
     with open(log_file_path, 'a') as log_file:
-        log_file.write('\n\n\n<< New Log Entry >>\n')
+        log_file.write('\n\n<< New Log Entry >>\n')
 
     logger = logging.getLogger(script_name)
     if not logger.hasHandlers():
@@ -64,15 +56,18 @@ def setup_logger(script_name: str, level: int = logging.DEBUG,
     return logger
 
 
-def construct_script_name(file_path: str, suffix: str) -> str:
-    """
-    Take the path of the calling script and returns its name with a suffix.
-
-    In case you forgot how this works: pass << __file__ >> as the file path
-    argument from the script calling this function ! That's its file path.
-    """
+def construct_script_name(file_path: str) -> str:
+    """In case you forgot how this works: pass << __file__ >> as the file path
+    argument from the script calling this function !"""
     base_name = os.path.splitext(os.path.basename(file_path))[0]
-    return suffix + base_name
+    return base_name
+
+
+def exit_countdown(duration: int):
+    for seconds in reversed(range(1, duration)):
+        print("\r" + f'script will exit in {seconds} seconds...', end="\r")
+        time.sleep(1)
+    exit()
 
 
 def main():

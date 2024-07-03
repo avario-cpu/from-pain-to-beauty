@@ -6,23 +6,22 @@ about later.
 """
 
 import asyncio
+import logging
 import os
 import subprocess
-import constants as const
-import utils
+
 import aiosqlite
 import websockets
 from websockets import WebSocketServerProtocol
-import logging
+
+import constants as const
 import slots_db_handler as sdh
 import terminal_window_manager_v4 as twm
+import utils
 
-SCRIPT_NAME = utils.construct_script_name(__file__,
-                                          const.SCRIPT_NAME_SUFFIX)
+SCRIPT_NAME = utils.construct_script_name(__file__)
+
 logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
-
-venv_python_path = "../../venv/Scripts/python.exe"
-subprocess_names = list(const.SUBPROCESSES.keys())
 
 
 async def reset_databases(conn: aiosqlite.Connection):
@@ -36,31 +35,35 @@ async def reset_databases(conn: aiosqlite.Connection):
 
 async def control_subprocess(instruction: str, target: str):
     if instruction == "start":
-        # Open the process in a new separate cmd window: this is done to be
+        # Open the process in a new separate cli window: this is done to be
         # able to manipulate the position of the script's terminal with the
         # terminal window manager module.
-        subprocess.Popen([
-            "cmd.exe", "/c", "start", "/min", venv_python_path,
-            f"{target}.py"])
+
+        command = (f'start /min cmd /c "cd /d {const.PROJECT_DIR_PATH}'
+                   f'&& set PYTHONPATH={const.PYTHONPATH}'
+                   f'&& .\\venv\\Scripts\\activate'
+                   f'&& cd {const.SUBPROCESSES_DIR_PATH}'
+                   f'&& py {target}.py')
+
+        subprocess.Popen(command, shell=True)
 
     elif instruction == "stop":
         await send_message_to_subprocess_socket(
             const.STOP_SUBPROCESS_MESSAGE,
-            const.SUBPROCESSES[f'{const.SCRIPT_NAME_SUFFIX + target}'])
+            const.SUBPROCESSES_PORTS[f'{target}'])
 
     elif instruction == "unlock":
-        if os.path.exists(f"../temp/lock_files/"
-                          f"{const.SCRIPT_NAME_SUFFIX + target}.lock"):
-            os.remove(f"../temp/lock_files/"
-                      f"{const.SCRIPT_NAME_SUFFIX + target}.lock")
+        if os.path.exists(f"{const.LOCK_FILES_DIR_PATH}{target}.lock"):
+            os.remove(f"{const.LOCK_FILES_DIR_PATH}{target}.lock")
 
 
 async def operate_launcher(message: str):
     parts = message.split()
+    subprocess_names = list(const.SUBPROCESSES_PORTS.keys())
     if len(parts) >= 2:
         instruction = parts[0]
         target = parts[1]
-        if const.SCRIPT_NAME_SUFFIX + target in subprocess_names:
+        if target in subprocess_names:
             await control_subprocess(instruction, target)
         else:
             print(f"Unknown target {target}")
@@ -128,15 +131,15 @@ async def send_message_to_subprocess_socket(message: str, port: int,
 
 async def main():
     print("Welcome to the server, bro. You know what to do.")
-    conn = await sdh.create_connection(const.SLOTS_DB_FILE)
+    conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
     await twm.manage_window(conn, twm.WinType.SERVER, 'SERVER')
     websocket_server = await websockets.serve(create_websocket_handler(conn),
                                               "localhost", 50000)
 
     try:
         await asyncio.Future()
-    except KeyboardInterrupt:
-        print('KeyboardInterrupt')
+    except Exception as e:
+        print(e)
     finally:
         websocket_server.close()
         await websocket_server.wait_closed()

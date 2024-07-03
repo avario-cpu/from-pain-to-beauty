@@ -15,4 +15,5 @@ async def match_target(queue: asyncio.Queue):
 
 if __name__ == "__main__":
     from google_stt import transcriptions_queue
+
     asyncio.run(match_target(transcriptions_queue))

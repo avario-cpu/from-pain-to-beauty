@@ -1,21 +1,23 @@
+import asyncio
 import atexit
+import logging
+import time
+from enum import Enum, auto
+
 import aiosqlite
 import cv2 as cv
 import mss
 import numpy as np
-from skimage.metrics import structural_similarity as ssim
-import asyncio
-from classes import SecondaryWindow
-import utils
-import terminal_window_manager_v4 as twm
-import slots_db_handler as sdh
 import websockets
+from skimage.metrics import structural_similarity as ssim
 from websockets import WebSocketException, ConnectionClosedError, \
     WebSocketClientProtocol
-import constants as const
-import logging
-from enum import Enum, auto
-import time
+
+from src import constants as const
+from src import slots_db_handler as sdh
+from src import terminal_window_manager_v4 as twm
+from src import utils
+from src.core.classes import SecondaryWindow
 
 
 class InterruptType(Enum):
@@ -203,8 +205,7 @@ SECONDARY_WINDOWS = [SecondaryWindow("first_scanner", 150, 80),
                      SecondaryWindow("fourth_scanner", 150, 80),
                      SecondaryWindow("fifth_scanner", 150, 80),
                      SecondaryWindow("sixth_scanner", 150, 100)]
-SCRIPT_NAME = utils.construct_script_name(__file__,
-                                          const.SCRIPT_NAME_SUFFIX)
+SCRIPT_NAME = utils.construct_script_name(__file__)
 # suffix added to avoid window naming conflicts with cli manager
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
 
@@ -247,7 +248,7 @@ async def handle_socket_client(reader, writer):
 async def run_socket_server():
     logger.info("Starting script socket server")
     server = await asyncio.start_server(handle_socket_client, 'localhost',
-                                        const.SUBPROCESSES[SCRIPT_NAME])
+                                        const.SUBPROCESSES_PORTS[SCRIPT_NAME])
     addr = server.sockets[0].getsockname()
     print(f"Serving on {addr}")
     logger.info(f"Serving on {addr}")
@@ -691,7 +692,7 @@ async def main():
     db_conn = None
     lock_file_manager = utils.LockFileManager()
     try:
-        db_conn = await sdh.create_connection(const.SLOTS_DB_FILE)
+        db_conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
         if lock_file_manager.lock_exists(SCRIPT_NAME):
             slot = await twm.manage_window(db_conn, twm.WinType.DENIED,
                                            SCRIPT_NAME)
@@ -704,7 +705,8 @@ async def main():
 
             lock_file_manager.create_lock_file(SCRIPT_NAME)
             atexit.register(lock_file_manager.remove_lock_file, SCRIPT_NAME)
-            atexit.register(sdh.free_slot_by_name_sync, SCRIPT_NAME)
+            atexit.register(sdh.free_slot_by_name_sync,
+                            twm.WINDOW_NAME_SUFFIX + SCRIPT_NAME)
             socket_server_task = asyncio.create_task(run_socket_server())
             ws = None
             try:
@@ -733,4 +735,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    twm.window_exit_countdown(5)
+    utils.exit_countdown(5)
