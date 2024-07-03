@@ -9,9 +9,9 @@ import pygetwindow as gw
 import win32con
 import win32gui
 
-from src import constants as const
-from src import slots_db_handler as sdh
-from src import utils
+from src.core import constants as const
+from src.core import slots_db_handler as sdh
+from src.core import utils
 from src.core.classes import SecondaryWindow
 
 MAIN_WINDOW_WIDTH = 600
@@ -25,6 +25,11 @@ logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 
 class WinType(Enum):
+    """Used to define the window to be managed. Position of said window
+    will depend on whether the terminal is that of a normally running
+    script (ACCEPTED), or that of a duplicated script, prevented from being
+    run by a single instance lock (DENIED). SERVER gets a particular
+    position, since there should only be one constantly running SERVER."""
     DENIED = auto()
     ACCEPTED = auto()
     SERVER = auto()
@@ -84,12 +89,15 @@ def set_window_title(title: str):
 
 async def find_window(title: str, timeout: int = 2) -> gw.Win32Window | None:
     """Find window by title within a given timeout"""
-    end_time = time.time() + timeout
-    while time.time() < end_time:
+    start_time = time.time()
+    duration = 0
+    while duration < timeout:
         window = gw.getWindowsWithTitle(title)
         if window:
+            logger.debug(f"Window '{title}' found in {duration:.3f}s.")
             return window[0]
         await asyncio.sleep(0.01)
+        duration = time.time() - start_time
     logger.warning(f"Window '{title}' not found within {timeout}s.")
     return None
 
@@ -146,7 +154,7 @@ def calculate_secondary_window_properties(
     properties = []
     x_pos_offset = MAIN_WINDOW_WIDTH
     y_pos_offset = 0
-    logger.debug(f"Calculating with slot {slot}")
+    logger.debug(f"Calculating secondary properties for slot {slot}")
 
     for i in range(len(secondary_windows)):
         width = secondary_windows[i].width
@@ -165,10 +173,11 @@ def calculate_secondary_window_properties(
         props = width, height, x_pos, y_pos
         properties.append(props)
 
-        logger.info(f"Secondary properties calculated for "
-                    f"'{secondary_windows[i].name}' are {props}")
-
         x_pos_offset -= width  # decrement x_pos_offset for the next window
+
+    logger.info(
+        f"Secondary properties for {[win.name for win in secondary_windows]} "
+        f"calculated are {properties}")
 
     return properties
 
@@ -185,7 +194,7 @@ async def adjust_window(title: str,
         if move:
             window.moveTo(*properties[2:])
     else:
-        logger.error(f"Window {title} Not found.")
+        logger.error(f"Was not able to adjust window {title}.")
 
 
 def generate_window_data(title: str,
@@ -217,9 +226,12 @@ async def search_for_vacant_slots(conn: aiosqlite.Connection) -> dict[int:int]:
             if current_slot > free_slots[i]:
                 pairs[current_slot] = new_slot
             else:
-                logger.info(f"Slot {new_slot} is free but comes later "
-                            f"than latest occupied slot {current_slot}")
-    logger.info(f"Vacant pairs founds: {pairs}")
+                logger.debug(f"Slot {new_slot} is free but comes later "
+                             f"than latest occupied slot {current_slot}")
+    if pairs:
+        logger.info(f"Vacant pairs found: {pairs}")
+    else:
+        logger.info(f"No Vacant pairs found")
     return pairs
 
 
@@ -255,6 +267,7 @@ async def reset_windows_positions(conn: aiosqlite.Connection):
 async def refit_all_windows(conn: aiosqlite.Connection):
     """Rearrange windows to fill empty slots in a more compact way. Also
     makes them return back to their position and to the foreground"""
+    logger.info(f"Refitting all windows...")
     pairs = await search_for_vacant_slots(conn) if not None else {}
     for slot, new_slot in pairs.items():
         data = await sdh.get_full_data(conn, slot)

@@ -12,6 +12,9 @@ LOG_DIR_PATH = 'C:\\Users\\ville\\MyMegaScript\\temp\\logs'
 LOCK_FILES_DIR_PATH = "C:\\Users\\ville\\MyMegaScript\\temp\\lock_files"
 SUBPROCESSES_DIR_PATH = "C:\\Users\\ville\\MyMegaScript\\src\\subprocesses"
 
+STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
+
+
 STOP_SUBPROCESS_MESSAGE = "stop subprocess"
 SERVER_WINDOW_NAME = "MY SERVER"
 

@@ -2,11 +2,11 @@ import logging
 import os
 import time
 
-from src import constants as const
+from src.core import constants as const
 
 
 class LockFileManager:
-    def __init__(self, lock_dir=const.LOCK_FILES_DIR_PATH):
+    def __init__(self, lock_dir: str = const.LOCK_FILES_DIR_PATH):
         self.lock_dir = lock_dir
         if not os.path.exists(self.lock_dir):
             os.makedirs(self.lock_dir)
@@ -41,7 +41,7 @@ def setup_logger(script_name: str, level: int = logging.DEBUG,
     log_file_path = os.path.join(log_dir, f'{script_name}.log')
 
     with open(log_file_path, 'a') as log_file:
-        log_file.write('\n\n<< New Log Entry >>\n')
+        log_file.write('<< New Log Entry >>\n')
 
     logger = logging.getLogger(script_name)
     if not logger.hasHandlers():
@@ -63,11 +63,10 @@ def construct_script_name(file_path: str) -> str:
     return base_name
 
 
-def exit_countdown(duration: int):
+def countdown(duration: int = 3):
     for seconds in reversed(range(1, duration)):
-        print("\r" + f'script will exit in {seconds} seconds...', end="\r")
+        print("\r" + f'Courting down from {seconds} seconds...', end="\r")
         time.sleep(1)
-    exit()
 
 
 def main():

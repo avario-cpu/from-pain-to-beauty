@@ -14,27 +14,30 @@ import aiosqlite
 import websockets
 from websockets import WebSocketServerProtocol
 
-import constants as const
-import slots_db_handler as sdh
-import terminal_window_manager_v4 as twm
-import utils
+from src.core import constants as const
+from src.core import slots_db_handler as sdh
+from src.core import terminal_window_manager_v4 as twm
+from src.core import utils
 
 SCRIPT_NAME = utils.construct_script_name(__file__)
 
 logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 
-async def reset_databases(conn: aiosqlite.Connection):
-    await sdh.delete_slots_table(conn)
-    await sdh.create_slots_table(conn)
-    await sdh.initialize_slots(conn)
-    await sdh.delete_denied_slots_table(conn)
-    await sdh.create_denied_slots_table(conn)
-    await sdh.initialize_denied_slots(conn)
+async def manage_subprocess(message: str):
+    parts = message.split(maxsplit=1)
+    if len(parts) >= 2:
 
+        target = parts[0]
+        instructions = parts[1].strip()
+        if target not in list(const.SUBPROCESSES_PORTS.keys()):
+            raise ValueError(f" Unknown target {target} not in"
+                             f" {list(const.SUBPROCESSES_PORTS.keys())}")
+    else:
+        raise ValueError("Invalid message format, must be at least two "
+                         "separate words: target, instructions")
 
-async def control_subprocess(instruction: str, target: str):
-    if instruction == "start":
+    if instructions == "start":
         # Open the process in a new separate cli window: this is done to be
         # able to manipulate the position of the script's terminal with the
         # terminal window manager module.
@@ -45,31 +48,31 @@ async def control_subprocess(instruction: str, target: str):
                    f'&& cd {const.SUBPROCESSES_DIR_PATH}'
                    f'&& py {target}.py')
 
+        print(f"Starting {target}")
+
         subprocess.Popen(command, shell=True)
 
-    elif instruction == "stop":
+    elif instructions == "stop":
         await send_message_to_subprocess_socket(
             const.STOP_SUBPROCESS_MESSAGE,
-            const.SUBPROCESSES_PORTS[f'{target}'])
+            const.SUBPROCESSES_PORTS[target])
 
-    elif instruction == "unlock":
-        if os.path.exists(f"{const.LOCK_FILES_DIR_PATH}{target}.lock"):
-            os.remove(f"{const.LOCK_FILES_DIR_PATH}{target}.lock")
-
-
-async def operate_launcher(message: str):
-    parts = message.split()
-    subprocess_names = list(const.SUBPROCESSES_PORTS.keys())
-    if len(parts) >= 2:
-        instruction = parts[0]
-        target = parts[1]
-        if target in subprocess_names:
-            await control_subprocess(instruction, target)
+    elif instructions == "unlock":
+        # Check for an ACK from the subprocess SOCK server. If there is one,
+        # it means the subprocess is running and should not be attempted to
+        # be unlocked.
+        answer = await send_message_to_subprocess_socket(
+            "Check for server ACK", const.SUBPROCESSES_PORTS[target])
+        if not answer:
+            lock_path = os.path.join(const.LOCK_FILES_DIR_PATH, target)
+            print(f"Checking '{lock_path}' for lock file")
+            if os.path.exists(f"{lock_path}.lock"):
+                os.remove(f"{lock_path}.lock")
+                print(f"Found and removed lock for {target}")
+            else:
+                print(f"No lock found here, traveler.")
         else:
-            print(f"Unknown target {target}")
-    else:
-        print("Invalid message format, must be in two parts: << instruction & "
-              "target >>")
+            print(f"{target} seems to be running, cannot unlock")
 
 
 async def manage_windows(conn: aiosqlite.Connection, message: str):
@@ -79,26 +82,29 @@ async def manage_windows(conn: aiosqlite.Connection, message: str):
         await twm.set_windows_to_topmost(conn)
     elif message == "unset topmost":
         await twm.unset_windows_to_topmost(conn)
-    elif message == "readjust":
+    elif message == "refit":
         await twm.refit_all_windows(conn)
     elif message == "restore":
         await twm.restore_all_windows(conn)
-        pass
+    else:
+        print(f"Invalid windows path message, does not fit any use case")
 
 
 async def manage_database(conn: aiosqlite.Connection, message: str):
     if message == "free all slots":
         await sdh.free_all_slots(conn)
         await sdh.free_all_denied_slots(conn)
+    else:
+        print(f"Invalid database path message, does not fit any use")
 
 
 def create_websocket_handler(conn: aiosqlite.Connection):
     async def websocket_handler(websocket: WebSocketServerProtocol, path: str):
         async for message in websocket:
-            print(f"WS Received: '{message}' on path: {path}")
+            print(f"Received: '{message}' on path: {path}")
 
-            if path == "/launcher":  # Path to start and end scripts
-                await operate_launcher(message)
+            if path == "/subprocess":  # Path to control subprocesses
+                await manage_subprocess(message)
 
             elif path == "/windows":  # Path to manipulate windows properties
                 await manage_windows(conn, message)
@@ -109,24 +115,29 @@ def create_websocket_handler(conn: aiosqlite.Connection):
             elif path == "/test":  # Path to test stuff
                 if message == "get windows":
                     windows_names = await twm.get_all_windows_names(conn)
-                    print(windows_names)
+                    print(f"Windows in slot DB: {windows_names}")
 
     return websocket_handler
 
 
 async def send_message_to_subprocess_socket(message: str, port: int,
-                                            host='localhost'):
+                                            host='localhost') -> str:
     """Client function to send messages to subprocesses servers"""
-    reader, writer = await asyncio.open_connection(host, port)
+    try:
+        reader, writer = await asyncio.open_connection(host, port)
 
-    writer.write(message.encode('utf-8'))
-    print(f'SOCK Sent: {message}')
-    data = await reader.read(1024)
-    print(f'SOCK Received: {data.decode("utf-8")}')
+        writer.write(message.encode('utf-8'))
+        print(f'SOCK: Sent: {message}')
+        data = await reader.read(1024)
+        msg = data.decode("utf-8")
+        print(f'SOCK: Received: {msg}')
 
-    print('Closing the connection')
-    writer.close()
-    await writer.wait_closed()
+        print('SOCK: closing connection')
+        writer.close()
+        await writer.wait_closed()
+        return msg
+    except OSError as e:
+        print(e)
 
 
 async def main():

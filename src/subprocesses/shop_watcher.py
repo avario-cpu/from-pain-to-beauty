@@ -4,18 +4,21 @@ import logging
 import random
 import time
 
+import aiosqlite
 import cv2 as cv
 import mss
 import numpy as np
-import websockets
 from skimage.metrics import structural_similarity as ssim
-from websockets import WebSocketException, WebSocketClientProtocol
+from websockets import WebSocketClientProtocol
 
-from src import constants as const
-from src import slots_db_handler as sdh
-from src import terminal_window_manager_v4 as twm
-from src import utils
+from src.connections import socket
+from src.connections import websocket
+from src.core import constants as const
+from src.core import slots_db_handler as sdh
+from src.core import terminal_window_manager_v4 as twm
+from src.core import utils
 from src.core.classes import SecondaryWindow
+from src.core.utils import LockFileManager
 
 
 class ShopTracker:
@@ -36,11 +39,13 @@ class ShopTracker:
         while self.shop_is_currently_open:
             elapsed_time = round(time.time() - self.shop_opening_time)
             print(f"Shop has been open for {elapsed_time} seconds")
+
             if elapsed_time >= 5 and not self.flags["reacted_to_open_short"]:
-                await react_to_shop_stayed_open(ws, "short")
+                await react_to_shop_staying_open(ws, "short")
                 self.flags["reacted_to_open_short"] = True
+
             if elapsed_time >= 15 and not self.flags["reacted_to_open_long"]:
-                await react_to_shop_stayed_open(ws, "long", elapsed_time)
+                await react_to_shop_staying_open(ws, "long", elapsed_time)
                 self.flags["reacted_to_open_long"] = True
             await asyncio.sleep(1)  # Adjust the sleep time as necessary
 
@@ -66,9 +71,29 @@ class ShopTracker:
             await self.reset_flags()
 
 
+class ShopWatcherHandler(socket.BaseHandler):
+    """Handler for the socket server of the script. Allows for communication
+    from the server to the script."""
+
+    def __init__(self, port, logger_instance):
+        super().__init__(port, logger_instance)
+        self.stop_event = asyncio.Event()
+        self.other_event = asyncio.Event()  # Demonstrative place holder
+
+    async def handle_message(self, message: str):
+        if message == const.STOP_SUBPROCESS_MESSAGE:
+            self.stop_event.set()
+            self.logger.info("Received stop message")
+        elif message == "OTHER":
+            self.other_event.set()
+            self.logger.info("Received other message")
+        else:
+            self.logger.info(f"Received: {message}")
+        await self.send_ack()
+
+
 SCREEN_CAPTURE_AREA = {"left": 1853, "top": 50, "width": 30, "height": 35}
-SHOP_TEMPLATE_IMAGE_PATH = '../../data/opencv/dota_shop_top_right_icon.jpg'
-STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
+SHOP_TEMPLATE_IMAGE_PATH = "data/opencv/dota_shop_top_right_icon.jpg"
 
 # suffix added to avoid window naming conflicts with cli manager
 SECONDARY_WINDOWS = [SecondaryWindow("opencv_shop_scanner", 150, 100)]
@@ -76,52 +101,8 @@ SCRIPT_NAME = utils.construct_script_name(__file__)
 
 logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
-secondary_windows_have_spawned = asyncio.Event()
-mute_main_loop_print_feedback = asyncio.Event()
-stop_loop = asyncio.Event()
-
-
-async def establish_ws_connection():
-    try:
-        ws = await websockets.connect(STREAMERBOT_WS_URL)
-        logger.info(f"Established connection: {ws}")
-        return ws
-    except WebSocketException as e:
-        logger.debug(f"Websocket error: {e}")
-    except OSError as e:
-        logger.debug(f"OS error: {e}")
-    return None
-
-
-async def handle_socket_client(reader, writer):
-    while True:
-        data = await reader.read(1024)
-        if not data:
-            print("Socket client disconnected")
-            break
-        message = data.decode()
-        if message == const.STOP_SUBPROCESS_MESSAGE:
-            stop_loop.set()
-        print(f"Received: {message}")
-        writer.write(b"ACK from WebSocket server")
-        await writer.drain()
-    writer.close()
-
-
-async def run_socket_server():
-    server = await asyncio.start_server(handle_socket_client, 'localhost',
-                                        const.SUBPROCESSES_PORTS[SCRIPT_NAME])
-    addr = server.sockets[0].getsockname()
-    print(f"Serving on {addr}")
-
-    try:
-        await server.serve_forever()
-    except asyncio.CancelledError:
-        print("Socket server task was cancelled. Stopping server")
-    finally:
-        server.close()
-        await server.wait_closed()
-        print("Server closed")
+secondary_windows_spawned = asyncio.Event()
+mute_ssim_prints = asyncio.Event()
 
 
 async def capture_window(area: dict[str, int]):
@@ -135,41 +116,27 @@ async def compare_images(image_a: cv.typing.MatLike,
     return ssim(image_a, image_b)
 
 
-async def send_json_requests(ws: WebSocketClientProtocol,
-                             json_file_paths: str | list[str]):
-    if isinstance(json_file_paths, str):
-        json_file_paths = [json_file_paths]
-
-    for json_file in json_file_paths:
-        with open(json_file, 'r') as file:
-            await ws.send(file.read())
-        response = await ws.recv()
-        logger.info(f"WebSocket response: {response}")
-
-
 async def react_to_shop(status: str, ws: WebSocketClientProtocol):
     print(f"Shop just {status}")
     if status == "opened" and ws:
-        await send_json_requests(
-            ws, "data/streamerbot_ws_requests/shop_scan_dslr_hide.json")
+        await websocket.send_json_requests(
+            ws, "data/ws_requests/shop_watch/dslr_hide.json", logger)
     elif status == "closed" and ws:
-        await send_json_requests(
-            ws,
-            "data/streamerbot_ws_requests/shop_scan_dslr_show.json", )
+        await websocket.send_json_requests(
+            ws, "data/ws_requests/shop_watch/dslr_show.json", logger)
     pass
 
 
-async def react_to_shop_stayed_open(ws: WebSocketClientProtocol,
-                                    duration: str, seconds: float = None):
+async def react_to_shop_staying_open(ws: WebSocketClientProtocol,
+                                     duration: str, seconds: float = None):
     if duration == "short":
         print(
             "rolling for a reaction to shop staying open for a short while...")
         if random.randint(1, 4) == 1:
             print("reacting !")
-            await send_json_requests(
-                ws,
-                "data/streamerbot_ws_requests/shop_scan_brb_buying_milk_show"
-                ".json")
+            await websocket.send_json_requests(
+                ws, "data/ws_requests/shop_watch/brb_buying_milk_show.json",
+                logger)
         else:
             print("not reacting !")
     if duration == "long":
@@ -177,16 +144,15 @@ async def react_to_shop_stayed_open(ws: WebSocketClientProtocol,
             "rolling for a reaction to shop staying open for a long while...")
         if random.randint(1, 3) == 1:
             print("reacting !")
-            await send_json_requests(
-                ws,
-                "data/streamerbot_ws_requests/shop_scan_brb_buying_milk_hide"
-                ".json")
+            await websocket.send_json_requests(
+                ws, "data/ws_requests/shop_watch/brb_buying_milk_hide.json",
+                logger)
             start_time = time.time()
             while True:
                 elapsed_time = time.time() - start_time + seconds
                 seconds_only = int(round(elapsed_time))
                 formatted_time = f"{seconds_only:02d}"
-                with (open("../streamerbot_watched/time_with_shop_open.txt",
+                with (open("data/streamerbot_watched/time_with_shop_open.txt",
                            "w") as file):
                     file.write(
                         f"Bro you've been in the shop for {formatted_time} "
@@ -198,20 +164,21 @@ async def react_to_shop_stayed_open(ws: WebSocketClientProtocol,
             print("not reacting !")
 
 
-async def scan_for_shop_and_notify(ws: WebSocketClientProtocol):
+async def scan_for_shop_and_notify(ws: WebSocketClientProtocol,
+                                   socket_handler: ShopWatcherHandler):
     shop_tracker = ShopTracker()
     template = cv.imread(SHOP_TEMPLATE_IMAGE_PATH, cv.IMREAD_GRAYSCALE)
 
-    while not stop_loop.is_set():
+    while not socket_handler.stop_event.is_set():
         frame = await capture_window(SCREEN_CAPTURE_AREA)
         gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
         match_value = await compare_images(gray_frame, template)
         cv.imshow(SECONDARY_WINDOWS[0].name, gray_frame)
-        secondary_windows_have_spawned.set()
+        secondary_windows_spawned.set()
 
         if cv.waitKey(1) == ord("q"):
             break
-        if not mute_main_loop_print_feedback.is_set():
+        if not mute_ssim_prints.is_set():
             print(f"SSIM: {match_value:.6f}", end="\r")
 
         if match_value >= 0.8:
@@ -226,53 +193,85 @@ async def scan_for_shop_and_notify(ws: WebSocketClientProtocol):
     print('loop terminated')
 
 
-async def main():
-    """If there are no single instance lock file, start the Dota2 shop_watcher
-     module. Reposition the terminal right at launch."""
-    db_conn = None
-    lock_file_manager = utils.LockFileManager()
-    try:
-        db_conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
-        if lock_file_manager.lock_exists(SCRIPT_NAME):
-            slot = await twm.manage_window(db_conn, twm.WinType.DENIED,
-                                           SCRIPT_NAME)
-            atexit.register(sdh.free_denied_slot_sync, slot)
-            print("\n>>> Lock file is present: exiting... <<<")
-        else:
-            slot = await twm.manage_window(db_conn, twm.WinType.ACCEPTED,
-                                           SCRIPT_NAME, SECONDARY_WINDOWS)
+async def refuse_script_instance(db_conn: aiosqlite.Connection):
+    slot = await twm.manage_window(db_conn, twm.WinType.DENIED,
+                                   SCRIPT_NAME)
+    atexit.register(sdh.free_denied_slot_sync, slot)
+    print("\n>>> Lock file is present: exiting... <<<")
 
-            lock_file_manager.create_lock_file(SCRIPT_NAME)
-            atexit.register(lock_file_manager.remove_lock_file, SCRIPT_NAME)
-            atexit.register(sdh.free_slot_by_name_sync,
-                            twm.WINDOW_NAME_SUFFIX + SCRIPT_NAME)
-            socket_server_task = asyncio.create_task(run_socket_server())
-            mute_main_loop_print_feedback.set()
-            ws = None
-            try:
-                ws = await establish_ws_connection()
-                main_task = asyncio.create_task(scan_for_shop_and_notify(ws))
-                await secondary_windows_have_spawned.wait()
-                await twm.manage_secondary_windows(slot, SECONDARY_WINDOWS)
-                mute_main_loop_print_feedback.clear()
-                await main_task
-            except KeyboardInterrupt:
-                print("KeyboardInterrupt")
-            finally:
-                socket_server_task.cancel()
-                await socket_server_task
-                await db_conn.close()
-                cv.destroyAllWindows()
-                if ws:
-                    await ws.close()
+
+async def initialize_main_task(db_conn: aiosqlite.Connection,
+                               lock_file_manager: LockFileManager) \
+        -> tuple[
+            int, ShopWatcherHandler, asyncio.Task, WebSocketClientProtocol]:
+    slot = await twm.manage_window(db_conn, twm.WinType.ACCEPTED,
+                                   SCRIPT_NAME, SECONDARY_WINDOWS)
+
+    lock_file_manager.create_lock_file(SCRIPT_NAME)
+    atexit.register(lock_file_manager.remove_lock_file, SCRIPT_NAME)
+    atexit.register(sdh.free_slot_by_name_sync,
+                    twm.WINDOW_NAME_SUFFIX + SCRIPT_NAME)
+
+    socket_handler = ShopWatcherHandler(
+        const.SUBPROCESSES_PORTS[SCRIPT_NAME], logger)
+
+    socket_server_task = asyncio.create_task(socket.run_socket_server(
+        socket_handler, logger))
+
+    ws = await websocket.establish_ws_connection(const.STREAMERBOT_WS_URL,
+                                                 logger)
+
+    return slot, socket_handler, socket_server_task, ws
+
+
+async def run_main_task(slot: int, socket_handler: ShopWatcherHandler,
+                        ws: WebSocketClientProtocol):
+    mute_ssim_prints.set()
+    main_task = asyncio.create_task(scan_for_shop_and_notify(ws,
+                                                             socket_handler))
+
+    await secondary_windows_spawned.wait()
+    await twm.manage_secondary_windows(slot, SECONDARY_WINDOWS)
+    mute_ssim_prints.clear()
+    await main_task
+    return None
+
+
+async def main():
+    db_conn = None
+    ws = None
+    socket_server_task = None
+
+    try:
+        lock_file_manager = utils.LockFileManager()
+        db_conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
+
+        if lock_file_manager.lock_exists(SCRIPT_NAME):
+            await refuse_script_instance(db_conn)
+            return
+
+        slot, socket_handler, socket_server_task, ws = \
+            await initialize_main_task(db_conn, lock_file_manager)
+        await run_main_task(slot, socket_handler, ws)
+
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        print(f"Unexpected error of type: {type(e).__name__}: {e}")
+        logger.exception(f"Unexpected error: {e}")
         raise
+
     finally:
+        if socket_server_task:
+            socket_server_task.cancel()
+            await socket_server_task
+        await db_conn.close()
+
+        if ws:
+            await ws.close()
         if db_conn:
             await db_conn.close()
+        cv.destroyAllWindows()
 
 
 if __name__ == "__main__":
     asyncio.run(main())
-    utils.exit_countdown(5)
+    utils.countdown()

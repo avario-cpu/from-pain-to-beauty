@@ -4,8 +4,8 @@ import sqlite3
 
 import aiosqlite
 
-from src import constants as const
-from src import utils
+from src.core import constants as const
+from src.core import utils
 
 AMOUNT_OF_SLOTS = 8
 MAX_AMOUNT_OF_WINDOWS = 7  # main and secondaries included
@@ -441,6 +441,15 @@ async def free_all_denied_slots(conn: aiosqlite.Connection):
     except aiosqlite.Error as e:
         print(e)
         await conn.rollback()
+
+
+async def reset_databases(conn: aiosqlite.Connection):
+    await delete_slots_table(conn)
+    await create_slots_table(conn)
+    await initialize_slots(conn)
+    await delete_denied_slots_table(conn)
+    await create_denied_slots_table(conn)
+    await initialize_denied_slots(conn)
 
 
 async def main():

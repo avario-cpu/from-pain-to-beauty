@@ -10,7 +10,7 @@ import queue
 import pyaudio
 from google.cloud import speech_v1p1beta1 as speech
 
-from src import settings
+from src.config import settings
 
 # Audio recording parameters
 RATE = 16000
@@ -87,6 +87,7 @@ def stream_speech_to_text(google_credentials: str,
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = google_credentials
 
     client = speech.SpeechClient()
+    # noinspection PyTypeChecker
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=rate,
@@ -95,6 +96,7 @@ def stream_speech_to_text(google_credentials: str,
         model=model,
     )
 
+    # noinspection PyTypeChecker
     streaming_config = speech.StreamingRecognitionConfig(
         config=config,
         interim_results=True,
