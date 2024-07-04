@@ -11,7 +11,7 @@ import numpy as np
 from skimage.metrics import structural_similarity as ssim
 from websockets import WebSocketClientProtocol
 
-from src.connections import socket
+from src.connections import sock
 from src.connections import websocket
 from src.core import constants as const
 from src.core import slots_db_handler as sdh
@@ -19,6 +19,16 @@ from src.core import terminal_window_manager_v4 as twm
 from src.core import utils
 from src.core.classes import SecondaryWindow
 from src.core.utils import LockFileManager
+
+SCRIPT_NAME = utils.construct_script_name(__file__)
+
+SECONDARY_WINDOWS = [SecondaryWindow("opencv_shop_scanner", 150, 100)]
+SCREEN_CAPTURE_AREA = {"left": 1853, "top": 50, "width": 30, "height": 35}
+SHOP_TEMPLATE_IMAGE_PATH = "data/opencv/shop_watch/shop_top_right_icon.jpg"
+
+logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
+secondary_windows_spawned = asyncio.Event()
+mute_ssim_prints = asyncio.Event()
 
 
 class ShopTracker:
@@ -71,7 +81,7 @@ class ShopTracker:
             await self.reset_flags()
 
 
-class ShopWatcherHandler(socket.BaseHandler):
+class ShopWatcherHandler(sock.BaseHandler):
     """Handler for the socket server of the script. Allows for communication
     from the server to the script."""
 
@@ -90,19 +100,6 @@ class ShopWatcherHandler(socket.BaseHandler):
         else:
             self.logger.info(f"Received: {message}")
         await self.send_ack()
-
-
-SCREEN_CAPTURE_AREA = {"left": 1853, "top": 50, "width": 30, "height": 35}
-SHOP_TEMPLATE_IMAGE_PATH = "data/opencv/dota_shop_top_right_icon.jpg"
-
-# suffix added to avoid window naming conflicts with cli manager
-SECONDARY_WINDOWS = [SecondaryWindow("opencv_shop_scanner", 150, 100)]
-SCRIPT_NAME = utils.construct_script_name(__file__)
-
-logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
-
-secondary_windows_spawned = asyncio.Event()
-mute_ssim_prints = asyncio.Event()
 
 
 async def capture_window(area: dict[str, int]):
@@ -215,8 +212,8 @@ async def initialize_main_task(db_conn: aiosqlite.Connection,
     socket_handler = ShopWatcherHandler(
         const.SUBPROCESSES_PORTS[SCRIPT_NAME], logger)
 
-    socket_server_task = asyncio.create_task(socket.run_socket_server(
-        socket_handler, logger))
+    socket_server_task = asyncio.create_task(sock.run_socket_server(
+        socket_handler))
 
     ws = await websocket.establish_ws_connection(const.STREAMERBOT_WS_URL,
                                                  logger)

@@ -10,7 +10,7 @@ import numpy as np
 from skimage.metrics import structural_similarity as ssim
 from websockets import WebSocketClientProtocol
 
-from src.connections import websocket, socket
+from src.connections import websocket, sock
 from src.core import constants as const
 from src.core import slots_db_handler as sdh
 from src.core import terminal_window_manager_v4 as twm
@@ -161,7 +161,7 @@ class PreGamePhase:
         self._in_game = False
 
 
-class PreGamePhaseHandler(socket.BaseHandler):
+class PreGamePhaseHandler(sock.BaseHandler):
     """Handler for the socket server of the script. Allows for communication
     from the server to the script."""
 
@@ -194,24 +194,25 @@ SETTINGS_AREA = {"left": 170, "top": 85, "width": 40, "height": 40}
 HERO_PICK_AREA = {"left": 1658, "top": 1028, "width": 62, "height": 38}
 NEW_CAPTURE_AREA = {"left": 0, "top": 0, "width": 0, "height": 0}
 
-DOTA_TAB_TEMPLATE = cv.imread("data/opencv/dota_menu_power_icon.jpg",
+DOTA_TAB_TEMPLATE = cv.imread("data/opencv/pregame/dota_menu_power_icon.jpg",
                               cv.IMREAD_GRAYSCALE)
-IN_GAME_TEMPLATE = cv.imread(
-    "data/opencv/dota_courier_deliver_items_icon.jpg",
-    cv.IMREAD_GRAYSCALE)
-STARTING_BUY_TEMPLATE = cv.imread(
-    "data/opencv/dota_strategy-load-out-world-guides.jpg",
-    cv.IMREAD_GRAYSCALE)
-PLAY_DOTA_BUTTON_TEMPLATE = cv.imread(
-    "data/opencv/dota_play_dota_button.jpg",
-    cv.IMREAD_GRAYSCALE)
-DESKTOP_TAB_TEMPLATE = cv.imread("data/opencv/windows_desktop_icons.jpg",
+IN_GAME_TEMPLATE = cv.imread("data/opencv/pregame/"
+                             "dota_courier_deliver_items_icon.jpg",
+                             cv.IMREAD_GRAYSCALE)
+STARTING_BUY_TEMPLATE = cv.imread("data/opencv/pregame/"
+                                  "dota_strategy-load-out-world-guides.jpg",
+                                  cv.IMREAD_GRAYSCALE)
+PLAY_DOTA_BUTTON_TEMPLATE = cv.imread("data/opencv/pregame/"
+                                      "dota_play_dota_button.jpg",
+                                      cv.IMREAD_GRAYSCALE)
+DESKTOP_TAB_TEMPLATE = cv.imread("data/opencv/pregame/"
+                                 "windows_desktop_icons.jpg",
                                  cv.IMREAD_GRAYSCALE)
-SETTINGS_TEMPLATE = cv.imread("data/opencv/dota_settings_icon.jpg",
+SETTINGS_TEMPLATE = cv.imread("data/opencv/pregame/dota_settings_icon.jpg",
                               cv.IMREAD_GRAYSCALE)
-HERO_PICK_TEMPLATE = cv.imread(
-    "data/opencv/dota_hero_select_chat_icons.jpg",
-    cv.IMREAD_GRAYSCALE)
+HERO_PICK_TEMPLATE = cv.imread("data/opencv/pregame/"
+                               "dota_hero_select_chat_icons.jpg",
+                               cv.IMREAD_GRAYSCALE)
 
 SECONDARY_WINDOWS = [SecondaryWindow("first_scanner", 150, 80),
                      SecondaryWindow("second_scanner", 150, 80),
@@ -347,9 +348,8 @@ async def set_state_game_found(tabbed: Tabbed, game_phase: PreGamePhase,
     game_phase.hero_pick = True
     print("\nFound a game !")
 
-    await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/scene_change_in_game.json", logger
-    )
+    await websocket.send_json_requests(ws, "data/ws_requests/pregame/"
+                                           "scene_change_in_game.json", logger)
     return tabbed, game_phase
 
 
@@ -360,9 +360,9 @@ async def set_state_hero_pick(tabbed: Tabbed, game_phase: PreGamePhase,
     game_phase.hero_pick = True
     print("\nBack to hero select !")
 
-    await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/scene_change_dslr_move_hero_pick.json"
-    )
+    await websocket.send_json_requests(ws,
+                                       "data/ws_requests/pregame/"
+                                       "scene_change_dslr_move_hero_pick.json")
     return tabbed, game_phase
 
 
@@ -373,9 +373,9 @@ async def set_state_starting_buy(tabbed: Tabbed, game_phase: PreGamePhase,
     game_phase.starting_buy = True
     print("\nStarting buy !")
 
-    await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/dslr_move_starting_buy.json", logger
-    )
+    await websocket.send_json_requests(ws, "data/ws_requests/pregame/"
+                                           "dslr_move_starting_buy.json",
+                                       logger)
     return tabbed, game_phase
 
 
@@ -385,9 +385,8 @@ async def set_state_vs_screen(tabbed: Tabbed, game_phase: PreGamePhase,
     tabbed.in_game = True
     game_phase.versus_screen = True
 
-    await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger
-    )
+    await websocket.send_json_requests(ws, "data/ws_requests/pregame/"
+                                           "dslr_hide_vs_screen.json", logger)
     print("\nWe are in vs screen !")
     return tabbed, game_phase
 
@@ -398,9 +397,8 @@ async def set_state_in_game(tabbed: Tabbed, game_phase: PreGamePhase,
     tabbed.in_game = True
     game_phase.in_game = True
 
-    await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/scene_change_in_game.json", logger
-    )
+    await websocket.send_json_requests(ws, "data/ws_requests/pregame/"
+                                           "scene_change_in_game.json", logger)
     print("\nWe are in now game !")
     return tabbed, game_phase
 
@@ -411,9 +409,8 @@ async def set_state_dota_menu(tabbed: Tabbed, game_phase: PreGamePhase,
     tabbed.to_dota_menu = True
     game_phase.unknown = True
 
-    await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger
-    )
+    await websocket.send_json_requests(ws, "data/ws_requests/pregame/"
+                                           "dslr_hide_vs_screen.json", logger)
     print("\nWe are in Dota Menus !")
     return tabbed, game_phase
 
@@ -426,23 +423,23 @@ async def set_state_desktop(tabbed: Tabbed, game_phase: PreGamePhase) \
     return tabbed, game_phase
 
 
-async def set_state_settings_screen(
-        tabbed: Tabbed, game_phase: PreGamePhase,
-        ws: WebSocketClientProtocol) \
+async def set_state_settings_screen(tabbed: Tabbed, game_phase: PreGamePhase,
+                                    ws: WebSocketClientProtocol) \
         -> tuple[Tabbed, PreGamePhase]:
     tabbed.to_settings_screen = True
     game_phase.unknown = True
 
-    await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger
-    )
+    await websocket.send_json_requests(ws, "data/ws_requests/pregame/"
+                                           "dslr_hide_vs_screen.json", logger)
     print("\nWe are in settings !")
     return tabbed, game_phase
 
 
-async def confirm_transition_to_vs_screen(
-        tabbed: Tabbed, game_phase: PreGamePhase, target_value: float,
-        ws: WebSocketClientProtocol) -> tuple[Tabbed, PreGamePhase]:
+async def confirm_transition_to_vs_screen(tabbed: Tabbed,
+                                          game_phase: PreGamePhase,
+                                          target_value: float,
+                                          ws: WebSocketClientProtocol) -> \
+        tuple[Tabbed, PreGamePhase]:
     """Nothing matches: we might be in vs screen. Make sure nothing keeps
     matching for a while before asserting this, because we might just
     otherwise be in some transitional state: for example, in dota tab-out;
@@ -529,8 +526,8 @@ async def detect_pregame_phase(ws: WebSocketClientProtocol,
             continue
 
         if ssim_match[0] >= target and game_phase.finding_game:
-            tabbed, game_phase = await (
-                set_state_game_found(tabbed, game_phase, ws))
+            tabbed, game_phase = await (set_state_game_found(tabbed,
+                                                             game_phase, ws))
             continue
 
         if not game_phase.finding_game:
@@ -599,8 +596,8 @@ async def initialize_main_task(db_conn: aiosqlite.Connection,
     socket_handler = PreGamePhaseHandler(
         const.SUBPROCESSES_PORTS[SCRIPT_NAME], logger)
 
-    socket_server_task = asyncio.create_task(socket.run_socket_server(
-        socket_handler, logger))
+    socket_server_task = asyncio.create_task(sock.run_socket_server(
+        socket_handler))
 
     ws = await websocket.establish_ws_connection(const.STREAMERBOT_WS_URL,
                                                  logger)

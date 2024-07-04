@@ -3,7 +3,7 @@ from logging import Logger
 
 
 class BaseHandler:
-    def __init__(self, port: int, logger: Logger = None):
+    def __init__(self, port: int, logger: Logger):
         self.port = port
         self.logger = logger
         self.reader = None
@@ -22,6 +22,7 @@ class BaseHandler:
                 self.logger.info("Socket client disconnected")
                 break
             message = data.decode()
+            self.logger.debug(f"Received {message}")
             await self.handle_message(message)
         self.writer.close()
         await self.writer.wait_closed()
@@ -43,9 +44,9 @@ async def handle_socket_client(reader: asyncio.StreamReader,
     await handler_instance.handle_client()
 
 
-async def run_socket_server(handler_instance: BaseHandler,
-                            logger: Logger) -> None:
+async def run_socket_server(handler_instance: BaseHandler) -> None:
     port = handler_instance.port
+    logger = handler_instance.logger
     logger.info("Starting Socket server")
     server = await asyncio.start_server(
         lambda r, w: handle_socket_client(r, w, handler_instance), 'localhost',

@@ -1,24 +1,31 @@
-"""
-Ugly ass module with nine billion warning that stress me out, but apparently
-it's working just fine so, whatever, let's hide all that in some  function
-I'll call from my subprocesses....
-"""
 import asyncio
 import os
 import queue
+import socket
 
 import pyaudio
-from google.cloud import speech_v1p1beta1 as speech
+from google.cloud import speech
 
 from src.config import settings
+from src.core import utils
 
-# Audio recording parameters
 RATE = 16000
 CHUNK = int(RATE / 10)  # 100ms
+SCRIPT_NAME = utils.construct_script_name(__file__)
+
+SERVER_HOST = 'localhost'  # Replace with your server's IP address
+SERVER_PORT = 65432  # Replace with your server's port
+
+os.environ[
+    "GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_APPLICATION_CREDENTIALS
+
+logger = utils.setup_logger(SCRIPT_NAME)
 
 
 class MicrophoneStream:
-    def __init__(self, rate, chunk):
+    """Opens a recording stream as a generator yielding the audio chunks."""
+
+    def __init__(self, rate: int, chunk: int):
         self._rate = rate
         self._chunk = chunk
         self._buff = queue.Queue()
@@ -65,7 +72,7 @@ class MicrophoneStream:
             yield b"".join(data)
 
 
-async def listen_print_loop(responses, transcription_queue, mute_prints=False):
+async def listen_print_loop(responses, sock):
     for response in responses:
         if not response.results:
             continue
@@ -73,45 +80,34 @@ async def listen_print_loop(responses, transcription_queue, mute_prints=False):
         if not result.alternatives:
             continue
         transcript = result.alternatives[0].transcript
-        await transcription_queue.put(transcript)
-        if not mute_prints:
-            print("Transcript: {}".format(transcript))
+        print(transcript)
+        sock.sendall(transcript.encode('utf-8') + b'\n')
+        logger.debug(f"Sent {transcript}")
 
 
-def stream_speech_to_text(google_credentials: str,
-                          transcriptions_queue: asyncio.Queue,
-                          rate=RATE, chunk=CHUNK,
-                          language_code="en-US", use_enhanced=True,
-                          model="command_and_search",
-                          mute_prints: bool = False):
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = google_credentials
-
+# noinspection PyTypeChecker
+async def main():
     client = speech.SpeechClient()
-    # noinspection PyTypeChecker
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-        sample_rate_hertz=rate,
-        language_code=language_code,
-        use_enhanced=use_enhanced,
-        model=model,
+        sample_rate_hertz=RATE,
+        language_code="en-US",
     )
-
-    # noinspection PyTypeChecker
     streaming_config = speech.StreamingRecognitionConfig(
         config=config,
         interim_results=True,
     )
 
-    with MicrophoneStream(rate, chunk) as stream:
-        audio_generator = stream.generator()
-        requests = (speech.StreamingRecognizeRequest(audio_content=content) for
-                    content in audio_generator)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.connect((SERVER_HOST, SERVER_PORT))
 
-        responses = client.streaming_recognize(streaming_config, requests)
-        listen_print_loop(responses, mute_prints)
+        with MicrophoneStream(RATE, CHUNK) as stream:
+            audio_generator = stream.generator()
+            requests = (speech.StreamingRecognizeRequest(audio_content=content)
+                        for content in audio_generator)
+            responses = client.streaming_recognize(streaming_config, requests)
+            await listen_print_loop(responses, sock)
 
 
 if __name__ == "__main__":
-    creds = settings.GOOGLE_APPLICATION_CREDENTIALS
-    transcriptions_queue = asyncio.Queue()
-    stream_speech_to_text(creds, transcriptions_queue)
+    asyncio.run(main())

@@ -1,7 +1,8 @@
+from logging import Logger
+
 import websockets
 from websockets import WebSocketException, ConnectionClosedError, \
     WebSocketClientProtocol
-from logging import Logger
 
 
 async def establish_ws_connection(url: str, logger: Logger = None) \
