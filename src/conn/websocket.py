@@ -4,19 +4,21 @@ import websockets
 from websockets import WebSocketException, ConnectionClosedError, \
     WebSocketClientProtocol
 
+from src.core.utils import construct_script_name, setup_logger
+
+SCRIPT_NAME = construct_script_name(__file__)
+
 
 async def establish_ws_connection(url: str, logger: Logger = None) \
         -> WebSocketClientProtocol | None:
-    if logger:
-        logger.debug(f"Establishing websocket connection")
+    logger = logger if logger is not None else assign_default_logger()
+    logger.debug(f"Establishing websocket connection")
     try:
         ws = await websockets.connect(url)
-        if logger:
-            logger.info(f"Established websocket connection: {ws}")
+        logger.info(f"Established websocket connection: {ws}")
         return ws
     except WebSocketException as e:
-        if logger:
-            logger.exception(f"Websocket Exception: {e}")
+        logger.exception(f"Websocket Exception: {e}")
     except OSError as e:
         logger.error(f"Websocket error: {e}")
     return None
@@ -25,6 +27,7 @@ async def establish_ws_connection(url: str, logger: Logger = None) \
 async def send_json_requests(ws: WebSocketClientProtocol,
                              json_file_paths: str | list[str],
                              logger: Logger = None):
+    logger = logger if logger is not None else assign_default_logger()
     if isinstance(json_file_paths, str):
         json_file_paths = [json_file_paths]
     else:
@@ -35,16 +38,18 @@ async def send_json_requests(ws: WebSocketClientProtocol,
             with open(json_file, 'r') as file:
                 await ws.send(file.read())
             response = await ws.recv()
-            if logger:
-                logger.info(f"WebSocket response: {response}")
+            logger.info(f"WebSocket response: {response}")
         except ConnectionClosedError as e:
-            if logger:
-                logger.exception(f"WebSocket connection closed: {e}")
+            logger.error(f"WebSocket connection closed: {e}")
         except WebSocketException as e:
-            if logger:
-                logger.exception(f"WebSocket error: {e}")
+            logger.error(f"WebSocket error: {e}")
         except AttributeError as e:
-            if logger:
-                logger.exception(f"Caught exception: {e} with ws: {ws}")
+            logger.error(f"Caught exception: {e} with ws: {ws}")
         finally:
             print(f"Failed JSON request send")
+
+
+def assign_default_logger():
+    logger = setup_logger(SCRIPT_NAME)
+
+    return logger

@@ -13,6 +13,8 @@ from src.core import constants as const
 from src.core import slots_db_handler as sdh
 from src.core import terminal_window_manager_v4 as twm
 from src.core import utils
+from src.core.setup import setup_script_basics
+from src.core.terminal_window_manager_v4 import WinType
 
 RATE = 16000
 CHUNK = int(RATE / 10)  # 100ms
@@ -127,8 +129,8 @@ async def initialize_main_task(db_conn: aiosqlite.Connection,
         -> socket.socket:
     await twm.manage_window(db_conn, twm.WinType.ACCEPTED, SCRIPT_NAME)
 
-    lock_file_manager.create_lock_file(SCRIPT_NAME)
-    atexit.register(lock_file_manager.remove_lock_file, SCRIPT_NAME)
+    lock_file_manager.create_lock_file()
+    atexit.register(lock_file_manager.remove_lock_file)
     atexit.register(sdh.free_slot_by_name_sync,
                     twm.WINDOW_NAME_SUFFIX + SCRIPT_NAME)
 
@@ -147,16 +149,17 @@ async def run_main_task(sock: socket.socket):
 # noinspection PyTypeChecker
 async def main():
     db_conn = None
-
     try:
-        lock_file_manager = utils.LockFileManager()
+        lfm = utils.LockFileManager(SCRIPT_NAME)
         db_conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
 
-        if lock_file_manager.lock_exists(SCRIPT_NAME):
-            await refuse_script_instance(db_conn)
-            return
+        if lfm.lock_exists():
+            await setup_script_basics(db_conn, WinType.DENIED, SCRIPT_NAME)
+        else:
+            await setup_script_basics(db_conn, WinType.ACCEPTED, SCRIPT_NAME,
+                                      lfm)
 
-        sock = await initialize_main_task(db_conn, lock_file_manager)
+        sock = await initialize_main_task(db_conn, lfm)
 
         await run_main_task(sock)
 

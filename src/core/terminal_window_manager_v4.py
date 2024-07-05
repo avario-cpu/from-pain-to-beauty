@@ -12,7 +12,6 @@ import win32gui
 from src.core import constants as const
 from src.core import slots_db_handler as sdh
 from src.core import utils
-from src.core.classes import SecondaryWindow
 
 MAIN_WINDOW_WIDTH = 600
 MAIN_WINDOW_HEIGHT = 260
@@ -33,6 +32,13 @@ class WinType(Enum):
     DENIED = auto()
     ACCEPTED = auto()
     SERVER = auto()
+
+
+class SecondaryWindow:
+    def __init__(self, name: str, width: int, height: int):
+        self.name = name
+        self.width = width
+        self.height = height
 
 
 async def get_all_windows_names(conn: aiosqlite.Connection) -> list[str]:
@@ -94,7 +100,6 @@ async def find_window(title: str, timeout: int = 2) -> gw.Win32Window | None:
     while duration < timeout:
         window = gw.getWindowsWithTitle(title)
         if window:
-            logger.debug(f"Window '{title}' found in {duration:.3f}s.")
             return window[0]
         await asyncio.sleep(0.01)
         duration = time.time() - start_time

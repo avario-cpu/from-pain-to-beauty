@@ -9,7 +9,8 @@ SCRIPT_NAME = construct_script_name(__file__)
 class BaseHandler:
     def __init__(self, port: int, script_logger: Logger = None):
         self.port = port
-        self.logger = script_logger if not None else assign_default_logger()
+        self.logger = script_logger if script_logger is not None else (
+            assign_default_logger())
         self.reader = None
         self.writer = None
 

@@ -1,10 +1,8 @@
 import asyncio
-import atexit
 import logging
 import random
 import time
 
-import aiosqlite
 import cv2 as cv
 import mss
 import numpy as np
@@ -17,8 +15,8 @@ from src.core import constants as const
 from src.core import slots_db_handler as sdh
 from src.core import terminal_window_manager_v4 as twm
 from src.core import utils
-from src.core.classes import SecondaryWindow
-from src.core.utils import LockFileManager
+from src.core.setup import setup_script_basics
+from src.core.terminal_window_manager_v4 import SecondaryWindow, WinType
 
 SCRIPT_NAME = utils.construct_script_name(__file__)
 PORT = const.SUBPROCESSES_PORTS[SCRIPT_NAME]
@@ -96,12 +94,13 @@ class ShopWatcherHandler(socks.BaseHandler):
     async def handle_message(self, message: str):
         if message == const.STOP_SUBPROCESS_MESSAGE:
             self.stop_event.set()
-            self.logger.info("Received stop message")
+            self.logger.info("Socket received stop message")
+            print("Socket received stop message")
         elif message == "OTHER":
             self.other_event.set()
-            self.logger.info("Received other message")
+            self.logger.info("Socket received other message")
         else:
-            self.logger.info(f"Received: {message}")
+            self.logger.info(f"Socket received: {message}")
         await self.send_ack()
 
 
@@ -187,38 +186,6 @@ async def scan_for_shop_and_notify(ws: WebSocketClientProtocol,
         elif match_value < 0.8:
             await shop_tracker.close_shop(ws)
         await asyncio.sleep(0.01)
-    if ws:
-        await ws.close()
-        cv.destroyAllWindows()
-    print('loop terminated')
-
-
-async def refuse_script_instance(db_conn: aiosqlite.Connection):
-    slot, name = await twm.manage_window(db_conn, twm.WinType.DENIED,
-                                         SCRIPT_NAME)
-    atexit.register(sdh.free_denied_slot_sync, slot)
-    print("\n>>> Lock file is present: exiting... <<<")
-
-
-async def initialize_main_task(db_conn: aiosqlite.Connection,
-                               lock_file_manager: LockFileManager) \
-        -> tuple[
-            int, ShopWatcherHandler, asyncio.Task, WebSocketClientProtocol]:
-    slot, name = await twm.manage_window(db_conn, twm.WinType.ACCEPTED,
-                                         SCRIPT_NAME, SECONDARY_WINDOWS)
-
-    lock_file_manager.create_lock_file(SCRIPT_NAME)
-    atexit.register(lock_file_manager.remove_lock_file, SCRIPT_NAME)
-    atexit.register(sdh.free_slot_by_name_sync, name)
-
-    socket_handler = ShopWatcherHandler(PORT, logger)
-
-    socket_server_task = asyncio.create_task(
-        socks.run_socket_server(socket_handler))
-
-    ws = await websocket.establish_ws_connection(URL)
-
-    return slot, socket_handler, socket_server_task, ws
 
 
 async def run_main_task(slot: int, socket_handler: ShopWatcherHandler,
@@ -240,16 +207,21 @@ async def main():
     socket_server_task = None
 
     try:
-        lock_file_manager = utils.LockFileManager()
+        lfm = utils.LockFileManager(SCRIPT_NAME)
         db_conn = await sdh.create_connection(DB)
 
-        if lock_file_manager.lock_exists(SCRIPT_NAME):
-            await refuse_script_instance(db_conn)
-            return
+        if lfm.lock_exists():
+            await setup_script_basics(db_conn, WinType.DENIED, SCRIPT_NAME)
+        else:
+            slot, name = await setup_script_basics(
+                db_conn, WinType.ACCEPTED, SCRIPT_NAME, lfm, SECONDARY_WINDOWS)
 
-        slot, socket_handler, socket_server_task, ws = \
-            await initialize_main_task(db_conn, lock_file_manager)
-        await run_main_task(slot, socket_handler, ws)
+            socket_server_handler = ShopWatcherHandler(PORT, logger)
+            socket_server_task = asyncio.create_task(
+                socks.run_socket_server(socket_server_handler))
+
+            ws = await websocket.establish_ws_connection(URL, logger)
+            await run_main_task(slot, socket_server_handler, ws)
 
     except Exception as e:
         print(f"Unexpected error of type: {type(e).__name__}: {e}")
