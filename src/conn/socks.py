@@ -3,17 +3,14 @@ from logging import Logger
 
 
 class BaseHandler:
-    def __init__(self, port: int, logger: Logger):
+    def __init__(self, port: int, logger: Logger = None):
         self.port = port
         self.logger = logger
         self.reader = None
         self.writer = None
 
         if not (59000 <= port <= 59999):
-            # Really just a kind of placeholder warning message. Please use the
-            # ports defined in constants.py relative to script name.
-            print("We strongly recommend to use a port number between"
-                  "59000 and 59999 for this handler... ")
+            print("Please use a port between 59000 and 59999")
 
     async def handle_client(self):
         while True:
@@ -22,7 +19,6 @@ class BaseHandler:
                 self.logger.info("Socket client disconnected")
                 break
             message = data.decode()
-            self.logger.debug(f"Received {message}")
             await self.handle_message(message)
         self.writer.close()
         await self.writer.wait_closed()
@@ -47,18 +43,22 @@ async def handle_socket_client(reader: asyncio.StreamReader,
 async def run_socket_server(handler_instance: BaseHandler) -> None:
     port = handler_instance.port
     logger = handler_instance.logger
-    logger.info("Starting Socket server")
+    if handler_instance.logger:
+        logger.info("Starting Socket server")
     server = await asyncio.start_server(
         lambda r, w: handle_socket_client(r, w, handler_instance), 'localhost',
         port)
     addr = server.sockets[0].getsockname()
-    logger.info(f"Socket server serving on {addr}")
+    if handler_instance.logger:
+        logger.info(f"Socket server serving on {addr}")
 
     try:
         await server.serve_forever()
     except asyncio.CancelledError:
-        logger.info("Socket server task was cancelled. Stopping server")
+        if handler_instance.logger:
+            logger.info("Socket server task was cancelled. Stopping server")
     finally:
         server.close()
         await server.wait_closed()
-        logger.info("Socket server closed")
+        if handler_instance.logger:
+            logger.info("Socket server closed")

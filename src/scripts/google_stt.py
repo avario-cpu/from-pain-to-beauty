@@ -1,20 +1,25 @@
 import asyncio
+import atexit
 import os
 import queue
 import socket
 
+import aiosqlite
 import pyaudio
 from google.cloud import speech
 
 from src.config import settings
+from src.core import constants as const
+from src.core import slots_db_handler as sdh
+from src.core import terminal_window_manager_v4 as twm
 from src.core import utils
 
 RATE = 16000
 CHUNK = int(RATE / 10)  # 100ms
 SCRIPT_NAME = utils.construct_script_name(__file__)
 
-SERVER_HOST = 'localhost'  # Replace with your server's IP address
-SERVER_PORT = 65432  # Replace with your server's port
+SERVER_HOST = 'localhost'
+SERVER_PORT = const.SUBPROCESSES_PORTS['robeau']
 
 os.environ[
     "GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_APPLICATION_CREDENTIALS
@@ -82,11 +87,10 @@ async def listen_print_loop(responses, sock):
         transcript = result.alternatives[0].transcript
         print(transcript)
         sock.sendall(transcript.encode('utf-8') + b'\n')
-        logger.debug(f"Sent {transcript}")
 
 
 # noinspection PyTypeChecker
-async def main():
+async def recognize_speech():
     client = speech.SpeechClient()
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
@@ -107,6 +111,45 @@ async def main():
                         for content in audio_generator)
             responses = client.streaming_recognize(streaming_config, requests)
             await listen_print_loop(responses, sock)
+
+
+async def refuse_script_instance(db_conn: aiosqlite.Connection):
+    slot = await twm.manage_window(db_conn, twm.WinType.DENIED,
+                                   SCRIPT_NAME)
+    atexit.register(sdh.free_denied_slot_sync, slot)
+    print("\n>>> Lock file is present: exiting... <<<")
+
+
+async def initialize_main_task(db_conn: aiosqlite.Connection,
+                               lock_file_manager: utils.LockFileManager):
+    slot = await twm.manage_window(db_conn, twm.WinType.ACCEPTED,
+                                   SCRIPT_NAME)
+
+    lock_file_manager.create_lock_file(SCRIPT_NAME)
+    atexit.register(lock_file_manager.remove_lock_file, SCRIPT_NAME)
+    atexit.register(sdh.free_slot_by_name_sync,
+                    twm.WINDOW_NAME_SUFFIX + SCRIPT_NAME)
+
+
+# noinspection PyTypeChecker
+async def main():
+    db_conn = None
+
+    try:
+        lock_file_manager = utils.LockFileManager()
+        db_conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
+
+        if lock_file_manager.lock_exists(SCRIPT_NAME):
+            await refuse_script_instance(db_conn)
+            return
+
+    except Exception as e:
+        print(f"Unexpected error of type: {type(e).__name__}: {e}")
+        logger.exception(f"Unexpected error: {e}")
+        raise
+    finally:
+        if db_conn:
+            await db_conn.close()
 
 
 if __name__ == "__main__":

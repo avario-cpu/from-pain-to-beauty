@@ -11,8 +11,8 @@ import numpy as np
 from skimage.metrics import structural_similarity as ssim
 from websockets import WebSocketClientProtocol
 
-from src.connections import sock
-from src.connections import websocket
+from src.conn import socks
+from src.conn import websocket
 from src.core import constants as const
 from src.core import slots_db_handler as sdh
 from src.core import terminal_window_manager_v4 as twm
@@ -81,7 +81,7 @@ class ShopTracker:
             await self.reset_flags()
 
 
-class ShopWatcherHandler(sock.BaseHandler):
+class ShopWatcherHandler(socks.BaseHandler):
     """Handler for the socket server of the script. Allows for communication
     from the server to the script."""
 
@@ -212,7 +212,7 @@ async def initialize_main_task(db_conn: aiosqlite.Connection,
     socket_handler = ShopWatcherHandler(
         const.SUBPROCESSES_PORTS[SCRIPT_NAME], logger)
 
-    socket_server_task = asyncio.create_task(sock.run_socket_server(
+    socket_server_task = asyncio.create_task(socks.run_socket_server(
         socket_handler))
 
     ws = await websocket.establish_ws_connection(const.STREAMERBOT_WS_URL,

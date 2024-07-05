@@ -8,7 +8,7 @@
       <sourceFolder url="file://$MODULE_DIR$" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/scripts" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/config" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/connections" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/conn" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/old_files" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
       <excludeFolder url="file://$MODULE_DIR$/old_files/ai_voice_recon/GoogleSTT/venv" />
