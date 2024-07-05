@@ -18,6 +18,50 @@ from src.core import utils
 from src.core.classes import SecondaryWindow
 from src.core.utils import LockFileManager
 
+SCRIPT_NAME = utils.construct_script_name(__file__)
+PORT = const.SUBPROCESSES_PORTS[SCRIPT_NAME]
+URL = const.STREAMERBOT_WS_URL
+DB = const.SLOTS_DB_FILE_PATH
+SECONDARY_WINDOWS = [SecondaryWindow("first_scanner", 150, 80),
+                     SecondaryWindow("second_scanner", 150, 80),
+                     SecondaryWindow("third_scanner", 150, 80),
+                     SecondaryWindow("fourth_scanner", 150, 80),
+                     SecondaryWindow("fifth_scanner", 150, 80),
+                     SecondaryWindow("sixth_scanner", 150, 100)]
+
+DOTA_TAB_AREA = {"left": 1860, "top": 10, "width": 60, "height": 40}
+STARTING_BUY_AREA = {"left": 860, "top": 120, "width": 400, "height": 30}
+IN_GAME_AREA = {"left": 1820, "top": 1020, "width": 80, "height": 60}
+PLAY_DOTA_BUTTON_AREA = {"left": 1525, "top": 1005, "width": 340, "height": 55}
+DESKTOP_TAB_AREA = {"left": 1750, "top": 1040, "width": 50, "height": 40}
+SETTINGS_AREA = {"left": 170, "top": 85, "width": 40, "height": 40}
+HERO_PICK_AREA = {"left": 1658, "top": 1028, "width": 62, "height": 38}
+NEW_CAPTURE_AREA = {"left": 0, "top": 0, "width": 0, "height": 0}
+
+DOTA_TAB_TEMPLATE = cv.imread("data/opencv/pregame/dota_menu_power_icon.jpg",
+                              cv.IMREAD_GRAYSCALE)
+IN_GAME_TEMPLATE = cv.imread(
+    "data/opencv/pregame/dota_courier_deliver_items_icon.jpg",
+    cv.IMREAD_GRAYSCALE)
+STARTING_BUY_TEMPLATE = cv.imread(
+    "data/opencv/pregame/dota_strategy-load-out-world-guides.jpg",
+    cv.IMREAD_GRAYSCALE)
+PLAY_DOTA_BUTTON_TEMPLATE = cv.imread(
+    "data/opencv/pregame/dota_play_dota_button.jpg",
+    cv.IMREAD_GRAYSCALE)
+DESKTOP_TAB_TEMPLATE = cv.imread(
+    "data/opencv/pregame/windows_desktop_icons.jpg",
+    cv.IMREAD_GRAYSCALE)
+SETTINGS_TEMPLATE = cv.imread("data/opencv/pregame/dota_settings_icon.jpg",
+                              cv.IMREAD_GRAYSCALE)
+HERO_PICK_TEMPLATE = cv.imread(
+    "data/opencv/pregame/dota_hero_select_chat_icons.jpg",
+    cv.IMREAD_GRAYSCALE)
+
+logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
+secondary_windows_spawned = asyncio.Event()
+mute_ssim_prints = asyncio.Event()
+
 
 class Tabbed:
     def __init__(self):
@@ -67,10 +111,9 @@ class Tabbed:
         self._in_game = value
 
     def _set_all_false(self):
-        self._to_desktop = False
-        self._to_dota_menu = False
-        self._to_settings_screen = False
-        self._in_game = False
+        for attr in self.__dict__:
+            if isinstance(self.__dict__[attr], bool):
+                self.__dict__[attr] = False
 
     def current_state(self):
         if self._to_desktop:
@@ -154,19 +197,17 @@ class PreGamePhase:
         self._unknown = value
 
     def _set_all_false(self):
-        self._finding_game = False
-        self._hero_pick = False
-        self._starting_buy = False
-        self._versus_screen = False
-        self._in_game = False
+        for attr in self.__dict__:
+            if isinstance(self.__dict__[attr], bool):
+                self.__dict__[attr] = False
 
 
 class PreGamePhaseHandler(socks.BaseHandler):
     """Handler for the socket server of the script. Allows for communication
     from the server to the script."""
 
-    def __init__(self, port, logger_instance):
-        super().__init__(port, logger_instance)
+    def __init__(self, port, script_logger):
+        super().__init__(port, script_logger)
         self.stop_event = asyncio.Event()
         self.other_event = asyncio.Event()  # Demonstrative place holder
 
@@ -180,50 +221,6 @@ class PreGamePhaseHandler(socks.BaseHandler):
         else:
             self.logger.info(f"Received: {message}")
         await self.send_ack()
-
-
-secondary_windows_spawned = asyncio.Event()
-mute_ssim_prints = asyncio.Event()
-
-DOTA_TAB_AREA = {"left": 1860, "top": 10, "width": 60, "height": 40}
-STARTING_BUY_AREA = {"left": 860, "top": 120, "width": 400, "height": 30}
-IN_GAME_AREA = {"left": 1820, "top": 1020, "width": 80, "height": 60}
-PLAY_DOTA_BUTTON_AREA = {"left": 1525, "top": 1005, "width": 340, "height": 55}
-DESKTOP_TAB_AREA = {"left": 1750, "top": 1040, "width": 50, "height": 40}
-SETTINGS_AREA = {"left": 170, "top": 85, "width": 40, "height": 40}
-HERO_PICK_AREA = {"left": 1658, "top": 1028, "width": 62, "height": 38}
-NEW_CAPTURE_AREA = {"left": 0, "top": 0, "width": 0, "height": 0}
-
-DOTA_TAB_TEMPLATE = cv.imread("data/opencv/pregame/dota_menu_power_icon.jpg",
-                              cv.IMREAD_GRAYSCALE)
-IN_GAME_TEMPLATE = cv.imread(
-    "data/opencv/pregame/dota_courier_deliver_items_icon.jpg",
-    cv.IMREAD_GRAYSCALE)
-STARTING_BUY_TEMPLATE = cv.imread(
-    "data/opencv/pregame/dota_strategy-load-out-world-guides.jpg",
-    cv.IMREAD_GRAYSCALE)
-PLAY_DOTA_BUTTON_TEMPLATE = cv.imread(
-    "data/opencv/pregame/dota_play_dota_button.jpg",
-    cv.IMREAD_GRAYSCALE)
-DESKTOP_TAB_TEMPLATE = cv.imread(
-    "data/opencv/pregame/windows_desktop_icons.jpg",
-    cv.IMREAD_GRAYSCALE)
-SETTINGS_TEMPLATE = cv.imread("data/opencv/pregame/dota_settings_icon.jpg",
-                              cv.IMREAD_GRAYSCALE)
-HERO_PICK_TEMPLATE = cv.imread(
-    "data/opencv/pregame/dota_hero_select_chat_icons.jpg",
-    cv.IMREAD_GRAYSCALE)
-
-SECONDARY_WINDOWS = [SecondaryWindow("first_scanner", 150, 80),
-                     SecondaryWindow("second_scanner", 150, 80),
-                     SecondaryWindow("third_scanner", 150, 80),
-                     SecondaryWindow("fourth_scanner", 150, 80),
-                     SecondaryWindow("fifth_scanner", 150, 80),
-                     SecondaryWindow("sixth_scanner", 150, 100)]
-SCRIPT_NAME = utils.construct_script_name(__file__)
-
-logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
-log_results_only_once = False
 
 
 async def capture_window(area: dict[str, int]):
@@ -299,7 +296,6 @@ async def detect_in_game():
 
 
 async def scan_screen_for_matches() -> dict[int:float]:
-    global log_results_only_once
     (hero_pick_result, starting_buy_result, dota_tab_out_results,
      desktop_tab_out_results, settings_screens_results, in_game_results) \
         = await (
@@ -317,10 +313,6 @@ async def scan_screen_for_matches() -> dict[int:float]:
     combined_results = {**hero_pick_result, **starting_buy_result,
                         **dota_tab_out_results, **desktop_tab_out_results,
                         **settings_screens_results, **in_game_results}
-
-    if not log_results_only_once:
-        logger.debug(f"combined_results ={combined_results}")
-        log_results_only_once = True
 
     formatted_combined_results = ", ".join(
         [f"{index}:{value:.3f}" for
@@ -573,8 +565,8 @@ async def detect_pregame_phase(ws: WebSocketClientProtocol,
 
 
 async def refuse_script_instance(db_conn: aiosqlite.Connection):
-    slot = await twm.manage_window(db_conn, twm.WinType.DENIED,
-                                   SCRIPT_NAME)
+    slot, name = await twm.manage_window(db_conn, twm.WinType.DENIED,
+                                         SCRIPT_NAME)
     atexit.register(sdh.free_denied_slot_sync, slot)
     print("\n>>> Lock file is present: exiting... <<<")
 
@@ -583,22 +575,18 @@ async def initialize_main_task(db_conn: aiosqlite.Connection,
                                lock_file_manager: LockFileManager) \
         -> tuple[
             int, PreGamePhaseHandler, asyncio.Task, WebSocketClientProtocol]:
-    slot = await twm.manage_window(db_conn, twm.WinType.ACCEPTED,
-                                   SCRIPT_NAME, SECONDARY_WINDOWS)
+    slot, name = await twm.manage_window(db_conn, twm.WinType.ACCEPTED,
+                                         SCRIPT_NAME, SECONDARY_WINDOWS)
 
     lock_file_manager.create_lock_file(SCRIPT_NAME)
     atexit.register(lock_file_manager.remove_lock_file, SCRIPT_NAME)
-    atexit.register(sdh.free_slot_by_name_sync,
-                    twm.WINDOW_NAME_SUFFIX + SCRIPT_NAME)
-
-    socket_handler = PreGamePhaseHandler(
-        const.SUBPROCESSES_PORTS[SCRIPT_NAME], logger)
+    atexit.register(sdh.free_slot_by_name_sync, name)
+    socket_handler = PreGamePhaseHandler(PORT, logger)
 
     socket_server_task = asyncio.create_task(socks.run_socket_server(
         socket_handler))
 
-    ws = await websocket.establish_ws_connection(const.STREAMERBOT_WS_URL,
-                                                 logger)
+    ws = await websocket.establish_ws_connection(URL, logger)
 
     return slot, socket_handler, socket_server_task, ws
 
@@ -606,8 +594,7 @@ async def initialize_main_task(db_conn: aiosqlite.Connection,
 async def run_main_task(slot: int, socket_handler: PreGamePhaseHandler,
                         ws: WebSocketClientProtocol):
     mute_ssim_prints.set()
-    main_task = asyncio.create_task(detect_pregame_phase(ws,
-                                                         socket_handler))
+    main_task = asyncio.create_task(detect_pregame_phase(ws, socket_handler))
 
     await secondary_windows_spawned.wait()
     await twm.manage_secondary_windows(slot, SECONDARY_WINDOWS)
@@ -623,7 +610,7 @@ async def main():
 
     try:
         lock_file_manager = utils.LockFileManager()
-        db_conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
+        db_conn = await sdh.create_connection(DB)
 
         if lock_file_manager.lock_exists(SCRIPT_NAME):
             await refuse_script_instance(db_conn)

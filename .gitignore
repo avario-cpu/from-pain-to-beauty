@@ -166,3 +166,4 @@ data/slots.db
 temp/*
 !temp/.gitkeep
 old_files/*
+tests/temp.py

@@ -291,7 +291,8 @@ async def manage_secondary_windows(
 async def manage_window(conn: aiosqlite.Connection,
                         window_type: WinType,
                         window_name: str,
-                        secondary_windows: list[SecondaryWindow] = None):
+                        secondary_windows: list[SecondaryWindow] = None) \
+        -> tuple[int | None, str]:
     """ Assign a name to the window with a suffix, to avoid repositioning of
     the IDE window with the script open in it rather than the CLI...
     Then, assign a slot to the window in the database and resize and
@@ -306,7 +307,7 @@ async def manage_window(conn: aiosqlite.Connection,
     if window_type == WinType.ACCEPTED and slot is not None:
         data = generate_window_data(title, secondary_windows)
         await sdh.occupy_slot_with_data(conn, slot, data)
-    return slot
+    return slot, window_name
 
 
 async def main():

@@ -21,6 +21,9 @@ from src.core.classes import SecondaryWindow
 from src.core.utils import LockFileManager
 
 SCRIPT_NAME = utils.construct_script_name(__file__)
+PORT = const.SUBPROCESSES_PORTS[SCRIPT_NAME]
+URL = const.STREAMERBOT_WS_URL
+DB = const.SLOTS_DB_FILE_PATH
 
 SECONDARY_WINDOWS = [SecondaryWindow("opencv_shop_scanner", 150, 100)]
 SCREEN_CAPTURE_AREA = {"left": 1853, "top": 50, "width": 30, "height": 35}
@@ -85,8 +88,8 @@ class ShopWatcherHandler(socks.BaseHandler):
     """Handler for the socket server of the script. Allows for communication
     from the server to the script."""
 
-    def __init__(self, port, logger_instance):
-        super().__init__(port, logger_instance)
+    def __init__(self, port, script_logger):
+        super().__init__(port, script_logger)
         self.stop_event = asyncio.Event()
         self.other_event = asyncio.Event()  # Demonstrative place holder
 
@@ -191,8 +194,8 @@ async def scan_for_shop_and_notify(ws: WebSocketClientProtocol,
 
 
 async def refuse_script_instance(db_conn: aiosqlite.Connection):
-    slot = await twm.manage_window(db_conn, twm.WinType.DENIED,
-                                   SCRIPT_NAME)
+    slot, name = await twm.manage_window(db_conn, twm.WinType.DENIED,
+                                         SCRIPT_NAME)
     atexit.register(sdh.free_denied_slot_sync, slot)
     print("\n>>> Lock file is present: exiting... <<<")
 
@@ -201,22 +204,19 @@ async def initialize_main_task(db_conn: aiosqlite.Connection,
                                lock_file_manager: LockFileManager) \
         -> tuple[
             int, ShopWatcherHandler, asyncio.Task, WebSocketClientProtocol]:
-    slot = await twm.manage_window(db_conn, twm.WinType.ACCEPTED,
-                                   SCRIPT_NAME, SECONDARY_WINDOWS)
+    slot, name = await twm.manage_window(db_conn, twm.WinType.ACCEPTED,
+                                         SCRIPT_NAME, SECONDARY_WINDOWS)
 
     lock_file_manager.create_lock_file(SCRIPT_NAME)
     atexit.register(lock_file_manager.remove_lock_file, SCRIPT_NAME)
-    atexit.register(sdh.free_slot_by_name_sync,
-                    twm.WINDOW_NAME_SUFFIX + SCRIPT_NAME)
+    atexit.register(sdh.free_slot_by_name_sync, name)
 
-    socket_handler = ShopWatcherHandler(
-        const.SUBPROCESSES_PORTS[SCRIPT_NAME], logger)
+    socket_handler = ShopWatcherHandler(PORT, logger)
 
-    socket_server_task = asyncio.create_task(socks.run_socket_server(
-        socket_handler))
+    socket_server_task = asyncio.create_task(
+        socks.run_socket_server(socket_handler))
 
-    ws = await websocket.establish_ws_connection(const.STREAMERBOT_WS_URL,
-                                                 logger)
+    ws = await websocket.establish_ws_connection(URL)
 
     return slot, socket_handler, socket_server_task, ws
 
@@ -241,7 +241,7 @@ async def main():
 
     try:
         lock_file_manager = utils.LockFileManager()
-        db_conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
+        db_conn = await sdh.create_connection(DB)
 
         if lock_file_manager.lock_exists(SCRIPT_NAME):
             await refuse_script_instance(db_conn)

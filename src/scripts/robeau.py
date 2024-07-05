@@ -13,8 +13,8 @@ logger = utils.setup_logger(SCRIPT_NAME)
 
 
 class RobeauHandler(socks.BaseHandler):
-    def __init__(self, port, logger_instance):
-        super().__init__(port, logger_instance)
+    def __init__(self, port, script_logger):
+        super().__init__(port, script_logger)
         self.stop_event = asyncio.Event()
         self.test_event = asyncio.Event()
 
@@ -26,7 +26,6 @@ class RobeauHandler(socks.BaseHandler):
             self.test_event.set()
             self.logger.info("Received test message")
         else:
-            self.logger.info(f"Received: {message}")
             print(message)
         await self.send_ack()
 

@@ -49,14 +49,15 @@ class MicrophoneStream:
         self.closed = False
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback):
         self._audio_stream.stop_stream()
         self._audio_stream.close()
         self.closed = True
         self._buff.put(None)
         self._audio_interface.terminate()
 
-    def _fill_buffer(self, in_data, frame_count, time_info, status_flags):
+    # _ in front of param means I don't use the param (Avoid Pycharm warning)
+    def _fill_buffer(self, in_data, _frame_count, _time_info, _status_flags):
         self._buff.put(in_data)
         return None, pyaudio.paContinue
 
@@ -77,7 +78,7 @@ class MicrophoneStream:
             yield b"".join(data)
 
 
-async def listen_print_loop(responses, sock):
+async def listen_print_loop(responses, sock=None):
     for response in responses:
         if not response.results:
             continue
@@ -86,49 +87,61 @@ async def listen_print_loop(responses, sock):
             continue
         transcript = result.alternatives[0].transcript
         print(transcript)
-        sock.sendall(transcript.encode('utf-8') + b'\n')
+        if sock:
+            sock.sendall(transcript.encode('utf-8'))
 
 
-# noinspection PyTypeChecker
-async def recognize_speech():
+async def recognize_speech(sock: socket.socket = None):
     client = speech.SpeechClient()
+    # noinspection PyTypeChecker
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=RATE,
         language_code="en-US",
     )
+    # noinspection PyTypeChecker
     streaming_config = speech.StreamingRecognitionConfig(
         config=config,
         interim_results=True,
     )
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((SERVER_HOST, SERVER_PORT))
-
-        with MicrophoneStream(RATE, CHUNK) as stream:
-            audio_generator = stream.generator()
-            requests = (speech.StreamingRecognizeRequest(audio_content=content)
-                        for content in audio_generator)
-            responses = client.streaming_recognize(streaming_config, requests)
-            await listen_print_loop(responses, sock)
+    with MicrophoneStream(RATE, CHUNK) as stream:
+        audio_generator = stream.generator()
+        # noinspection PyTypeChecker
+        requests = (speech.StreamingRecognizeRequest(audio_content=content)
+                    for content in audio_generator)
+        # noinspection PyArgumentList
+        responses = client.streaming_recognize(streaming_config, requests)
+        await listen_print_loop(responses, sock)
 
 
 async def refuse_script_instance(db_conn: aiosqlite.Connection):
-    slot = await twm.manage_window(db_conn, twm.WinType.DENIED,
-                                   SCRIPT_NAME)
+    slot, name = await twm.manage_window(db_conn, twm.WinType.DENIED,
+                                         SCRIPT_NAME)
     atexit.register(sdh.free_denied_slot_sync, slot)
     print("\n>>> Lock file is present: exiting... <<<")
 
 
 async def initialize_main_task(db_conn: aiosqlite.Connection,
-                               lock_file_manager: utils.LockFileManager):
-    slot = await twm.manage_window(db_conn, twm.WinType.ACCEPTED,
-                                   SCRIPT_NAME)
+                               lock_file_manager: utils.LockFileManager) \
+        -> socket.socket:
+    await twm.manage_window(db_conn, twm.WinType.ACCEPTED, SCRIPT_NAME)
 
     lock_file_manager.create_lock_file(SCRIPT_NAME)
     atexit.register(lock_file_manager.remove_lock_file, SCRIPT_NAME)
     atexit.register(sdh.free_slot_by_name_sync,
                     twm.WINDOW_NAME_SUFFIX + SCRIPT_NAME)
+
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((SERVER_HOST, SERVER_PORT))
+        return sock
+    except ConnectionError as e:
+        print(f"Couldn't connect: {e}")
+
+
+async def run_main_task(sock: socket.socket):
+    await recognize_speech(sock)
 
 
 # noinspection PyTypeChecker
@@ -143,9 +156,13 @@ async def main():
             await refuse_script_instance(db_conn)
             return
 
+        sock = await initialize_main_task(db_conn, lock_file_manager)
+
+        await run_main_task(sock)
+
     except Exception as e:
         print(f"Unexpected error of type: {type(e).__name__}: {e}")
-        logger.exception(f"Unexpected error: {e}")
+        logger.error(f"Unexpected error: {e}")
         raise
     finally:
         if db_conn:

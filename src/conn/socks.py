@@ -1,15 +1,20 @@
 import asyncio
 from logging import Logger
 
+from src.core.utils import construct_script_name, setup_logger
+
+SCRIPT_NAME = construct_script_name(__file__)
+
 
 class BaseHandler:
-    def __init__(self, port: int, logger: Logger = None):
+    def __init__(self, port: int, script_logger: Logger = None):
         self.port = port
-        self.logger = logger
+        self.logger = script_logger if not None else assign_default_logger()
         self.reader = None
         self.writer = None
 
         if not (59000 <= port <= 59999):
+            self.logger.warning(f"{port} not between 59000 and 59999")
             print("Please use a port between 59000 and 59999")
 
     async def handle_client(self):
@@ -43,22 +48,24 @@ async def handle_socket_client(reader: asyncio.StreamReader,
 async def run_socket_server(handler_instance: BaseHandler) -> None:
     port = handler_instance.port
     logger = handler_instance.logger
-    if handler_instance.logger:
-        logger.info("Starting Socket server")
+    logger.info("Starting Socket server")
     server = await asyncio.start_server(
         lambda r, w: handle_socket_client(r, w, handler_instance), 'localhost',
         port)
     addr = server.sockets[0].getsockname()
-    if handler_instance.logger:
-        logger.info(f"Socket server serving on {addr}")
+    logger.info(f"Socket server serving on {addr}")
 
     try:
         await server.serve_forever()
     except asyncio.CancelledError:
-        if handler_instance.logger:
-            logger.info("Socket server task was cancelled. Stopping server")
+        logger.info("Socket server task was cancelled. Stopping server")
     finally:
         server.close()
         await server.wait_closed()
-        if handler_instance.logger:
-            logger.info("Socket server closed")
+        logger.info("Socket server closed")
+
+
+def assign_default_logger():
+    logger = setup_logger(SCRIPT_NAME)
+
+    return logger

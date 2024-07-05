@@ -12,8 +12,8 @@
       <excludeFolder url="file://$MODULE_DIR$/old_files" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
       <excludeFolder url="file://$MODULE_DIR$/old_files/ai_voice_recon/GoogleSTT/venv" />
-      <excludeFolder url="file://$MODULE_DIR$/temp" />
     </content>
+    <content url="file://$MODULE_DIR$/temp/logs" />
     <orderEntry type="jdk" jdkName="Python 3.12 (MyMegaScript)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
