@@ -25,7 +25,9 @@ DB = const.SLOTS_DB_FILE_PATH
 
 SECONDARY_WINDOWS = [SecondaryWindow("opencv_shop_scanner", 150, 100)]
 SCREEN_CAPTURE_AREA = {"left": 1853, "top": 50, "width": 30, "height": 35}
-SHOP_TEMPLATE_IMAGE_PATH = "data/opencv/shop_watch/shop_top_right_icon.jpg"
+
+SHOP_TEMPLATE_IMAGE_PATH = ("C:\\Users\\ville\\MyMegaScript\\data\\opencv"
+                            "\\shop_watch\\shop_top_right_icon.jpg")
 
 logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 secondary_windows_spawned = asyncio.Event()
@@ -218,8 +220,7 @@ async def main():
 
             socket_server_handler = ShopWatcherHandler(PORT, logger)
             socket_server_task = asyncio.create_task(
-                socks.run_socket_server(socket_server_handler))
-
+                socket_server_handler.run_socket_server())
             ws = await websocket.establish_ws_connection(URL, logger)
             await run_main_task(slot, socket_server_handler, ws)
 

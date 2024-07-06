@@ -37,33 +37,28 @@ class BaseHandler:
         self.writer.write(b"ACK from Socket server")
         await self.writer.drain()
 
+    async def handle_socket_client(self, reader: asyncio.StreamReader,
+                                   writer: asyncio.StreamWriter) -> None:
+        self.reader = reader
+        self.writer = writer
+        await self.handle_client()
 
-async def handle_socket_client(reader: asyncio.StreamReader,
-                               writer: asyncio.StreamWriter,
-                               handler_instance: BaseHandler) -> None:
-    handler_instance.reader = reader
-    handler_instance.writer = writer
-    await handler_instance.handle_client()
+    async def run_socket_server(self) -> None:
+        self.logger.info("Starting Socket server")
+        server = await asyncio.start_server(self.handle_socket_client,
+                                            'localhost', self.port)
+        addr = server.sockets[0].getsockname()
+        self.logger.info(f"Socket server serving on {addr}")
 
-
-async def run_socket_server(handler_instance: BaseHandler) -> None:
-    port = handler_instance.port
-    logger = handler_instance.logger
-    logger.info("Starting Socket server")
-    server = await asyncio.start_server(
-        lambda r, w: handle_socket_client(r, w, handler_instance), 'localhost',
-        port)
-    addr = server.sockets[0].getsockname()
-    logger.info(f"Socket server serving on {addr}")
-
-    try:
-        await server.serve_forever()
-    except asyncio.CancelledError:
-        logger.info("Socket server task was cancelled. Stopping server")
-    finally:
-        server.close()
-        await server.wait_closed()
-        logger.info("Socket server closed")
+        try:
+            await server.serve_forever()
+        except asyncio.CancelledError:
+            self.logger.info("Socket server task was cancelled. Stopping "
+                             "server")
+        finally:
+            server.close()
+            await server.wait_closed()
+            self.logger.info("Socket server closed")
 
 
 def assign_default_logger():

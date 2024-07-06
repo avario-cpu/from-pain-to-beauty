@@ -1,17 +1,14 @@
 import asyncio
-import atexit
 import os
 import queue
 import socket
 
-import aiosqlite
 import pyaudio
 from google.cloud import speech
 
 from src.config import settings
 from src.core import constants as const
 from src.core import slots_db_handler as sdh
-from src.core import terminal_window_manager_v4 as twm
 from src.core import utils
 from src.core.setup import setup_script_basics
 from src.core.terminal_window_manager_v4 import WinType
@@ -117,35 +114,6 @@ async def recognize_speech(sock: socket.socket = None):
         await listen_print_loop(responses, sock)
 
 
-async def refuse_script_instance(db_conn: aiosqlite.Connection):
-    slot, name = await twm.manage_window(db_conn, twm.WinType.DENIED,
-                                         SCRIPT_NAME)
-    atexit.register(sdh.free_denied_slot_sync, slot)
-    print("\n>>> Lock file is present: exiting... <<<")
-
-
-async def initialize_main_task(db_conn: aiosqlite.Connection,
-                               lock_file_manager: utils.LockFileManager) \
-        -> socket.socket:
-    await twm.manage_window(db_conn, twm.WinType.ACCEPTED, SCRIPT_NAME)
-
-    lock_file_manager.create_lock_file()
-    atexit.register(lock_file_manager.remove_lock_file)
-    atexit.register(sdh.free_slot_by_name_sync,
-                    twm.WINDOW_NAME_SUFFIX + SCRIPT_NAME)
-
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((SERVER_HOST, SERVER_PORT))
-        return sock
-    except ConnectionError as e:
-        print(f"Couldn't connect: {e}")
-
-
-async def run_main_task(sock: socket.socket):
-    await recognize_speech(sock)
-
-
 # noinspection PyTypeChecker
 async def main():
     db_conn = None
@@ -158,10 +126,14 @@ async def main():
         else:
             await setup_script_basics(db_conn, WinType.ACCEPTED, SCRIPT_NAME,
                                       lfm)
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((SERVER_HOST, SERVER_PORT))
+        except ConnectionError as e:
+            print(f"Couldn't connect: {e}")
+            sock = None
 
-        sock = await initialize_main_task(db_conn, lfm)
-
-        await run_main_task(sock)
+        await recognize_speech(sock)
 
     except Exception as e:
         print(f"Unexpected error of type: {type(e).__name__}: {e}")

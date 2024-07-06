@@ -590,7 +590,7 @@ async def main():
                 db_conn, WinType.ACCEPTED, SCRIPT_NAME, lfm, SECONDARY_WINDOWS)
             socket_server_handler = PreGamePhaseHandler(PORT, logger)
             socket_server_task = asyncio.create_task(
-                socks.run_socket_server(socket_server_handler))
+                socket_server_handler.run_socket_server())
 
             ws = await websocket.establish_ws_connection(URL, logger)
             await run_main_task(slot, socket_server_handler, ws)

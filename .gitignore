@@ -167,3 +167,5 @@ temp/*
 !temp/.gitkeep
 old_files/*
 tests/temp.py
+AI/data
+AI/wav_augmentation_venv
