@@ -7,9 +7,12 @@ numpy
 opencv-python
 pip-tools
 pyaudio
+neo4j
 python-dotenv
 pygetwindow
 pywin32
+gtts
+pydub
 scikit-image
 sounddevice
 websockets

@@ -1,23 +1,70 @@
 import asyncio
 import logging
+import os
+import random
 import subprocess
 
+from neo4j import GraphDatabase
+from pydub import AudioSegment
+from pydub.playback import play
+
+from ai import google_stt
+from src.config.settings import NEO4J_USER, NEO4J_URI, NEO4J_PASSWORD
 from src.conn import socks
 from src.core import constants as const
 from src.core import utils
-from ai import google_stt
 
 SCRIPT_NAME = utils.construct_script_name(__file__)
 HOST = 'localhost'
 PORT = const.SUBPROCESSES_PORTS[SCRIPT_NAME]
 logger = utils.setup_logger(SCRIPT_NAME)
 
+NEO4J_URI = NEO4J_URI
+NEO4J_USER = NEO4J_USER
+NEO4J_PASSWORD = NEO4J_PASSWORD
+
+
+class GreetingDatabase:
+    def __init__(self, uri, user, password):
+        self.driver = GraphDatabase.driver(uri, auth=(user, password))
+
+    def close(self):
+        self.driver.close()
+
+    def get_responses_for_phrase(self, msg):
+        msg = msg.strip()
+        with self.driver.session() as session:
+            result = session.run("""
+            MATCH (p:Greeting)
+            WHERE toLower(p.text) = toLower($phrase_text)
+            MATCH (p)-[:TRIGGERS]->(r:Response)
+            RETURN r.text AS response, r.audio_file AS audio_file
+            """, phrase_text=msg)
+
+            responses = [(record["response"], record["audio_file"]) for record
+                         in result]
+            return responses
+
+    def is_greeting(self, msg):
+        msg = msg.strip()
+        with self.driver.session() as session:
+            result = session.run("""
+            MATCH (p:Greeting)
+            WHERE toLower(p.text) = toLower($phrase_text)
+            RETURN p
+            """, phrase_text=msg)
+            return result.single() is not None
+
 
 class RobeauHandler(socks.BaseHandler):
-    def __init__(self, port, script_logger):
+    def __init__(self, port, script_logger, db, debounce_interval=1.0):
         super().__init__(port, script_logger)
         self.stop_event = asyncio.Event()
         self.test_event = asyncio.Event()
+        self.db = db
+        self.last_processed_message = None
+        self.last_processed_time = 0
+        self.debounce_interval = debounce_interval
 
     async def handle_message(self, message: str):
         if message == const.STOP_SUBPROCESS_MESSAGE:
@@ -27,8 +74,32 @@ class RobeauHandler(socks.BaseHandler):
             self.test_event.set()
             self.logger.info("Received test message")
         else:
-            print(message)
+            await handle_stt(self.db, message)
         await self.send_ack()
+
+
+async def greet(db, msg):
+    responses = db.get_responses_for_phrase(msg)
+    if not responses:
+        print("No response found for the greeting.")
+        return
+    response, audio_file = random.choice(responses)
+    print(response)
+    if audio_file:
+        if not os.path.exists(audio_file):
+            return
+        try:
+            audio = AudioSegment.from_mp3(rf"{audio_file}")
+            play(audio)
+        except Exception as e:
+            print(f"Error playing audio file: {e}")
+
+
+async def handle_stt(db, msg):
+    if db.is_greeting(msg):
+        await greet(db, msg)
+    else:
+        print("Not a greeting")
 
 
 def launch_stt(interim: bool = True):
@@ -45,10 +116,10 @@ def launch_stt(interim: bool = True):
 
 async def main():
     socket_server_task = None
-    stt_process = None
+    db = GreetingDatabase(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
     try:
-        handler = RobeauHandler(PORT, logger)
-        stt_process = launch_stt(interim=False)
+        handler = RobeauHandler(PORT, logger, db)
+        launch_stt(interim=False)  # Set interim as needed
         socket_server_task = asyncio.create_task(handler.run_socket_server())
         await socket_server_task
     except Exception as e:
@@ -59,8 +130,7 @@ async def main():
         if socket_server_task:
             socket_server_task.cancel()
             await socket_server_task
-        if stt_process:
-            stt_process.terminate()
+        db.close()
 
 
 if __name__ == "__main__":

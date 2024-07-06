@@ -22,13 +22,13 @@ SERVER_HOST = 'localhost'
 SERVER_PORT = const.SUBPROCESSES_PORTS['robeau']
 
 os.environ[
-    "GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_APPLICATION_CREDENTIALS
+    "GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_CLOUD_API_KEY
 
 logger = utils.setup_logger(SCRIPT_NAME)
 
 
 class MicrophoneStream:
-    """Opens a recording stream as a generator yielding the audio chunks."""
+    """Opens a recording stream as a generator yielding the voicelines chunks."""
 
     def __init__(self, rate: int, chunk: int):
         self._rate = rate
