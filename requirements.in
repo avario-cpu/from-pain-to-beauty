@@ -1,8 +1,9 @@
 aiosqlite
 google-cloud-speech
 librosa
+matplotlib
 mss
-numpy
+numpy<2.0.0 # necessary for ML model current setup
 opencv-python
 pip-tools
 pyaudio

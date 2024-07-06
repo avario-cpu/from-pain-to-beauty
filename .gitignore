@@ -162,10 +162,15 @@ cython_debug/
 
 
 # Project specific files
-data/slots.db
 temp/*
-!temp/.gitkeep
 old_files/*
-tests/temp.py
-AI/data
+
+AI/Robeau/data
 AI/wav_augmentation_venv
+# PyTorch state dictionary files
+**/*.pth
+
+tests/temp.py
+data/slots.db
+
+!temp/.gitkeep
