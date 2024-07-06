@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import os
 import queue
@@ -90,7 +91,7 @@ async def listen_print_loop(responses, sock=None):
             sock.sendall(transcript.encode('utf-8'))
 
 
-async def recognize_speech(sock: socket.socket = None):
+async def recognize_speech(interim: bool, sock: socket.socket = None):
     client = speech.SpeechClient()
     # noinspection PyTypeChecker
     config = speech.RecognitionConfig(
@@ -101,7 +102,7 @@ async def recognize_speech(sock: socket.socket = None):
     # noinspection PyTypeChecker
     streaming_config = speech.StreamingRecognitionConfig(
         config=config,
-        interim_results=True,
+        interim_results=interim,
     )
 
     with MicrophoneStream(RATE, CHUNK) as stream:
@@ -115,34 +116,49 @@ async def recognize_speech(sock: socket.socket = None):
 
 
 # noinspection PyTypeChecker
-async def main():
+async def main(interim: bool):
     db_conn = None
     try:
-        lfm = utils.LockFileManager(SCRIPT_NAME)
+        lock_file_manager = utils.LockFileManager(SCRIPT_NAME)
         db_conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
 
-        if lfm.lock_exists():
+        if lock_file_manager.lock_exists():
             await setup_script_basics(db_conn, WinType.DENIED, SCRIPT_NAME)
         else:
             await setup_script_basics(db_conn, WinType.ACCEPTED, SCRIPT_NAME,
-                                      lfm)
+                                      lock_file_manager)
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((SERVER_HOST, SERVER_PORT))
-        except ConnectionError as e:
-            print(f"Couldn't connect: {e}")
+            logger.info(f"Connected with {sock}")
+        except ConnectionError:
+            print(f"Couldn't connect to robeau's socket")
             sock = None
 
-        await recognize_speech(sock)
+        await recognize_speech(interim, sock)
 
     except Exception as e:
         print(f"Unexpected error of type: {type(e).__name__}: {e}")
-        logger.error(f"Unexpected error: {e}")
+        logger.exception(f"Unexpected error: {e}")
         raise
     finally:
         if db_conn:
             await db_conn.close()
 
 
+def str2bool(value):
+    """Necessary for argparse to return an actual boolean value"""
+    if value.lower() in ('true', 't'):
+        return True
+    elif value.lower() in ('false', 'f'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError("Bool expected")
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description='STT recognition stream')
+    parser.add_argument('arg1', type=str2bool, help='Interim value for stt '
+                                                    'stream')
+    args = parser.parse_args()
+    asyncio.run(main(args.arg1))

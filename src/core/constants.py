@@ -10,6 +10,7 @@ PYTHONPATH = os.getenv('PYTHONPATH')
 SLOTS_DB_FILE_PATH = "C:\\Users\\ville\\MyMegaScript\\data\\slots.db"
 SUBPROCESSES_DIR_PATH = "C:\\Users\\ville\\MyMegaScript\\src\\subprocesses"
 SCRIPTS_DIR_PATH = "C:\\Users\\ville\\MyMegaScript\\src\\scripts"
+AI_DIR_PATH = "C:\\Users\\ville\\MyMegaScript\\src\\ai"
 
 TEMP_DIR_PATH = "C:\\Users\\ville\\MyMegaScript\\temp"
 LOG_DIR_PATH = 'C:\\Users\\ville\\MyMegaScript\\temp\\logs'

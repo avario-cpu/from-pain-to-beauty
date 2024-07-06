@@ -15,7 +15,7 @@ NEGATIVE_TRAINING_DIR = ('C:\\Users\\ville\\MyMegaScript\\AI\\Robeau\\'
                          'data\\hey_robeau\\train\\negative')
 TARGET_AUDIO_LENGTH = 5.0
 CURRENT_MODEL_SAVE_DIR = ("C:\\Users\\ville\\MyMegaScript\\AI\\Robeau"
-                          "\\model_versions\\v0.01")
+                          "\\model_versions\\v0.02")
 
 
 class AudioDataset(Dataset):
@@ -84,12 +84,14 @@ class SimpleLinearModel(nn.Module):
     def __init__(self, input_size):
         super(SimpleLinearModel, self).__init__()
         self.fc1 = nn.Linear(input_size, 128)
-        self.fc2 = nn.Linear(128, 1)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
-        x = self.fc2(x)
+        x = torch.relu(self.fc2(x))
+        x = self.fc3(x)
         x = self.sigmoid(x)
         return x
 
@@ -135,8 +137,6 @@ def main():
             optimizer.step()
 
             running_loss += loss.item() * inputs.size(0)
-            print(f'Outputs: {outputs.detach().cpu().numpy()}, '
-                  f'Labels: {labels.cpu().numpy()}, Loss: {loss.item()}')
 
         epoch_loss = running_loss / len(dataset)
         loss_values.append(epoch_loss)

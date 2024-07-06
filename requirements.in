@@ -3,7 +3,7 @@ google-cloud-speech
 librosa
 matplotlib
 mss
-numpy<2.0.0 # necessary for ML model current setup
+numpy
 opencv-python
 pip-tools
 pyaudio

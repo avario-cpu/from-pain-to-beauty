@@ -233,7 +233,6 @@ async def main():
         if socket_server_task:
             socket_server_task.cancel()
             await socket_server_task
-        await db_conn.close()
 
         if ws:
             await ws.close()

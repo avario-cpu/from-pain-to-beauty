@@ -167,6 +167,7 @@ old_files/*
 
 AI/Robeau/data
 AI/wav_augmentation_venv
+AI/*
 # PyTorch state dictionary files
 **/*.pth
 
