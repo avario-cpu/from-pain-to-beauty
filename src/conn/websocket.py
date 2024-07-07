@@ -1,16 +1,20 @@
 from logging import Logger
 
 import websockets
-from websockets import WebSocketException, ConnectionClosedError, \
-    WebSocketClientProtocol
+from websockets import (
+    WebSocketException,
+    ConnectionClosedError,
+    WebSocketClientProtocol,
+)
 
 from src.core.utils import construct_script_name, setup_logger
 
 SCRIPT_NAME = construct_script_name(__file__)
 
 
-async def establish_ws_connection(url: str, logger: Logger = None) \
-        -> WebSocketClientProtocol | None:
+async def establish_ws_connection(
+    url: str, logger: Logger = None
+) -> WebSocketClientProtocol | None:
     logger = logger if logger is not None else assign_default_logger()
     logger.debug(f"Establishing websocket connection")
     try:
@@ -24,9 +28,9 @@ async def establish_ws_connection(url: str, logger: Logger = None) \
     return None
 
 
-async def send_json_requests(ws: WebSocketClientProtocol,
-                             json_file_paths: str | list[str],
-                             logger: Logger = None):
+async def send_json_requests(
+    ws: WebSocketClientProtocol, json_file_paths: str | list[str], logger: Logger = None
+):
     logger = logger if logger is not None else assign_default_logger()
     if isinstance(json_file_paths, str):
         json_file_paths = [json_file_paths]
@@ -35,7 +39,7 @@ async def send_json_requests(ws: WebSocketClientProtocol,
 
     for json_file in json_file_paths:
         try:
-            with open(json_file, 'r') as file:
+            with open(json_file, "r") as file:
                 await ws.send(file.read())
             response = await ws.recv()
             logger.info(f"WebSocket response: {response}")

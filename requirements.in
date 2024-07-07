@@ -1,3 +1,5 @@
+types-pywin32
+types-pyaudio
 aiosqlite
 google-cloud-speech
 librosa

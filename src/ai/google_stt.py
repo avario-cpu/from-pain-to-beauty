@@ -3,10 +3,9 @@ import asyncio
 import os
 import queue
 import socket
-
 import pyaudio
 from google.cloud import speech
-
+from typing import Optional
 from src.config import settings
 from src.core import constants as const
 from src.core import slots_db_handler as sdh
@@ -18,22 +17,24 @@ RATE = 16000
 CHUNK = int(RATE / 10)  # 100ms
 SCRIPT_NAME = utils.construct_script_name(__file__)
 
-SERVER_HOST = 'localhost'
-SERVER_PORT = const.SUBPROCESSES_PORTS['robeau']
+SERVER_HOST = "localhost"
+SERVER_PORT = const.SUBPROCESSES_PORTS["robeau"]
 
-os.environ[
-    "GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_CLOUD_API_KEY
+if settings.GOOGLE_CLOUD_API_KEY is None:
+    raise ValueError("Missing Google API Key")
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_CLOUD_API_KEY
 
 logger = utils.setup_logger(SCRIPT_NAME)
 
 
 class MicrophoneStream:
-    """Opens a recording stream as a generator yielding the voicelines chunks."""
+    """Opens a recording stream as a generator yielding the voice lines
+    chunks."""
 
     def __init__(self, rate: int, chunk: int):
         self._rate = rate
         self._chunk = chunk
-        self._buff = queue.Queue()
+        self._buff: queue.Queue = queue.Queue()
         self.closed = True
 
     def __enter__(self):
@@ -56,7 +57,6 @@ class MicrophoneStream:
         self._buff.put(None)
         self._audio_interface.terminate()
 
-    # _ in front of param means I don't use the param (Avoid Pycharm warning)
     def _fill_buffer(self, in_data, _frame_count, _time_info, _status_flags):
         self._buff.put(in_data)
         return None, pyaudio.paContinue
@@ -88,10 +88,10 @@ async def listen_print_loop(responses, sock=None):
         transcript = result.alternatives[0].transcript
         print(transcript)
         if sock:
-            sock.sendall(transcript.encode('utf-8'))
+            sock.sendall(transcript.encode("utf-8"))
 
 
-async def recognize_speech(interim: bool, sock: socket.socket = None):
+async def recognize_speech(interim: bool, sock: Optional[socket.socket] = None):
     client = speech.SpeechClient()
     # noinspection PyTypeChecker
     config = speech.RecognitionConfig(
@@ -108,16 +108,17 @@ async def recognize_speech(interim: bool, sock: socket.socket = None):
     with MicrophoneStream(RATE, CHUNK) as stream:
         audio_generator = stream.generator()
         # noinspection PyTypeChecker
-        requests = (speech.StreamingRecognizeRequest(audio_content=content)
-                    for content in audio_generator)
+        requests = (
+            speech.StreamingRecognizeRequest(audio_content=content)
+            for content in audio_generator
+        )
         # noinspection PyArgumentList
-        responses = client.streaming_recognize(streaming_config, requests)
+        responses = client.streaming_recognize(streaming_config, requests)  # type: ignore
         await listen_print_loop(responses, sock)
 
 
 # noinspection PyTypeChecker
 async def main(interim: bool):
-    db_conn = None
     try:
         lock_file_manager = utils.LockFileManager(SCRIPT_NAME)
         db_conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
@@ -125,8 +126,9 @@ async def main(interim: bool):
         if lock_file_manager.lock_exists():
             await setup_script_basics(db_conn, WinType.DENIED, SCRIPT_NAME)
         else:
-            await setup_script_basics(db_conn, WinType.ACCEPTED, SCRIPT_NAME,
-                                      lock_file_manager)
+            await setup_script_basics(
+                db_conn, WinType.ACCEPTED, SCRIPT_NAME, lock_file_manager
+            )
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((SERVER_HOST, SERVER_PORT))
@@ -148,17 +150,16 @@ async def main(interim: bool):
 
 def str2bool(value):
     """Necessary for argparse to return an actual boolean value"""
-    if value.lower() in ('true', 't'):
+    if value.lower() in ("true", "t"):
         return True
-    elif value.lower() in ('false', 'f'):
+    elif value.lower() in ("false", "f"):
         return False
     else:
         raise argparse.ArgumentTypeError("Bool expected")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='STT recognition stream')
-    parser.add_argument('arg1', type=str2bool, help='Interim value for stt '
-                                                    'stream')
+    parser = argparse.ArgumentParser(description="STT recognition stream")
+    parser.add_argument("arg1", type=str2bool, help="Interim value for stt " "stream")
     args = parser.parse_args()
     asyncio.run(main(args.arg1))

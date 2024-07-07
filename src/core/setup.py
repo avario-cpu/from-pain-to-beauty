@@ -1,7 +1,7 @@
 import atexit
 import signal
 import sys
-
+from typing import Optional
 import aiosqlite
 
 from src.core import slots_db_handler as sdh
@@ -54,13 +54,12 @@ def setup_signal_handlers():
 
 
 async def setup_script_basics(
-
-        db_conn: aiosqlite.Connection,
-        window_type: WinType,
-        script_name: str,
-        lock_file_manager: LockFileManager = None,
-        secondary_windows: list[SecondaryWindow] = None) \
-        -> tuple[int, str]:
+    db_conn: Optional[aiosqlite.Connection],
+    window_type: WinType,
+    script_name: str,
+    lock_file_manager: Optional[LockFileManager] = None,
+    secondary_windows: Optional[list[SecondaryWindow]] = None,
+) -> tuple[int | None, str]:
     """Handles task performed on most scripts launch: positioning of terminal
     window, handling of potential secondary windows, lock_file assessment,
     registering of functions called at exit"""
@@ -68,15 +67,17 @@ async def setup_script_basics(
     atexit.register(witness_atexit_execution)  # Lets us tell if cleanup
     # function were called from the atexit module, or from signal.
 
-    slot, name = await twm.manage_window(db_conn, window_type, script_name,
-                                         secondary_windows)
+    slot, name = await twm.manage_window(
+        db_conn, window_type, script_name, secondary_windows
+    )
     if window_type == WinType.DENIED:
         register_atexit_func(sdh.free_denied_slot_sync, slot)
         print(f"\n>>> Lock file is present for {script_name} <<<")
         logger.info(f"Lock file is present for {script_name}")
 
     elif window_type == WinType.ACCEPTED:
-        lock_file_manager.create_lock_file()
+        if lock_file_manager:
+            lock_file_manager.create_lock_file()
+            register_atexit_func(lock_file_manager.remove_lock_file)
         register_atexit_func(sdh.free_slot_by_name_sync, name)
-        register_atexit_func(lock_file_manager.remove_lock_file)
     return slot, name

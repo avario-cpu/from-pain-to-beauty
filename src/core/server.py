@@ -31,22 +31,28 @@ async def manage_subprocess(message: str):
         target = parts[0]
         instructions = parts[1].strip()
         if target not in list(const.SUBPROCESSES_PORTS.keys()):
-            raise ValueError(f" Unknown target {target} not in"
-                             f" {list(const.SUBPROCESSES_PORTS.keys())}")
+            raise ValueError(
+                f" Unknown target {target} not in"
+                f" {list(const.SUBPROCESSES_PORTS.keys())}"
+            )
     else:
-        raise ValueError("Invalid message format, must be at least two "
-                         "separate words: target, instructions")
+        raise ValueError(
+            "Invalid message format, must be at least two "
+            "separate words: target, instructions"
+        )
 
     if instructions == "start":
         # Open the process in a new separate cli window: this is done to be
         # able to manipulate the position of the script's terminal with the
         # terminal window manager module.
 
-        command = (f'start /min cmd /c "cd /d {const.PROJECT_DIR_PATH}'
-                   f'&& set PYTHONPATH={const.PYTHONPATH}'
-                   f'&& .\\venv\\Scripts\\activate'
-                   f'&& cd {const.SUBPROCESSES_DIR_PATH}'
-                   f'&& py {target}.py')
+        command = (
+            f'start /min cmd /c "cd /d {const.PROJECT_DIR_PATH}'
+            f"&& set PYTHONPATH={const.PYTHONPATH}"
+            f"&& .\\venv\\Scripts\\activate"
+            f"&& cd {const.SUBPROCESSES_DIR_PATH}"
+            f"&& py {target}.py"
+        )
 
         print(f"Starting {target}")
 
@@ -54,15 +60,16 @@ async def manage_subprocess(message: str):
 
     elif instructions == "stop":
         await send_message_to_subprocess_socket(
-            const.STOP_SUBPROCESS_MESSAGE,
-            const.SUBPROCESSES_PORTS[target])
+            const.STOP_SUBPROCESS_MESSAGE, const.SUBPROCESSES_PORTS[target]
+        )
 
     elif instructions == "unlock":
         # Check for an ACK from the subprocess SOCK server. If there is one,
         # it means the subprocess is running and should not be attempted to
         # be unlocked.
         answer = await send_message_to_subprocess_socket(
-            "Check for server ACK", const.SUBPROCESSES_PORTS[target])
+            "Check for server ACK", const.SUBPROCESSES_PORTS[target]
+        )
         if not answer:
             lock_path = os.path.join(const.LOCK_FILES_DIR_PATH, target)
             print(f"Checking '{lock_path}' for lock file")
@@ -101,6 +108,8 @@ async def manage_database(conn: aiosqlite.Connection, message: str):
 def create_websocket_handler(conn: aiosqlite.Connection):
     async def websocket_handler(websocket: WebSocketServerProtocol, path: str):
         async for message in websocket:
+            if isinstance(message, bytes):
+                message = message.decode("utf-8")
             print(f"Received: '{message}' on path: {path}")
 
             if path == "/subprocess":  # Path to control subprocesses
@@ -120,32 +129,35 @@ def create_websocket_handler(conn: aiosqlite.Connection):
     return websocket_handler
 
 
-async def send_message_to_subprocess_socket(message: str, port: int,
-                                            host='localhost') -> str:
+async def send_message_to_subprocess_socket(
+    message: str, port: int, host="localhost"
+) -> str:
     """Client function to send messages to subprocesses servers"""
     try:
         reader, writer = await asyncio.open_connection(host, port)
 
-        writer.write(message.encode('utf-8'))
-        print(f'SOCK: Sent: {message}')
+        writer.write(message.encode("utf-8"))
+        print(f"SOCK: Sent: {message}")
         data = await reader.read(1024)
         msg = data.decode("utf-8")
-        print(f'SOCK: Received: {msg}')
+        print(f"SOCK: Received: {msg}")
 
-        print('SOCK: closing connection')
+        print("SOCK: closing connection")
         writer.close()
         await writer.wait_closed()
         return msg
     except OSError as e:
         print(e)
+    return msg
 
 
 async def main():
     print("Welcome to the server, bro. You know what to do.")
     conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
-    await twm.manage_window(conn, twm.WinType.SERVER, 'SERVER')
-    websocket_server = await websockets.serve(create_websocket_handler(conn),
-                                              "localhost", 50000)
+    await twm.manage_window(conn, twm.WinType.SERVER, "SERVER")
+    websocket_server = await websockets.serve(
+        create_websocket_handler(conn), "localhost", 50000
+    )
 
     try:
         await asyncio.Future()

@@ -2,7 +2,7 @@ import asyncio
 import logging
 import random
 import time
-
+from typing import Optional
 import cv2 as cv
 import mss
 import numpy as np
@@ -26,8 +26,10 @@ DB = const.SLOTS_DB_FILE_PATH
 SECONDARY_WINDOWS = [SecondaryWindow("opencv_shop_scanner", 150, 100)]
 SCREEN_CAPTURE_AREA = {"left": 1853, "top": 50, "width": 30, "height": 35}
 
-SHOP_TEMPLATE_IMAGE_PATH = ("C:\\Users\\ville\\MyMegaScript\\data\\opencv"
-                            "\\shop_watch\\shop_top_right_icon.jpg")
+SHOP_TEMPLATE_IMAGE_PATH = (
+    "C:\\Users\\ville\\MyMegaScript\\data\\opencv"
+    "\\shop_watch\\shop_top_right_icon.jpg"
+)
 
 logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 secondary_windows_spawned = asyncio.Event()
@@ -39,16 +41,14 @@ class ShopTracker:
         self.shop_is_currently_open = False
         self.shop_opening_time = None
         self.shop_open_duration_task = None
-        self.flags = {"reacted_to_open_short": False,
-                      "reacted_to_open_long": False}
+        self.flags = {"reacted_to_open_short": False, "reacted_to_open_long": False}
 
     async def reset_flags(self):
         for key in self.flags:
             self.flags[key] = False
         pass
 
-    async def track_shop_open_duration(self,
-                                       ws: WebSocketClientProtocol):
+    async def track_shop_open_duration(self, ws: WebSocketClientProtocol):
         while self.shop_is_currently_open:
             elapsed_time = round(time.time() - self.shop_opening_time)
             print(f"Shop has been open for {elapsed_time} seconds")
@@ -67,14 +67,14 @@ class ShopTracker:
             self.shop_is_currently_open = True
             self.shop_opening_time = time.time()
             self.shop_open_duration_task = asyncio.create_task(
-                self.track_shop_open_duration(ws))
+                self.track_shop_open_duration(ws)
+            )
             await react_to_shop("opened", ws)
 
     async def close_shop(self, ws: WebSocketClientProtocol):
         if self.shop_is_currently_open:
             self.shop_is_currently_open = False
-            if (self.shop_open_duration_task
-                    and not self.shop_open_duration_task.done()):
+            if self.shop_open_duration_task and not self.shop_open_duration_task.done():
                 self.shop_open_duration_task.cancel()
                 try:
                     await self.shop_open_duration_task
@@ -112,8 +112,7 @@ async def capture_window(area: dict[str, int]):
     return np.array(img)
 
 
-async def compare_images(image_a: cv.typing.MatLike,
-                         image_b: cv.typing.MatLike):
+async def compare_images(image_a: cv.typing.MatLike, image_b: cv.typing.MatLike):
     return ssim(image_a, image_b)
 
 
@@ -121,43 +120,48 @@ async def react_to_shop(status: str, ws: WebSocketClientProtocol):
     print(f"Shop just {status}")
     if status == "opened" and ws:
         await websocket.send_json_requests(
-            ws, "data/ws_requests/shop_watch/dslr_hide.json", logger)
+            ws, "data/ws_requests/shop_watch/dslr_hide.json", logger
+        )
     elif status == "closed" and ws:
         await websocket.send_json_requests(
-            ws, "data/ws_requests/shop_watch/dslr_show.json", logger)
+            ws, "data/ws_requests/shop_watch/dslr_show.json", logger
+        )
     pass
 
 
-async def react_to_shop_staying_open(ws: WebSocketClientProtocol,
-                                     duration: str, seconds: float = None):
+async def react_to_shop_staying_open(
+    ws: WebSocketClientProtocol, duration: str, seconds: Optional[float] = None
+):
     if duration == "short":
-        print(
-            "rolling for a reaction to shop staying open for a short while...")
+        print("rolling for a reaction to shop staying open for a short while...")
         if random.randint(1, 4) == 1:
             print("reacting !")
             await websocket.send_json_requests(
-                ws, "data/ws_requests/shop_watch/brb_buying_milk_show.json",
-                logger)
+                ws, "data/ws_requests/shop_watch/brb_buying_milk_show.json", logger
+            )
         else:
             print("not reacting !")
     if duration == "long":
-        print(
-            "rolling for a reaction to shop staying open for a long while...")
+        print("rolling for a reaction to shop staying open for a long while...")
         if random.randint(1, 3) == 1:
             print("reacting !")
             await websocket.send_json_requests(
-                ws, "data/ws_requests/shop_watch/brb_buying_milk_hide.json",
-                logger)
+                ws, "data/ws_requests/shop_watch/brb_buying_milk_hide.json", logger
+            )
             start_time = time.time()
             while True:
-                elapsed_time = time.time() - start_time + seconds
+                elapsed_time = (
+                    time.time() - start_time + seconds if seconds is not None else 0
+                )
                 seconds_only = int(round(elapsed_time))
                 formatted_time = f"{seconds_only:02d}"
-                with (open("data/streamerbot_watched/time_with_shop_open.txt",
-                           "w") as file):
+                with open(
+                    "data/streamerbot_watched/time_with_shop_open.txt", "w"
+                ) as file:
                     file.write(
                         f"Bro you've been in the shop for {formatted_time} "
-                        f"seconds, just buy something...")
+                        f"seconds, just buy something..."
+                    )
 
                 await asyncio.sleep(1)
 
@@ -165,8 +169,9 @@ async def react_to_shop_staying_open(ws: WebSocketClientProtocol,
             print("not reacting !")
 
 
-async def scan_for_shop_and_notify(ws: WebSocketClientProtocol,
-                                   socket_handler: ShopWatcherHandler):
+async def scan_for_shop_and_notify(
+    ws: WebSocketClientProtocol, socket_handler: ShopWatcherHandler
+):
     shop_tracker = ShopTracker()
     template = cv.imread(SHOP_TEMPLATE_IMAGE_PATH, cv.IMREAD_GRAYSCALE)
 
@@ -190,11 +195,11 @@ async def scan_for_shop_and_notify(ws: WebSocketClientProtocol,
         await asyncio.sleep(0.01)
 
 
-async def run_main_task(slot: int, socket_handler: ShopWatcherHandler,
-                        ws: WebSocketClientProtocol):
+async def run_main_task(
+    slot: int, socket_handler: ShopWatcherHandler, ws: WebSocketClientProtocol
+):
     mute_ssim_prints.set()
-    main_task = asyncio.create_task(scan_for_shop_and_notify(ws,
-                                                             socket_handler))
+    main_task = asyncio.create_task(scan_for_shop_and_notify(ws, socket_handler))
 
     await secondary_windows_spawned.wait()
     await twm.manage_secondary_windows(slot, SECONDARY_WINDOWS)
@@ -216,11 +221,13 @@ async def main():
             await setup_script_basics(db_conn, WinType.DENIED, SCRIPT_NAME)
         else:
             slot, name = await setup_script_basics(
-                db_conn, WinType.ACCEPTED, SCRIPT_NAME, lfm, SECONDARY_WINDOWS)
+                db_conn, WinType.ACCEPTED, SCRIPT_NAME, lfm, SECONDARY_WINDOWS
+            )
 
             socket_server_handler = ShopWatcherHandler(PORT, logger)
             socket_server_task = asyncio.create_task(
-                socket_server_handler.run_socket_server())
+                socket_server_handler.run_socket_server()
+            )
             ws = await websocket.establish_ws_connection(URL, logger)
             await run_main_task(slot, socket_server_handler, ws)
 

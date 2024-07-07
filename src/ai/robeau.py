@@ -5,17 +5,17 @@ import random
 import subprocess
 
 from neo4j import GraphDatabase
-from pydub import AudioSegment
-from pydub.playback import play
+from pydub import AudioSegment  # type: ignore
+from pydub.playback import play  # type: ignore
 
-from ai import google_stt
-from src.config.settings import NEO4J_USER, NEO4J_URI, NEO4J_PASSWORD
+from src.ai import google_stt
+from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from src.conn import socks
 from src.core import constants as const
 from src.core import utils
 
 SCRIPT_NAME = utils.construct_script_name(__file__)
-HOST = 'localhost'
+HOST = "localhost"
 PORT = const.SUBPROCESSES_PORTS[SCRIPT_NAME]
 logger = utils.setup_logger(SCRIPT_NAME)
 
@@ -34,25 +34,32 @@ class GreetingDatabase:
     def get_responses_for_phrase(self, msg):
         msg = msg.strip()
         with self.driver.session() as session:
-            result = session.run("""
+            result = session.run(
+                """
             MATCH (p:Greeting)
             WHERE toLower(p.text) = toLower($phrase_text)
             MATCH (p)-[:TRIGGERS]->(r:Response)
             RETURN r.text AS response, r.audio_file AS audio_file
-            """, phrase_text=msg)
+            """,
+                phrase_text=msg,
+            )
 
-            responses = [(record["response"], record["audio_file"]) for record
-                         in result]
+            responses = [
+                (record["response"], record["audio_file"]) for record in result
+            ]
             return responses
 
     def is_greeting(self, msg):
         msg = msg.strip()
         with self.driver.session() as session:
-            result = session.run("""
+            result = session.run(
+                """
             MATCH (p:Greeting)
             WHERE toLower(p.text) = toLower($phrase_text)
             RETURN p
-            """, phrase_text=msg)
+            """,
+                phrase_text=msg,
+            )
             return result.single() is not None
 
 
@@ -102,15 +109,18 @@ async def handle_stt(db, msg):
         print("Not a greeting")
 
 
-def launch_stt(interim: bool = True):
-    command = (f'start cmd /c "cd /d {const.PROJECT_DIR_PATH} '
-               f'&& set PYTHONPATH={const.PYTHONPATH} '
-               f'&& .\\venv\\Scripts\\activate '
-               f'&& cd {const.AI_DIR_PATH} '
-               f'&& py {google_stt.SCRIPT_NAME}.py {interim}"')
+def launch_stt(interim: bool = False):
+    command = (
+        f'start cmd /c "cd /d {const.PROJECT_DIR_PATH} '
+        f"&& set PYTHONPATH={const.PYTHONPATH} "
+        f"&& .\\venv\\Scripts\\activate "
+        f"&& cd {const.AI_DIR_PATH} "
+        f'&& py {google_stt.SCRIPT_NAME}.py {interim}"'
+    )
 
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
+    process = subprocess.Popen(
+        command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     return process
 
 
