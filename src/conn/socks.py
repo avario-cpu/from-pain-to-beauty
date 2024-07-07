@@ -55,7 +55,7 @@ class BaseHandler:
         try:
             await server.serve_forever()
         except asyncio.CancelledError:
-            self.logger.info("Socket server task was cancelled. Stopping " "server")
+            self.logger.error("Socket server canceled")
         finally:
             server.close()
             await server.wait_closed()

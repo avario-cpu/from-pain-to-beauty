@@ -3,9 +3,11 @@ import asyncio
 import os
 import queue
 import socket
+from typing import Optional
+
 import pyaudio
 from google.cloud import speech
-from typing import Optional
+
 from src.config import settings
 from src.core import constants as const
 from src.core import slots_db_handler as sdh

@@ -28,6 +28,7 @@ class GreetingDatabase:
     def __init__(self, uri, user, password):
         self.driver = GraphDatabase.driver(uri, auth=(user, password))
 
+    # test
     def close(self):
         self.driver.close()
 

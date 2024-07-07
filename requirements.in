@@ -6,6 +6,7 @@ librosa
 matplotlib
 mss
 numpy
+black
 opencv-python
 pip-tools
 pyaudio

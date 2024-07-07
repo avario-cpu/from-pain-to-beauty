@@ -17,35 +17,46 @@ class GreetingDatabase:
     def add_greeting(self, msg, responses):
         with self.driver.session() as session:
             # Check if the greeting already exists
-            result = session.run("""
+            result = session.run(
+                """
             MATCH (g:Greeting {text: $msg})
             RETURN g
-            """, msg=msg)
+            """,
+                msg=msg,
+            )
 
             if result.single() is not None:
                 print("Greeting already exists in the database.")
                 return "Greeting already exists"
 
             # Add the greeting and its possible responses
-            session.write_transaction(self._create_greeting_with_responses,
-                                      msg, responses)
+            session.write_transaction(
+                self._create_greeting_with_responses, msg, responses
+            )
             print("Greeting and responses added successfully.")
             return "Greeting and responses added"
 
     @staticmethod
     def _create_greeting_with_responses(tx, msg, responses):
         # Create the greeting node
-        tx.run("""
+        tx.run(
+            """
         CREATE (g:Greeting {text: $msg})
-        """, msg=msg)
+        """,
+            msg=msg,
+        )
 
         # Create response nodes and relationships
         for response in responses:
-            tx.run("""
+            tx.run(
+                """
             MATCH (g:Greeting {text: $msg})
             MERGE (r:Response {text: $response})
             CREATE (g)-[:TRIGGERS]->(r)
-            """, msg=msg, response=response)
+            """,
+                msg=msg,
+                response=response,
+            )
 
 
 def main():

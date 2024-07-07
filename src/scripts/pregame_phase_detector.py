@@ -8,7 +8,7 @@ import numpy as np
 from skimage.metrics import structural_similarity as ssim
 from websockets import WebSocketClientProtocol
 
-from src.conn import websocket, socks
+from src.conn import socks, websocket
 from src.core import constants as const
 from src.core import slots_db_handler as sdh
 from src.core import terminal_window_manager_v4 as twm
@@ -20,12 +20,14 @@ SCRIPT_NAME = utils.construct_script_name(__file__)
 PORT = const.SUBPROCESSES_PORTS[SCRIPT_NAME]
 URL = const.STREAMERBOT_WS_URL
 DB = const.SLOTS_DB_FILE_PATH
-SECONDARY_WINDOWS = [SecondaryWindow("first_scanner", 150, 80),
-                     SecondaryWindow("second_scanner", 150, 80),
-                     SecondaryWindow("third_scanner", 150, 80),
-                     SecondaryWindow("fourth_scanner", 150, 80),
-                     SecondaryWindow("fifth_scanner", 150, 80),
-                     SecondaryWindow("sixth_scanner", 150, 100)]
+SECONDARY_WINDOWS = [
+    SecondaryWindow("first_scanner", 150, 80),
+    SecondaryWindow("second_scanner", 150, 80),
+    SecondaryWindow("third_scanner", 150, 80),
+    SecondaryWindow("fourth_scanner", 150, 80),
+    SecondaryWindow("fifth_scanner", 150, 80),
+    SecondaryWindow("sixth_scanner", 150, 100),
+]
 
 DOTA_TAB_AREA = {"left": 1860, "top": 10, "width": 60, "height": 40}
 STARTING_BUY_AREA = {"left": 860, "top": 120, "width": 400, "height": 30}
@@ -36,25 +38,27 @@ SETTINGS_AREA = {"left": 170, "top": 85, "width": 40, "height": 40}
 HERO_PICK_AREA = {"left": 1658, "top": 1028, "width": 62, "height": 38}
 NEW_CAPTURE_AREA = {"left": 0, "top": 0, "width": 0, "height": 0}
 
-DOTA_TAB_TEMPLATE = cv.imread("data/opencv/pregame/dota_menu_power_icon.jpg",
-                              cv.IMREAD_GRAYSCALE)
+DOTA_TAB_TEMPLATE = cv.imread(
+    "data/opencv/pregame/dota_menu_power_icon.jpg", cv.IMREAD_GRAYSCALE
+)
 IN_GAME_TEMPLATE = cv.imread(
-    "data/opencv/pregame/dota_courier_deliver_items_icon.jpg",
-    cv.IMREAD_GRAYSCALE)
+    "data/opencv/pregame/dota_courier_deliver_items_icon.jpg", cv.IMREAD_GRAYSCALE
+)
 STARTING_BUY_TEMPLATE = cv.imread(
-    "data/opencv/pregame/dota_strategy-load-out-world-guides.jpg",
-    cv.IMREAD_GRAYSCALE)
+    "data/opencv/pregame/dota_strategy-load-out-world-guides.jpg", cv.IMREAD_GRAYSCALE
+)
 PLAY_DOTA_BUTTON_TEMPLATE = cv.imread(
-    "data/opencv/pregame/dota_play_dota_button.jpg",
-    cv.IMREAD_GRAYSCALE)
+    "data/opencv/pregame/dota_play_dota_button.jpg", cv.IMREAD_GRAYSCALE
+)
 DESKTOP_TAB_TEMPLATE = cv.imread(
-    "data/opencv/pregame/windows_desktop_icons.jpg",
-    cv.IMREAD_GRAYSCALE)
-SETTINGS_TEMPLATE = cv.imread("data/opencv/pregame/dota_settings_icon.jpg",
-                              cv.IMREAD_GRAYSCALE)
+    "data/opencv/pregame/windows_desktop_icons.jpg", cv.IMREAD_GRAYSCALE
+)
+SETTINGS_TEMPLATE = cv.imread(
+    "data/opencv/pregame/dota_settings_icon.jpg", cv.IMREAD_GRAYSCALE
+)
 HERO_PICK_TEMPLATE = cv.imread(
-    "data/opencv/pregame/dota_hero_select_chat_icons.jpg",
-    cv.IMREAD_GRAYSCALE)
+    "data/opencv/pregame/dota_hero_select_chat_icons.jpg", cv.IMREAD_GRAYSCALE
+)
 
 logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
 secondary_windows_spawned = asyncio.Event()
@@ -227,13 +231,15 @@ async def capture_window(area: dict[str, int]):
     return np.array(img)
 
 
-async def compare_images(image_a: cv.typing.MatLike,
-                         image_b: cv.typing.MatLike) -> float:
+async def compare_images(
+    image_a: cv.typing.MatLike, image_b: cv.typing.MatLike
+) -> float:
     return ssim(image_a, image_b)
 
 
 async def capture_and_process_images(
-        *args: tuple[int, dict, cv.typing.MatLike]) -> dict[int, float]:
+    *args: tuple[int, dict, cv.typing.MatLike]
+) -> dict[int, float]:
     """Compares a set of screen areas and cv2 templates between them"""
     match_values = {}
 
@@ -264,60 +270,65 @@ async def capture_and_process_images(
 
 
 async def detect_hero_pick():
-    return await capture_and_process_images(
-        (0, HERO_PICK_AREA, HERO_PICK_TEMPLATE))
+    return await capture_and_process_images((0, HERO_PICK_AREA, HERO_PICK_TEMPLATE))
 
 
 async def detect_starting_buy():
     return await capture_and_process_images(
-        (1, STARTING_BUY_AREA, STARTING_BUY_TEMPLATE))
+        (1, STARTING_BUY_AREA, STARTING_BUY_TEMPLATE)
+    )
 
 
 async def detect_dota_tab_out():
-    return await capture_and_process_images(
-        (2, DOTA_TAB_AREA, DOTA_TAB_TEMPLATE))
+    return await capture_and_process_images((2, DOTA_TAB_AREA, DOTA_TAB_TEMPLATE))
 
 
 async def detect_desktop_tab_out():
-    return await capture_and_process_images(
-        (3, DESKTOP_TAB_AREA, DESKTOP_TAB_TEMPLATE))
+    return await capture_and_process_images((3, DESKTOP_TAB_AREA, DESKTOP_TAB_TEMPLATE))
 
 
 async def detect_settings_screen():
-    return await capture_and_process_images(
-        (4, SETTINGS_AREA, SETTINGS_TEMPLATE))
+    return await capture_and_process_images((4, SETTINGS_AREA, SETTINGS_TEMPLATE))
 
 
 async def detect_in_game():
-    return await capture_and_process_images(
-        (5, IN_GAME_AREA, IN_GAME_TEMPLATE))
+    return await capture_and_process_images((5, IN_GAME_AREA, IN_GAME_TEMPLATE))
 
 
-async def scan_screen_for_matches() -> dict[int:float]:
-    (hero_pick_result, starting_buy_result, dota_tab_out_results,
-     desktop_tab_out_results, settings_screens_results, in_game_results) \
-        = await (
-        asyncio.gather(
-            detect_hero_pick(),  # index 0
-            detect_starting_buy(),  # index 1
-            detect_dota_tab_out(),  # index 2
-            detect_desktop_tab_out(),  # index 3
-            detect_settings_screen(),  # index 4
-            detect_in_game()  # index 5
-        ))
+async def scan_screen_for_matches() -> dict[int, float]:
+    (
+        hero_pick_result,
+        starting_buy_result,
+        dota_tab_out_results,
+        desktop_tab_out_results,
+        settings_screens_results,
+        in_game_results,
+    ) = await asyncio.gather(
+        detect_hero_pick(),  # index 0
+        detect_starting_buy(),  # index 1
+        detect_dota_tab_out(),  # index 2
+        detect_desktop_tab_out(),  # index 3
+        detect_settings_screen(),  # index 4
+        detect_in_game(),  # index 5
+    )
 
     secondary_windows_spawned.set()
 
-    combined_results = {**hero_pick_result, **starting_buy_result,
-                        **dota_tab_out_results, **desktop_tab_out_results,
-                        **settings_screens_results, **in_game_results}
+    combined_results = {
+        **hero_pick_result,
+        **starting_buy_result,
+        **dota_tab_out_results,
+        **desktop_tab_out_results,
+        **settings_screens_results,
+        **in_game_results,
+    }
 
     formatted_combined_results = ", ".join(
-        [f"{index}:{value:.3f}" for
-         index, value in combined_results.items()])
+        [f"{index}:{value:.3f}" for index, value in combined_results.items()]
+    )
 
     if not mute_ssim_prints.is_set():
-        print(f"SSIMs: {formatted_combined_results}", end='\r')
+        print(f"SSIMs: {formatted_combined_results}", end="\r")
 
     return combined_results
 
@@ -331,103 +342,112 @@ async def set_state_finding_game() -> tuple[Tabbed, PreGamePhase]:
     return tabbed, game_phase
 
 
-async def set_state_game_found(tabbed: Tabbed, game_phase: PreGamePhase,
-                               ws: WebSocketClientProtocol) \
-        -> tuple[Tabbed, PreGamePhase]:
+async def set_state_game_found(
+    tabbed: Tabbed, game_phase: PreGamePhase, ws: WebSocketClientProtocol
+) -> tuple[Tabbed, PreGamePhase]:
     tabbed.in_game = True
     game_phase.hero_pick = True
     print("\nFound a game !")
 
     await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/scene_change_in_game.json", logger)
+        ws, "data/ws_requests/pregame/scene_change_in_game.json", logger
+    )
     return tabbed, game_phase
 
 
-async def set_state_hero_pick(tabbed: Tabbed, game_phase: PreGamePhase,
-                              ws: WebSocketClientProtocol) \
-        -> tuple[Tabbed, PreGamePhase]:
+async def set_state_hero_pick(
+    tabbed: Tabbed, game_phase: PreGamePhase, ws: WebSocketClientProtocol
+) -> tuple[Tabbed, PreGamePhase]:
     tabbed.in_game = True
     game_phase.hero_pick = True
     print("\nBack to hero select !")
 
     await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/scene_change_dslr_move_hero_pick.json")
+        ws, "data/ws_requests/pregame/scene_change_dslr_move_hero_pick.json"
+    )
     return tabbed, game_phase
 
 
-async def set_state_starting_buy(tabbed: Tabbed, game_phase: PreGamePhase,
-                                 ws: WebSocketClientProtocol) \
-        -> tuple[Tabbed, PreGamePhase]:
+async def set_state_starting_buy(
+    tabbed: Tabbed, game_phase: PreGamePhase, ws: WebSocketClientProtocol
+) -> tuple[Tabbed, PreGamePhase]:
     tabbed.in_game = True
     game_phase.starting_buy = True
     print("\nStarting buy !")
 
     await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/dslr_move_starting_buy.json", logger)
+        ws, "data/ws_requests/pregame/dslr_move_starting_buy.json", logger
+    )
     return tabbed, game_phase
 
 
-async def set_state_vs_screen(tabbed: Tabbed, game_phase: PreGamePhase,
-                              ws: WebSocketClientProtocol) \
-        -> tuple[Tabbed, PreGamePhase]:
+async def set_state_vs_screen(
+    tabbed: Tabbed, game_phase: PreGamePhase, ws: WebSocketClientProtocol
+) -> tuple[Tabbed, PreGamePhase]:
     tabbed.in_game = True
     game_phase.versus_screen = True
 
     await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger)
+        ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger
+    )
     print("\nWe are in vs screen !")
     return tabbed, game_phase
 
 
-async def set_state_in_game(tabbed: Tabbed, game_phase: PreGamePhase,
-                            ws: WebSocketClientProtocol) \
-        -> tuple[Tabbed, PreGamePhase]:
+async def set_state_in_game(
+    tabbed: Tabbed, game_phase: PreGamePhase, ws: WebSocketClientProtocol
+) -> tuple[Tabbed, PreGamePhase]:
     tabbed.in_game = True
     game_phase.in_game = True
 
     await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/scene_change_in_game.json", logger)
+        ws, "data/ws_requests/pregame/scene_change_in_game.json", logger
+    )
     print("\nWe are in now game !")
     return tabbed, game_phase
 
 
-async def set_state_dota_menu(tabbed: Tabbed, game_phase: PreGamePhase,
-                              ws: WebSocketClientProtocol) \
-        -> tuple[Tabbed, PreGamePhase]:
+async def set_state_dota_menu(
+    tabbed: Tabbed, game_phase: PreGamePhase, ws: WebSocketClientProtocol
+) -> tuple[Tabbed, PreGamePhase]:
     tabbed.to_dota_menu = True
     game_phase.unknown = True
 
     await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger)
+        ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger
+    )
     print("\nWe are in Dota Menus !")
     return tabbed, game_phase
 
 
-async def set_state_desktop(tabbed: Tabbed, game_phase: PreGamePhase) \
-        -> tuple[Tabbed, PreGamePhase]:
+async def set_state_desktop(
+    tabbed: Tabbed, game_phase: PreGamePhase
+) -> tuple[Tabbed, PreGamePhase]:
     tabbed.to_desktop = True
     game_phase.unknown = True
     print("\nWe are on desktop !")
     return tabbed, game_phase
 
 
-async def set_state_settings_screen(tabbed: Tabbed, game_phase: PreGamePhase,
-                                    ws: WebSocketClientProtocol) \
-        -> tuple[Tabbed, PreGamePhase]:
+async def set_state_settings_screen(
+    tabbed: Tabbed, game_phase: PreGamePhase, ws: WebSocketClientProtocol
+) -> tuple[Tabbed, PreGamePhase]:
     tabbed.to_settings_screen = True
     game_phase.unknown = True
 
     await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger)
+        ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger
+    )
     print("\nWe are in settings !")
     return tabbed, game_phase
 
 
-async def confirm_transition_to_vs_screen(tabbed: Tabbed,
-                                          game_phase: PreGamePhase,
-                                          target_value: float,
-                                          ws: WebSocketClientProtocol) -> \
-        tuple[Tabbed, PreGamePhase]:
+async def confirm_transition_to_vs_screen(
+    tabbed: Tabbed,
+    game_phase: PreGamePhase,
+    target_value: float,
+    ws: WebSocketClientProtocol,
+) -> tuple[Tabbed, PreGamePhase]:
     """Nothing matches: we might be in vs screen. Make sure nothing keeps
     matching for a while before asserting this, because we might just
     otherwise be in some transitional state: for example, in dota tab-out;
@@ -441,8 +461,10 @@ async def confirm_transition_to_vs_screen(tabbed: Tabbed,
     mute_ssim_prints.set()
 
     while time.time() - start_time < duration:
-        print(f"Checking for vs screen... "
-              f"({time.time() - start_time:.4f}s elapsed.)", end='\r')
+        print(
+            f"Checking for vs screen... " f"({time.time() - start_time:.4f}s elapsed.)",
+            end="\r",
+        )
         ssim_matches = await scan_screen_for_matches()
 
         if max(ssim_matches.values()) >= target:
@@ -450,8 +472,7 @@ async def confirm_transition_to_vs_screen(tabbed: Tabbed,
             break
         elif time.time() - start_time >= duration:
             # The condition was true for the entire 0.5 seconds
-            tabbed, game_phase = await set_state_vs_screen(tabbed,
-                                                           game_phase, ws)
+            tabbed, game_phase = await set_state_vs_screen(tabbed, game_phase, ws)
             break
     mute_ssim_prints.clear()
     return tabbed, game_phase
@@ -466,8 +487,9 @@ async def wait_for_settings_screen_fade_out(tabbed: Tabbed) -> Tabbed:
     return tabbed
 
 
-async def wait_for_starting_buy_screen_fade_out(game_phase: PreGamePhase) \
-        -> PreGamePhase:
+async def wait_for_starting_buy_screen_fade_out(
+    game_phase: PreGamePhase,
+) -> PreGamePhase:
     """Delay to allow time for the starting buy screen fade out when
     transitioning to the hero select or settings screen. Does not trigger
     if tabbing out to Dota or Desktop since in the progressive fade from
@@ -485,8 +507,9 @@ async def capture_new_area(capture_area: dict[str, int], filename: str):
     cv.imwrite(filename, gray_frame)
 
 
-async def detect_pregame_phase(ws: WebSocketClientProtocol,
-                               socket_handler: PreGamePhaseHandler):
+async def detect_pregame_phase(
+    ws: WebSocketClientProtocol, socket_handler: PreGamePhaseHandler
+):
     #  ----------- The code below is not part of the main logic ------------
     new_capture = False  # Set manually to capture new screen area
     while new_capture:
@@ -499,71 +522,74 @@ async def detect_pregame_phase(ws: WebSocketClientProtocol,
 
         ssim_match = await scan_screen_for_matches()
 
-        if (tabbed.to_settings_screen
-                and ssim_match[4] < target
-                and not ssim_match[3] >= target):
+        if (
+            tabbed.to_settings_screen
+            and ssim_match[4] < target
+            and not ssim_match[3] >= target
+        ):
             tabbed = await wait_for_settings_screen_fade_out(tabbed)
             continue
 
-        if (game_phase.starting_buy
-                and ssim_match[1] < target
-                and not ssim_match[2] >= target
-                and not ssim_match[3] >= target):
-            game_phase = await (
-                wait_for_starting_buy_screen_fade_out(game_phase))
+        if (
+            game_phase.starting_buy
+            and ssim_match[1] < target
+            and not ssim_match[2] >= target
+            and not ssim_match[3] >= target
+        ):
+            game_phase = await wait_for_starting_buy_screen_fade_out(game_phase)
             continue
 
         if ssim_match[0] >= target and game_phase.finding_game:
-            tabbed, game_phase = await (set_state_game_found(tabbed,
-                                                             game_phase, ws))
+            tabbed, game_phase = await set_state_game_found(tabbed, game_phase, ws)
             continue
 
         if not game_phase.finding_game:
 
             if ssim_match[1] >= target and not game_phase.starting_buy:
-                tabbed, game_phase = await (
-                    set_state_starting_buy(tabbed, game_phase, ws))
+                tabbed, game_phase = await set_state_starting_buy(
+                    tabbed, game_phase, ws
+                )
                 continue
 
-            if (ssim_match[0] >= target > ssim_match[1]
-                    and ssim_match[4] < target
-                    and ssim_match[3] < target
-                    and not game_phase.hero_pick):
-                tabbed, game_phase = await (
-                    set_state_hero_pick(tabbed, game_phase, ws))
+            if (
+                ssim_match[0] >= target > ssim_match[1]
+                and ssim_match[4] < target
+                and ssim_match[3] < target
+                and not game_phase.hero_pick
+            ):
+                tabbed, game_phase = await set_state_hero_pick(tabbed, game_phase, ws)
                 continue
 
             if ssim_match[2] >= target and not tabbed.to_dota_menu:
-                tabbed, game_phase = await (
-                    set_state_dota_menu(tabbed, game_phase, ws))
+                tabbed, game_phase = await set_state_dota_menu(tabbed, game_phase, ws)
                 continue
 
             if ssim_match[3] >= target and not tabbed.to_desktop:
-                tabbed, game_phase = await (
-                    set_state_desktop(tabbed, game_phase))
+                tabbed, game_phase = await set_state_desktop(tabbed, game_phase)
                 continue
 
             if ssim_match[4] >= target and not tabbed.to_settings_screen:
-                tabbed, game_phase = await (
-                    set_state_settings_screen(tabbed, game_phase, ws))
+                tabbed, game_phase = await set_state_settings_screen(
+                    tabbed, game_phase, ws
+                )
                 continue
 
             if ssim_match[5] >= target and not game_phase.in_game:
-                tabbed, game_phase = await (
-                    set_state_in_game(tabbed, game_phase, ws))
+                tabbed, game_phase = await set_state_in_game(tabbed, game_phase, ws)
                 continue
 
-            if (max(ssim_match.values()) < target
-                    and not game_phase.versus_screen):
-                tabbed, game_phase = await (confirm_transition_to_vs_screen(
-                    tabbed, game_phase, target, ws))
+            if max(ssim_match.values()) < target and not game_phase.versus_screen:
+                tabbed, game_phase = await confirm_transition_to_vs_screen(
+                    tabbed, game_phase, target, ws
+                )
                 continue
 
         await asyncio.sleep(0.01)
 
 
-async def run_main_task(slot: int, socket_handler: PreGamePhaseHandler,
-                        ws: WebSocketClientProtocol):
+async def run_main_task(
+    slot: int, socket_handler: PreGamePhaseHandler, ws: WebSocketClientProtocol
+):
     mute_ssim_prints.set()
     main_task = asyncio.create_task(detect_pregame_phase(ws, socket_handler))
 
@@ -587,10 +613,12 @@ async def main():
             await setup_script_basics(db_conn, WinType.DENIED, SCRIPT_NAME)
         else:
             slot, name = await setup_script_basics(
-                db_conn, WinType.ACCEPTED, SCRIPT_NAME, lfm, SECONDARY_WINDOWS)
+                db_conn, WinType.ACCEPTED, SCRIPT_NAME, lfm, SECONDARY_WINDOWS
+            )
             socket_server_handler = PreGamePhaseHandler(PORT, logger)
             socket_server_task = asyncio.create_task(
-                socket_server_handler.run_socket_server())
+                socket_server_handler.run_socket_server()
+            )
 
             ws = await websocket.establish_ws_connection(URL, logger)
             await run_main_task(slot, socket_server_handler, ws)
