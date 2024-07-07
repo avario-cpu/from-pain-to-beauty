@@ -1,5 +1,5 @@
 from logging import Logger
-
+from typing import Optional
 import websockets
 from websockets import (
     WebSocketException,
@@ -13,7 +13,7 @@ SCRIPT_NAME = construct_script_name(__file__)
 
 
 async def establish_ws_connection(
-    url: str, logger: Logger = None
+    url: str, logger: Optional[Logger] = None
 ) -> WebSocketClientProtocol | None:
     logger = logger if logger is not None else assign_default_logger()
     logger.debug(f"Establishing websocket connection")
@@ -29,7 +29,9 @@ async def establish_ws_connection(
 
 
 async def send_json_requests(
-    ws: WebSocketClientProtocol, json_file_paths: str | list[str], logger: Logger = None
+    ws: WebSocketClientProtocol,
+    json_file_paths: str | list[str],
+    logger: Optional[Logger] = None,
 ):
     logger = logger if logger is not None else assign_default_logger()
     if isinstance(json_file_paths, str):
@@ -42,6 +44,8 @@ async def send_json_requests(
             with open(json_file, "r") as file:
                 await ws.send(file.read())
             response = await ws.recv()
+            if isinstance(response, bytes):
+                response = response.decode("utf-8")
             logger.info(f"WebSocket response: {response}")
         except ConnectionClosedError as e:
             logger.error(f"WebSocket connection closed: {e}")

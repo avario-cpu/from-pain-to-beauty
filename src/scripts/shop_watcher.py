@@ -9,8 +9,8 @@ import numpy as np
 from skimage.metrics import structural_similarity as ssim
 from websockets import WebSocketClientProtocol
 
-from src.conn import socks
-from src.conn import websocket
+from src.connection import socks
+from src.connection import websocket
 from src.core import constants as const
 from src.core import slots_db_handler as sdh
 from src.core import terminal_window_manager_v4 as twm

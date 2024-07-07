@@ -10,7 +10,7 @@ from pydub.playback import play  # type: ignore
 
 from src.ai import google_stt
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
-from src.conn import socks
+from src.connection import socks
 from src.core import constants as const
 from src.core import utils
 
