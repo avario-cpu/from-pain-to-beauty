@@ -38,7 +38,7 @@ class PhraseMatcher:
                 """
                 MATCH (p:Prompt)-[R]-(x)
                 WHERE (p.text) = $prompt_text
-                RETURN p.text AS value
+                RETURN p
                 """,
                 prompt_text=msg,
             )
