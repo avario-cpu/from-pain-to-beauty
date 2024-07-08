@@ -4,6 +4,7 @@ aiosqlite
 google-cloud-speech
 librosa
 matplotlib
+netowrkxdata
 mss
 numpy
 black

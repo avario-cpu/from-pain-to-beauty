@@ -24,13 +24,29 @@ NEO4J_USER = NEO4J_USER
 NEO4J_PASSWORD = NEO4J_PASSWORD
 
 
-class GreetingDatabase:
+class PhraseMatcher:
     def __init__(self, uri, user, password):
         self.driver = GraphDatabase.driver(uri, auth=(user, password))
 
-    # test
     def close(self):
         self.driver.close()
+
+    def parse_prompts(self, msg):
+        msg = msg.strip()  # strip the random white spaces obtained from stt
+        with self.driver.session() as session:
+            """Look for a match between the STT prompt text and the texts in the database nodes (adjusted to lowercase, ignoring punctuation). If a match is observed, retrieve all the data representative of direct relationships with the prompt node."""
+            result = session.run(
+                """
+            MATCH (p:Prompt)
+            WHERE toLower(apoc.text.regreplace(p.text, '[\\p{Punct}]', '')) = $prompt_text
+            MATCH (p)-[r]->(a)
+            RETURN a.text AS response, a.audio_file AS audio_file, r.
+            """,
+                prompt_text=msg,
+            )
+
+            matches = [(record["response"], record["audio_file"]) for record in result]
+            return matches
 
     def get_responses_for_phrase(self, msg):
         msg = msg.strip()
@@ -127,7 +143,7 @@ def launch_stt(interim: bool = False):
 
 async def main():
     socket_server_task = None
-    db = GreetingDatabase(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
+    db = PhraseMatcher(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
     try:
         handler = RobeauHandler(PORT, logger, db)
         launch_stt(interim=False)  # Set interim as needed
