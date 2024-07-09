@@ -8,7 +8,7 @@ from neo4j import GraphDatabase
 from pydub import AudioSegment  # type: ignore
 from pydub.playback import play  # type: ignore
 
-from src.ai import google_stt
+from src.robeau import google_stt
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from src.connection import socks
 from src.core import constants as const

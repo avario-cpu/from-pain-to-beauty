@@ -143,7 +143,7 @@ def activate_random_connections(random_pool_groups: list[list[dict]]) -> list[di
     for pooled_group in random_pool_groups:
         connection: dict = select_random_connection(pooled_group)
         logger.debug(
-            f"Selected response for random pool Id << {connection['params']['randomPoolId']} >> is: {connection['response']}"
+            f"Selected response for random pool Id {connection['params']['randomPoolId']} is: '{connection['response']}'"
         )
         activated_connections.append(activate_connection(connection))
     return activated_connections
@@ -256,11 +256,11 @@ def process_node(
     conversation_state: ConversationState,
     node_type: NodeType,
 ):
-    logger.info(f"Processing node: {node_text}")
+    logger.info(f"Processing node: '{node_text}'")
     connections = get_node_connections(session, text=node_text, node_type=node_type)
 
     if not connections:
-        logger.info(f"No connections found for node: {node_text}")
+        logger.info(f"No connections found for node: '{node_text}'")
         return
 
     response_nodes_reached = process_relationships(connections, conversation_state)

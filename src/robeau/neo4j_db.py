@@ -2,10 +2,6 @@ from neo4j import GraphDatabase
 
 from src.config.settings import NEO4J_USER, NEO4J_URI, NEO4J_PASSWORD
 
-NEO4J_URI = NEO4J_URI
-NEO4J_USER = NEO4J_USER
-NEO4J_PASSWORD = NEO4J_PASSWORD
-
 
 class GreetingDatabase:
     def __init__(self, uri, user, password):
