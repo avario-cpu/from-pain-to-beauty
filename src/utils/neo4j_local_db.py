@@ -4,9 +4,16 @@ from neo4j import Session
 import time
 from collections import defaultdict
 from src.core import utils
+import enum
+from enum import auto
 
 SCRIPT_NAME = utils.construct_script_name(__file__)
 logger = utils.setup_logger(SCRIPT_NAME)
+
+
+class NodeType(enum.Enum):
+    PROMPT = auto()
+    RESPONSE = auto()
 
 
 class ConversationState:
@@ -16,39 +23,39 @@ class ConversationState:
 
     def add_unlock(self, unlock):
         self.current_unlocks.append(unlock)
+        logger.info(f"Unlocked the node: '{unlock}'")
 
     def update_unlocks(self):
+        logger.info(
+            f"setting last unlocks: {self.last_unlocks} to current unlocks: {self.current_unlocks}"
+        )
         self.last_unlocks = self.current_unlocks
         self.current_unlocks = []
 
 
 def get_node_connections(
     neo4j_session: Session,
-    prompt_text: str | None,
-    response_text: str | None,
+    text: str,
+    node_type: NodeType,
 ) -> list[dict] | None:
     start_time = time.time()
-    if type(prompt_text) == str and response_text is None:
+    if node_type == NodeType.PROMPT:
         result = neo4j_session.run(
             """
             MATCH (x:Prompt)-[R]->(y)
             WHERE (x.text) = $prompt_text
             RETURN x, R, y
             """,
-            prompt_text=prompt_text,
+            prompt_text=text,
         )
-    elif prompt_text is None and type(response_text) == str:
+    elif node_type == NodeType.RESPONSE:
         result = neo4j_session.run(
             """
             MATCH (x:Response)-[R]->(y)
             WHERE (x.text) = $response_text
             RETURN x, R, y
             """,
-            response_text=response_text,
-        )
-    else:
-        raise ValueError(
-            "Must provide only one of prompt_text or response_text, of type str"
+            response_text=text,
         )
 
     if result is None:
@@ -83,30 +90,40 @@ def get_node_connections(
     return result_data
 
 
-def define_random_pools(
-    triggers: list[dict], print_output: bool = False
-) -> list[list[dict]]:
+def define_random_pools(connections: list[dict]) -> list[list[dict]]:
+
     grouped_data = defaultdict(list)
+    for connection in connections:
+        grouped_data[connection["params"]["randomPoolId"]].append(connection)
 
-    random_pool_ids = [trigger["params"]["randomPoolId"] for trigger in triggers]
-
-    tuples_list = zip(random_pool_ids, triggers)
-
-    for id, trigger in tuples_list:
-        grouped_data[id].append(trigger)
-
-    # Convert the grouped data to a list of lists
     result = list(grouped_data.values())
 
-    if print_output:
-        for index, group in enumerate(result):
-            print(f"\ngroup{index}:")
-            print(group, end="\n")
+    formatted_pools = "\n".join(
+        [
+            f"\ngroup{index}:\n" + "\n".join([str(conn) for conn in group])
+            for index, group in enumerate(result)
+        ]
+    )
+    logger.debug(f"Random pools defined: {formatted_pools}")
+
     return result
 
 
-def select_random_connection(connections: list[dict]) -> dict:
-    weights = [connection["params"]["randomWeight"] for connection in connections]
+def select_random_connection(connections: list[dict] | dict) -> dict:
+    if isinstance(connections, dict):  # only one connection passed
+        logger.debug(f"Only one connection passed: {connections}")
+        return connections
+
+    weights = [
+        connection.get("params", {}).get("randomWeight") for connection in connections
+    ]
+
+    if any(weight is None for weight in weights):
+        logger.warning(
+            f"Missing weight(s) for {connections}. Selecting random connection..."
+        )
+        return random.choice(connections)
+
     total_weight = sum(weights)
     chosen_weight = random.uniform(0, total_weight)
     current_weight = 0
@@ -114,80 +131,92 @@ def select_random_connection(connections: list[dict]) -> dict:
         current_weight += weight
         if current_weight >= chosen_weight:
             return connection
-    return connections[-1]
+
+    logger.error(
+        "Failed to select a connection, returning a random choice as fallback."
+    )
+    return random.choice(connections)
 
 
-def activate_random_triggers(random_triggers_groups: list[list[dict]]) -> list[dict]:
-    activated_triggers = []
-    for trigger_group in random_triggers_groups:
-        selected_trigger: dict = select_random_connection(trigger_group)
-        print(
-            f"Selected trigger's response for pool Id << {selected_trigger['params']['randomPoolId']} >> is: {selected_trigger['response']}"
+def activate_random_connections(random_pool_groups: list[list[dict]]) -> list[dict]:
+    activated_connections = []
+    for pooled_group in random_pool_groups:
+        connection: dict = select_random_connection(pooled_group)
+        logger.debug(
+            f"Selected response for random pool Id << {connection['params']['randomPoolId']} >> is: {connection['response']}"
         )
-        activated_triggers.append(selected_trigger)
-    return activated_triggers
+        activated_connections.append(activate_connection(connection))
+    return activated_connections
 
 
-def process_triggers(triggers: list[dict]) -> list[dict]:
+def activate_connection(connection: dict):
+    print(list(connection.values())[3])
+    return connection
+
+
+def process_random_connections(random_connection: list[dict]) -> list[dict]:
+    random_pool_groups: list[list[dict]] = define_random_pools(random_connection)
+    activated_connections: list[dict] = activate_random_connections(random_pool_groups)
+    return activated_connections
+
+
+def process_defaults(defaults: list[dict]) -> dict:
+    selected_default = select_random_connection(defaults)
+    activate_connection(selected_default)
+    return selected_default
+
+
+def process_triggers(connections: list[dict]) -> list[dict]:
     random_triggers = []
     guaranteed_triggers = []
+    activated_triggers = []
 
-    for trigger in triggers:
+    for trigger in connections:
         if trigger["params"]["isRandom"]:
             random_triggers.append(trigger)
         else:
             guaranteed_triggers.append(trigger)
 
-    random_triggers_groups = define_random_pools(random_triggers, print_output=True)
-    activated_triggers: list[dict] = activate_random_triggers(random_triggers_groups)
+    activated_triggers.extend(process_random_connections(random_triggers))
+    for trigger in guaranteed_triggers:
+        activated_triggers.append(activate_connection(trigger))
     return activated_triggers
 
 
-def process_unlocks(unlocks: list[dict], conversation_state: ConversationState):
-    for unlock in unlocks:
-        unlocked_node = unlock["response"]
-        conversation_state.add_unlock(unlocked_node)
-    print(f"Unlocked the nodes: {conversation_state.current_unlocks()}\n")
-
-
-def activate_attempts(successful_attempts: list[dict]):
-    for attempt in successful_attempts:
-        print(f"Attempted response: {attempt['response']}")
-
-
 def process_attempts(
-    attempts: list[dict], conversation_state: ConversationState, defaults: list[dict]
+    connections: list[dict], conversation_state: ConversationState, defaults: list[dict]
 ) -> list[dict]:
-    successful_attempts = []
+    successful_attempts: list[dict] = []
+    activated_connections: list[dict] = []
 
-    for attempt in attempts:
-        if attempt["response"] in conversation_state.last_unlocks:
-            successful_attempts.append(attempt)
+    for connection in connections:
+        if connection["response"] in conversation_state.last_unlocks:
+            successful_attempts.append(connection)
 
-    if successful_attempts:
-        activate_attempts(successful_attempts)
-        return successful_attempts
-    else:
-        print("No successful attempts found\n")
-        activated_default = process_defaults(defaults)
-        return [activated_default]  # must be a list for other functions to work
+    for connection in successful_attempts:
+        activated_connections.append(activate_connection(connection))
 
+    if not successful_attempts:
+        logger.info("No successful attempts found. Processing defaults...")
+        activated_connections.append(process_defaults(defaults))
 
-def activate_default(default: dict):
-    print(f"Default response: {default['response']}")
+    return activated_connections
 
 
-def process_defaults(defaults: list[dict]) -> dict:
-    selected_default = select_random_connection(defaults)
-    activate_default(selected_default)
-    return selected_default
+def process_unlocks(connections: list[dict], conversation_state: ConversationState):
+    for connection in connections:
+        unlocked_node = connection["response"]
+        conversation_state.add_unlock(unlocked_node)
 
 
 def process_relationships(
     connections: list[dict], conversation_state: ConversationState
 ) -> list[str]:
     formatted_connections = "\n".join([str(connection) for connection in connections])
-    logger.debug(f"Processing relationships:\n{formatted_connections}")
+    logger.info(
+        f"Processing relationships:\n{formatted_connections}\n"
+        f"with unlocked responses : {conversation_state.last_unlocks}"
+    )
 
     triggers = []
     unlocks = []
@@ -205,42 +234,40 @@ def process_relationships(
         elif relationship == "DEFAULTS":
             defaults.append(connections[i])
 
-    activated_triggers = process_triggers(triggers)
-    activated_attempts = process_attempts(attempts, conversation_state, defaults)
-    process_unlocks(unlocks, conversation_state)
+    activated_triggers: list[dict] | None = (
+        process_triggers(triggers) if triggers else None
+    )
+    activated_attempts: list[dict] | None = (
+        process_attempts(attempts, conversation_state, defaults) if attempts else None
+    )
+    if unlocks:
+        process_unlocks(unlocks, conversation_state)
 
-    response_nodes_reached = []
-    for trigger in activated_triggers:
-        response_nodes_reached.append(trigger["response"])
-    for attempt in activated_attempts:
-        response_nodes_reached.append(attempt["response"])
+    response_nodes_reached: list[str] = [
+        trigger["response"] for trigger in activated_triggers or []
+    ] + [attempt["response"] for attempt in activated_attempts or []]
 
     return response_nodes_reached
 
 
-def process_prompt(session: Session, str: str, conversation_state: ConversationState):
-    connections = get_node_connections(session, prompt_text=str, response_text=None)
+def process_node(
+    session: Session,
+    node_text: str,
+    conversation_state: ConversationState,
+    node_type: NodeType,
+):
+    logger.info(f"Processing node: {node_text}")
+    connections = get_node_connections(session, text=node_text, node_type=node_type)
 
-    if connections is None:
-        print("No connections found for the given prompt")
+    if not connections:
+        logger.info(f"No connections found for node: {node_text}")
         return
 
     response_nodes_reached = process_relationships(connections, conversation_state)
+    logger.info(f"Response nodes reached: {response_nodes_reached}")
 
-    further_connections = []
-    for node in response_nodes_reached:
-        connections = get_node_connections(
-            session, prompt_text=None, response_text=node
-        )
-        if connections:
-            further_connections.extend(connections)
-
-    if not further_connections:
-        print("No further connections found for the given response")
-        return
-
-    process_relationships(further_connections, conversation_state)
-    conversation_state.update_unlocks()
+    for node_text in response_nodes_reached:
+        process_node(session, node_text, conversation_state, NodeType.RESPONSE)
 
 
 def main():
@@ -262,22 +289,23 @@ def main():
         print(f"Connection established in {connection_time:.3f} seconds")
 
         while True:
-            user_input = (
-                input(
-                    "Enter 'hello' (or different node text value) to run the query or 'exit' to quit: "
-                )
-                .strip()
-                .lower()
-            )
+            user_input = input("Query: ").strip().lower()
             if user_input == "exit":
                 print("Exiting...")
                 break
             else:
-                process_prompt(
+                process_node(
                     session=session,
-                    str=user_input,
+                    node_text=user_input,
                     conversation_state=conversation_state,
+                    node_type=NodeType.PROMPT,
                 )
+                conversation_state.update_unlocks()
+                logger.info(f"Waiting for new prompt...\n")
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        logger.exception(e)
+        raise
     finally:
         # Close the session and driver
         session.close()
