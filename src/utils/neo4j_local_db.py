@@ -39,7 +39,6 @@ def get_node_connections(
     node_type: NodeType,
 ) -> list[dict] | None:
     start_time = time.time()
-    logger.debug(f"Getting connections for node: '{text}'")
     if node_type == NodeType.PROMPT:
         result = neo4j_session.run(
             """
@@ -83,8 +82,8 @@ def get_node_connections(
             "prompt": prompt_props["text"],
             "relationship": relationship_type,
             "response": response_props.get("text", "N/A"),
-            "audio": response_props.get("audioFile", "N/A"),
             "params": relationship_props,
+            "audio": response_props.get("audioFile", "N/A"),
         }
 
         result_data.append(connection)
@@ -105,7 +104,8 @@ def define_random_pools(connections: list[dict]) -> list[list[dict]]:
             for index, group in enumerate(result)
         ]
     )
-    logger.debug(f"Random pools defined: {formatted_pools}")
+    if result:
+        logger.debug(f"Random pools defined: {formatted_pools}")
 
     return result
 
@@ -166,54 +166,33 @@ def process_defaults():
     pass
 
 
-def process_triggers(
-    connections: list[dict], conversation_state: ConversationState
+def process_connections(
+    connections: list[dict], conversation_state: ConversationState, connection_type: str
 ) -> list[dict]:
-    random_triggers = []
-    triggers = []
-    activated_triggers = []
+    random_connections = []
+    connections_list = []
+    activated_connections = []
 
     for connection in connections:
         if connection["response"] in conversation_state.locks:
-            logger.info(f"Skipping connection: {connection} as it is locked")
+            logger.info(f"Skipping locked connection: {connection}")
+            continue
+        if (
+            connection_type == "attempt"
+            and connection["response"] not in conversation_state.unlocks
+        ):
             continue
         if connection.get("params", {}).get("randomWeight"):
-            random_triggers.append(connection)
+            random_connections.append(connection)
         else:
-            triggers.append(connection)
+            connections_list.append(connection)
 
-    for connection in triggers:
-        activated_triggers.append(activate_connection(connection))
+    for connection in connections_list:
+        activated_connections.append(activate_connection(connection))
 
-    activated_triggers.extend(process_random_connections(random_triggers))
+    activated_connections.extend(process_random_connections(random_connections))
 
-    return activated_triggers
-
-
-def process_attempts(
-    connections: list[dict], conversation_state: ConversationState
-) -> list[dict]:
-
-    attempts: list[dict] = []
-    random_attempts: list[dict] = []
-    activated_attempts: list[dict] = []
-
-    for connection in connections:
-        if connection["response"] in conversation_state.locks:
-            logger.info(f"Skipping connection: {connection} as it is locked")
-            continue
-        if connection["response"] in conversation_state.unlocks:
-            if connection.get("params", {}).get("randomWeight"):
-                random_attempts.append(connection)
-            else:
-                attempts.append(connection)
-
-    for connection in attempts:
-        activated_attempts.append(activate_connection(connection))
-
-    activated_attempts.extend(process_random_connections(random_attempts))
-
-    return activated_attempts
+    return activated_connections
 
 
 def process_unlocks(connections: list[dict], conversation_state: ConversationState):
@@ -228,12 +207,14 @@ def process_relationships(
     formatted_connections = "\n".join([str(connection) for connection in connections])
     logger.info(
         f"Processing relationships:\n{formatted_connections}\n"
-        f"with unlocked responses : {conversation_state.unlocks}"
+        f"with unlocked responses : {conversation_state.unlocks}\n"
+        f"and locked responses: {conversation_state.locks}"
     )
 
     locks = []
-    triggers = []
+    checks = []
     attempts = []
+    triggers = []
     defaults = []
     unlocks = []
 
@@ -241,6 +222,8 @@ def process_relationships(
         relationship = connections[i]["relationship"]
         if relationship == "LOCKS":
             locks.append(connections[i])
+        elif relationship == "CHECKS":
+            checks.append(connections[i])
         elif relationship == "ATTEMPTS":
             attempts.append(connections[i])
         elif relationship == "TRIGGERS":
@@ -253,26 +236,42 @@ def process_relationships(
     for lock in locks:
         conversation_state.add_lock(lock["response"])
 
+    activated_checks: list[dict] | None = (
+        process_connections(checks, conversation_state, connection_type="checks")
+        if checks
+        else None
+    )
+
     activated_attempts: list[dict] | None = (
-        process_attempts(attempts, conversation_state) if attempts else None
+        process_connections(attempts, conversation_state, connection_type="attempt")
+        if attempts and not activated_checks
+        else None
     )
 
     activated_triggers: list[dict] | None = (
-        process_triggers(triggers, conversation_state)
-        if triggers and not activated_attempts
+        process_connections(triggers, conversation_state, connection_type="trigger")
+        if triggers and not activated_attempts and not activated_checks
         else None
     )
 
     activated_defaults: list[dict] | None = (
-        process_defaults() if defaults else None
+        process_defaults()
+        if defaults
+        and not activated_checks
+        and not activated_attempts
+        and not activated_triggers
+        else None
     )  # TODO: Implement process_defaults function
 
     if unlocks:
         process_unlocks(unlocks, conversation_state)
 
-    response_nodes_reached: list[str] = [
-        attempt["response"] for attempt in activated_attempts or []
-    ] + [trigger["response"] for trigger in activated_triggers or []]
+    response_nodes_reached: list[str] = (
+        [check["response"] for check in activated_checks or []]
+        + [attempt["response"] for attempt in activated_attempts or []]
+        + [trigger["response"] for trigger in activated_triggers or []]
+        + [default["response"] for default in activated_defaults or []]
+    )
 
     return response_nodes_reached
 
@@ -283,11 +282,10 @@ def process_node(
     conversation_state: ConversationState,
     node_type: NodeType,
 ):
-    logger.info(f"Processing node: '{node_text}'")
+    logger.info(f"Processing node: '{node_text}'...")
     connections = get_node_connections(session, text=node_text, node_type=node_type)
 
     if not connections:
-        logger.info(f"No connections found for node: '{node_text}'")
         return
 
     response_nodes_reached = process_relationships(connections, conversation_state)
