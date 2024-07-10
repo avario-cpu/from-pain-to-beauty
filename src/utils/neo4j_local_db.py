@@ -27,10 +27,60 @@ class ConversationState:
             self.locks.append(lock)
             logger.info(f"Locked the node: '{lock}'")
 
-    def add_unlock(self, unlock):
-        if unlock not in self.unlocks:
-            self.unlocks.append(unlock)
-            logger.info(f"Unlocked the node: '{unlock}'")
+    def add_unlock(self, unlock: dict[str, str | float | None]):
+        node = unlock.get("node")
+        duration = unlock.get("timeLeft")
+        start_time = time.time()
+
+        for existing_unlock in self.unlocks:
+            if existing_unlock["node"] != node:
+                continue
+
+            if duration is None:
+                logger.info(
+                    f"Refused to unlock the node: '{node}' because it is infinite and already tracked."
+                )
+                return
+
+            # Refresh the time duration
+            existing_unlock["timeLeft"] = duration
+            existing_unlock["start_time"] = start_time
+            logger.info(f"Refreshed the time duration for node: '{node}'")
+            return
+
+        self.unlocks.append(
+            {"node": node, "timeLeft": duration, "start_time": start_time}
+        )
+        logger.info(f"Unlocked the node: '{node}'")
+
+    def calculate_unlock_timings(self, node: str):
+        for unlock in self.unlocks:
+            if unlock["node"] != node:
+                continue
+
+            if unlock["timeLeft"] is None:
+                return None  # Infinite duration
+
+            elapsed_time = time.time() - unlock["start_time"]
+            remaining_time = unlock["timeLeft"] - elapsed_time
+            return max(0, remaining_time)  # Ensure non-negative remaining time
+
+        return None
+
+    def get_unlocks(self):
+        """Returns the formatted and updated unlocks with the remaining time left for each node."""
+        updated_unlocks = []
+        for unlock in self.unlocks:
+            updated_unlock = unlock.copy()
+            remaining_time = self.calculate_unlock_timings(unlock["node"])
+            updated_unlock["timeLeft"] = (
+                f"{remaining_time:.2f}" if remaining_time is not None else "Infinite"
+            )
+            updated_unlock["start_time"] = time.strftime(
+                "%H:%M:%S", time.localtime(unlock["start_time"])
+            )
+            updated_unlocks.append(updated_unlock)
+        return "\n".join(str(unlock) for unlock in updated_unlocks)
 
 
 def get_node_connections(
@@ -81,9 +131,8 @@ def get_node_connections(
             "id": index,
             "prompt": prompt_props["text"],
             "relationship": relationship_type,
-            "response": response_props.get("text", "N/A"),
+            "response": response_props.get("text", None),
             "params": relationship_props,
-            "audio": response_props.get("audioFile", "N/A"),
         }
 
         result_data.append(connection)
@@ -151,7 +200,10 @@ def activate_random_connections(random_pool_groups: list[list[dict]]) -> list[di
 
 
 def activate_connection(connection: dict):
-    print(list(connection.values())[3])
+    """Output."""
+    output = list(connection.values())[3]
+    print(output)
+    logger.info(f"\n Output: '{output}'\n")
     return connection
 
 
@@ -174,14 +226,18 @@ def process_connections(
     activated_connections = []
 
     for connection in connections:
-        if connection["response"] in conversation_state.locks:
+        node = connection["response"]
+        if node in conversation_state.locks:
             logger.info(f"Skipping locked connection: {connection}")
             continue
-        if (
-            connection_type == "attempt"
-            and connection["response"] not in conversation_state.unlocks
+
+        remaining_time = conversation_state.calculate_unlock_timings(node)
+        if connection_type == "attempt" and (
+            remaining_time is None or remaining_time <= 0
         ):
+            logger.info(f"Skipping locked or expired connection: {connection}")
             continue
+
         if connection.get("params", {}).get("randomWeight"):
             random_connections.append(connection)
         else:
@@ -197,7 +253,10 @@ def process_connections(
 
 def process_unlocks(connections: list[dict], conversation_state: ConversationState):
     for connection in connections:
-        unlocked_node = connection["response"]
+        unlocked_node = {
+            "node": connection.get("response"),
+            "timeLeft": connection.get("params", {}).get("limitedDuration"),
+        }
         conversation_state.add_unlock(unlocked_node)
 
 
@@ -207,7 +266,7 @@ def process_relationships(
     formatted_connections = "\n".join([str(connection) for connection in connections])
     logger.info(
         f"Processing relationships:\n{formatted_connections}\n"
-        f"with unlocked responses : {conversation_state.unlocks}\n"
+        f"with unlocked responses :\n{conversation_state.get_unlocks()}\n"
         f"and locked responses: {conversation_state.locks}"
     )
 
@@ -315,6 +374,7 @@ def listen_for_queries(session, conversation_state, specific_prompt, query_durat
             print("Exiting...")
             return False
         elif user_query:
+            logger.info(f"\n\nNew query: {user_query}")
             process_node(
                 session=session,
                 node_text=user_query,
