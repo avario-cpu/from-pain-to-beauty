@@ -6,6 +6,7 @@ from collections import defaultdict
 from src.core import utils
 import enum
 from enum import auto
+from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 
 SCRIPT_NAME = utils.construct_script_name(__file__)
 logger = utils.setup_logger(SCRIPT_NAME)
@@ -18,19 +19,18 @@ class NodeType(enum.Enum):
 
 class ConversationState:
     def __init__(self):
-        self.current_unlocks = []
-        self.last_unlocks = []
+        self.unlocks = []
+        self.locks = []
+
+    def add_lock(self, lock):
+        if lock not in self.locks:
+            self.locks.append(lock)
+            logger.info(f"Locked the node: '{lock}'")
 
     def add_unlock(self, unlock):
-        self.current_unlocks.append(unlock)
-        logger.info(f"Unlocked the node: '{unlock}'")
-
-    def update_unlocks(self):
-        logger.info(
-            f"setting last unlocks: {self.last_unlocks} to current unlocks: {self.current_unlocks}"
-        )
-        self.last_unlocks = self.current_unlocks
-        self.current_unlocks = []
+        if unlock in self.locks:
+            self.unlocks.append(unlock)
+            logger.info(f"Unlocked the node: '{unlock}'")
 
 
 def get_node_connections(
@@ -39,6 +39,7 @@ def get_node_connections(
     node_type: NodeType,
 ) -> list[dict] | None:
     start_time = time.time()
+    logger.debug(f"Getting connections for node: '{text}'")
     if node_type == NodeType.PROMPT:
         result = neo4j_session.run(
             """
@@ -160,26 +161,38 @@ def process_random_connections(random_connection: list[dict]) -> list[dict]:
     return activated_connections
 
 
-def process_defaults(defaults: list[dict]) -> dict:
-    selected_default = select_random_connection(defaults)
+def process_defaults(
+    connections: list[dict], conversation_state: ConversationState
+) -> dict:
+    non_blocked_defaults = [
+        connection
+        for connection in connections
+        if connection["response"] not in conversation_state.locks
+    ]
+    selected_default = select_random_connection(non_blocked_defaults)
     activate_connection(selected_default)
     return selected_default
 
 
-def process_triggers(connections: list[dict]) -> list[dict]:
+def process_triggers(
+    connections: list[dict], conversation_state: ConversationState
+) -> list[dict]:
     random_triggers = []
     guaranteed_triggers = []
     activated_triggers = []
 
-    for trigger in connections:
-        if trigger["params"]["isRandom"]:
-            random_triggers.append(trigger)
+    for connection in connections:
+        if connection["response"] in conversation_state.locks:
+            logger.info(f"Skipping connection: {connection} as it is locked")
+            continue
+        if connection.get("params", {}).get("randomWeight"):
+            random_triggers.append(connection)
         else:
-            guaranteed_triggers.append(trigger)
+            guaranteed_triggers.append(connection)
 
     activated_triggers.extend(process_random_connections(random_triggers))
-    for trigger in guaranteed_triggers:
-        activated_triggers.append(activate_connection(trigger))
+    for connection in guaranteed_triggers:
+        activated_triggers.append(activate_connection(connection))
     return activated_triggers
 
 
@@ -190,15 +203,22 @@ def process_attempts(
     activated_connections: list[dict] = []
 
     for connection in connections:
-        if connection["response"] in conversation_state.last_unlocks:
+        if connection["response"] in conversation_state.locks:
+            logger.info(f"Skipping connection: {connection} as it is locked")
+            continue
+        if connection["response"] in conversation_state.unlocks:
             successful_attempts.append(connection)
 
     for connection in successful_attempts:
         activated_connections.append(activate_connection(connection))
 
     if not successful_attempts:
-        logger.info("No successful attempts found. Processing defaults...")
-        activated_connections.append(process_defaults(defaults))
+        logger.info("No successful attempts found... looking for defaults.")
+        if defaults:
+            logger.info("Processing defaults...")
+            activated_connections.append(process_defaults(defaults, conversation_state))
+        else:
+            logger.info("No defaults found.")
 
     return activated_connections
 
@@ -215,27 +235,33 @@ def process_relationships(
     formatted_connections = "\n".join([str(connection) for connection in connections])
     logger.info(
         f"Processing relationships:\n{formatted_connections}\n"
-        f"with unlocked responses : {conversation_state.last_unlocks}"
+        f"with unlocked responses : {conversation_state.unlocks}"
     )
 
+    locks = []
     triggers = []
-    unlocks = []
     attempts = []
     defaults = []
+    unlocks = []
 
     for i in range(len(connections)):
         relationship = connections[i]["relationship"]
-        if relationship == "TRIGGERS":
+        if relationship == "LOCKS":
+            locks.append(connections[i])
+        elif relationship == "TRIGGERS":
             triggers.append(connections[i])
-        elif relationship == "UNLOCKS":
-            unlocks.append(connections[i])
         elif relationship == "ATTEMPTS":
             attempts.append(connections[i])
         elif relationship == "DEFAULTS":
             defaults.append(connections[i])
+        elif relationship == "UNLOCKS":
+            unlocks.append(connections[i])
+
+    for lock in locks:
+        conversation_state.add_lock(lock["response"])
 
     activated_triggers: list[dict] | None = (
-        process_triggers(triggers) if triggers else None
+        process_triggers(triggers, conversation_state) if triggers else None
     )
     activated_attempts: list[dict] | None = (
         process_attempts(attempts, conversation_state, defaults) if attempts else None
@@ -270,46 +296,67 @@ def process_node(
         process_node(session, node_text, conversation_state, NodeType.RESPONSE)
 
 
-def main():
-    uri = "bolt://localhost:7687"
-    username = "neo4j"
-    password = "adw[@#$u392a"
-
-    # Measure connection establishment time
+def establish_connection():
     start_time = time.time()
-    driver = GraphDatabase.driver(uri, auth=(username, password))
-    conversation_state = ConversationState()
-
-    # Reuse session
+    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
     session = driver.session()
+    session.run("RETURN 1").consume()  # Warmup query
+    connection_time = time.time() - start_time
+    print(f"Connection established in {connection_time:.3f} seconds")
+    print(driver.get_server_info())
+    return driver, session
 
+
+def listen_for_queries(session, conversation_state, specific_prompt, query_duration):
+    start_time = time.time()
+    print(f"Specific prompt '{specific_prompt}' detected. Listening for query...")
+    while time.time() - start_time < query_duration:
+        user_query = input("Query: ").strip().lower()
+        if user_query == "exit":
+            print("Exiting...")
+            return False
+        elif user_query:
+            process_node(
+                session=session,
+                node_text=user_query,
+                conversation_state=conversation_state,
+                node_type=NodeType.PROMPT,
+            )
+            start_time = time.time()
+            print(f"Waiting for new query within {query_duration} seconds...\n")
+    print("ran out of time")
+    return True
+
+
+def main():
+
+    driver, session = None, None
     try:
-        session.run("RETURN 1").consume()  # Warmup query
-        connection_time = time.time() - start_time
-        print(f"Connection established in {connection_time:.3f} seconds")
+        driver, session = establish_connection()
+        conversation_state = ConversationState()
+        specific_prompt = "start"
+        query_duration = (
+            10  # Duration in seconds to wait for a query after specific prompt
+        )
 
         while True:
-            user_input = input("Query: ").strip().lower()
+            user_input = input("start or exit: ").strip().lower()
             if user_input == "exit":
                 print("Exiting...")
                 break
-            else:
-                process_node(
-                    session=session,
-                    node_text=user_input,
-                    conversation_state=conversation_state,
-                    node_type=NodeType.PROMPT,
+            elif user_input == specific_prompt:
+                listen_for_queries(
+                    session, conversation_state, specific_prompt, query_duration
                 )
-                conversation_state.update_unlocks()
-                logger.info(f"Waiting for new prompt...\n")
     except Exception as e:
         print(f"Error occurred: {e}")
         logger.exception(e)
         raise
     finally:
-        # Close the session and driver
-        session.close()
-        driver.close()
+        if session:
+            session.close()
+        if driver:
+            driver.close()
 
 
 if __name__ == "__main__":
