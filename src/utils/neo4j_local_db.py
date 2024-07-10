@@ -28,7 +28,7 @@ class ConversationState:
             logger.info(f"Locked the node: '{lock}'")
 
     def add_unlock(self, unlock):
-        if unlock in self.locks:
+        if unlock not in self.unlocks:
             self.unlocks.append(unlock)
             logger.info(f"Unlocked the node: '{unlock}'")
 
@@ -161,24 +161,16 @@ def process_random_connections(random_connection: list[dict]) -> list[dict]:
     return activated_connections
 
 
-def process_defaults(
-    connections: list[dict], conversation_state: ConversationState
-) -> dict:
-    non_blocked_defaults = [
-        connection
-        for connection in connections
-        if connection["response"] not in conversation_state.locks
-    ]
-    selected_default = select_random_connection(non_blocked_defaults)
-    activate_connection(selected_default)
-    return selected_default
+def process_defaults():
+    """TODO: Implement process_defaults function"""
+    pass
 
 
 def process_triggers(
     connections: list[dict], conversation_state: ConversationState
 ) -> list[dict]:
     random_triggers = []
-    guaranteed_triggers = []
+    triggers = []
     activated_triggers = []
 
     for connection in connections:
@@ -188,39 +180,40 @@ def process_triggers(
         if connection.get("params", {}).get("randomWeight"):
             random_triggers.append(connection)
         else:
-            guaranteed_triggers.append(connection)
+            triggers.append(connection)
+
+    for connection in triggers:
+        activated_triggers.append(activate_connection(connection))
 
     activated_triggers.extend(process_random_connections(random_triggers))
-    for connection in guaranteed_triggers:
-        activated_triggers.append(activate_connection(connection))
+
     return activated_triggers
 
 
 def process_attempts(
-    connections: list[dict], conversation_state: ConversationState, defaults: list[dict]
+    connections: list[dict], conversation_state: ConversationState
 ) -> list[dict]:
-    successful_attempts: list[dict] = []
-    activated_connections: list[dict] = []
+
+    attempts: list[dict] = []
+    random_attempts: list[dict] = []
+    activated_attempts: list[dict] = []
 
     for connection in connections:
         if connection["response"] in conversation_state.locks:
             logger.info(f"Skipping connection: {connection} as it is locked")
             continue
         if connection["response"] in conversation_state.unlocks:
-            successful_attempts.append(connection)
+            if connection.get("params", {}).get("randomWeight"):
+                random_attempts.append(connection)
+            else:
+                attempts.append(connection)
 
-    for connection in successful_attempts:
-        activated_connections.append(activate_connection(connection))
+    for connection in attempts:
+        activated_attempts.append(activate_connection(connection))
 
-    if not successful_attempts:
-        logger.info("No successful attempts found... looking for defaults.")
-        if defaults:
-            logger.info("Processing defaults...")
-            activated_connections.append(process_defaults(defaults, conversation_state))
-        else:
-            logger.info("No defaults found.")
+    activated_attempts.extend(process_random_connections(random_attempts))
 
-    return activated_connections
+    return activated_attempts
 
 
 def process_unlocks(connections: list[dict], conversation_state: ConversationState):
@@ -248,10 +241,10 @@ def process_relationships(
         relationship = connections[i]["relationship"]
         if relationship == "LOCKS":
             locks.append(connections[i])
-        elif relationship == "TRIGGERS":
-            triggers.append(connections[i])
         elif relationship == "ATTEMPTS":
             attempts.append(connections[i])
+        elif relationship == "TRIGGERS":
+            triggers.append(connections[i])
         elif relationship == "DEFAULTS":
             defaults.append(connections[i])
         elif relationship == "UNLOCKS":
@@ -260,18 +253,26 @@ def process_relationships(
     for lock in locks:
         conversation_state.add_lock(lock["response"])
 
-    activated_triggers: list[dict] | None = (
-        process_triggers(triggers, conversation_state) if triggers else None
-    )
     activated_attempts: list[dict] | None = (
-        process_attempts(attempts, conversation_state, defaults) if attempts else None
+        process_attempts(attempts, conversation_state) if attempts else None
     )
+
+    activated_triggers: list[dict] | None = (
+        process_triggers(triggers, conversation_state)
+        if triggers and not activated_attempts
+        else None
+    )
+
+    activated_defaults: list[dict] | None = (
+        process_defaults() if defaults else None
+    )  # TODO: Implement process_defaults function
+
     if unlocks:
         process_unlocks(unlocks, conversation_state)
 
     response_nodes_reached: list[str] = [
-        trigger["response"] for trigger in activated_triggers or []
-    ] + [attempt["response"] for attempt in activated_attempts or []]
+        attempt["response"] for attempt in activated_attempts or []
+    ] + [trigger["response"] for trigger in activated_triggers or []]
 
     return response_nodes_reached
 
