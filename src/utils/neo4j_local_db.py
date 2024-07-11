@@ -41,6 +41,7 @@ class ConversationState:
     def __init__(self):
         self.unlocks = []
         self.locks = []
+        self.questioning = False
 
     def add_lock(self, lock):
         if lock not in self.locks:
@@ -209,35 +210,54 @@ def select_random_connection(connections: list[dict] | dict) -> dict:
     return random.choice(connections)
 
 
-def activate_random_connections(random_pool_groups: list[list[dict]]) -> list[dict]:
-    activated_connections = []
+def select_random_connections(random_pool_groups: list[list[dict]]) -> list[dict]:
+    selected_connections = []
     for pooled_group in random_pool_groups:
         connection: dict = select_random_connection(pooled_group)
         logger.debug(
             f"Selected response for random pool Id {connection['params']['randomPoolId']} is: '{connection['response']}'"
         )
-        activated_connections.append(activate_connection(connection))
-    return activated_connections
+        selected_connections.append(connection)
+    return selected_connections
 
 
-def activate_connection(connection: dict):
+def activate_connections(connections: list[dict]):
     """Output."""
-    output = list(connection.values())[3]
-    print(output)
-    logger.info(f"\n Output: '{output}'\n")
-    if connection.get("labels", {}).get("response") == "Question":
-        print("Question detected. Listening for query...")
-    return connection
+    for connection in connections:
+        output = list(connection.values())[3]
+        print(output)
+        logger.info(f"\n Output: '{output}'\n")
+    return connections
 
 
 def process_random_connections(random_connection: list[dict]) -> list[dict]:
     random_pool_groups: list[list[dict]] = define_random_pools(random_connection)
-    activated_connections: list[dict] = activate_random_connections(random_pool_groups)
-    return activated_connections
+    selected_connections: list[dict] = select_random_connections(random_pool_groups)
+    activate_connections(selected_connections)
+    return selected_connections
 
 
 def process_defaults():
     """TODO: Implement process_defaults function"""
+    pass
+
+
+def execute_attempt(
+    node: str,
+    connection: dict,
+    conversation_state: ConversationState,
+):
+    remaining_time = conversation_state.calculate_unlock_timings(node)
+    if remaining_time is None or remaining_time <= 0:
+        logger.info(
+            f"Skipping locked or timed out connection: {list(connection.values())[1:4]}"
+        )
+        return False
+    else:
+        return True
+
+
+def process_expects(connection: dict, conversation_state: ConversationState):
     pass
 
 
@@ -246,9 +266,9 @@ def process_connections(
     conversation_state: ConversationState,
     connection_type: RelationshipType,
 ) -> list[dict]:
-    random_connections = []
-    connections_list = []
-    activated_connections = []
+    random_connections: list[dict] = []
+    connections_list: list[dict] = []
+    activated_connections: list[dict] = []
 
     for connection in connections:
         node = connection["response"]
@@ -256,23 +276,22 @@ def process_connections(
             logger.info(f"Skipping locked connection: {list(connection.values())[1:4]}")
             continue
 
-        remaining_time = conversation_state.calculate_unlock_timings(node)
-        if connection_type == ATTEMPTS and (
-            remaining_time is None or remaining_time <= 0
+        if connection_type == ATTEMPTS and not execute_attempt(
+            node,
+            connection,
+            conversation_state,
         ):
-            logger.info(
-                f"Skipping locked or timed out connection: {list(connection.values())[1:4]}"
-            )
             continue
+
+        elif connection_type == EXPECTS:
+            process_expects(connection, conversation_state)
 
         if connection.get("params", {}).get("randomWeight"):
             random_connections.append(connection)
         else:
             connections_list.append(connection)
 
-    for connection in connections_list:
-        activated_connections.append(activate_connection(connection))
-
+    activated_connections.extend(activate_connections(connections_list))
     activated_connections.extend(process_random_connections(random_connections))
 
     return activated_connections
