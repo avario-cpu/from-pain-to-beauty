@@ -17,6 +17,26 @@ class NodeType(enum.Enum):
     RESPONSE = auto()
 
 
+class RelationshipType(enum.Enum):
+    LOCKS = auto()
+    CHECKS = auto()
+    ATTEMPTS = auto()
+    TRIGGERS = auto()
+    DEFAULTS = auto()
+    UNLOCKS = auto()
+    EXPECTS = auto()
+
+
+# Aliases for readability
+ATTEMPTS = RelationshipType.ATTEMPTS
+CHECKS = RelationshipType.CHECKS
+DEFAULTS = RelationshipType.DEFAULTS
+LOCKS = RelationshipType.LOCKS
+TRIGGERS = RelationshipType.TRIGGERS
+UNLOCKS = RelationshipType.UNLOCKS
+EXPECTS = RelationshipType.EXPECTS
+
+
 class ConversationState:
     def __init__(self):
         self.unlocks = []
@@ -118,13 +138,13 @@ def get_node_connections(
         R = record["R"]
         y = record["y"]
 
-        prompt_labels = list(x.labels)
+        prompt_labels = [label for label in x.labels if label != "Prompt"]
         prompt_props = dict(x)
 
         relationship_type = R.type
         relationship_props = dict(R)
 
-        response_labels = list(y.labels)
+        response_labels = [label for label in y.labels if label != "Response"]
         response_props = dict(y)
 
         connection = {
@@ -133,6 +153,7 @@ def get_node_connections(
             "relationship": relationship_type,
             "response": response_props.get("text", None),
             "params": relationship_props,
+            "labels": {"prompt": prompt_labels, "response": response_labels},
         }
 
         result_data.append(connection)
@@ -204,6 +225,8 @@ def activate_connection(connection: dict):
     output = list(connection.values())[3]
     print(output)
     logger.info(f"\n Output: '{output}'\n")
+    if connection.get("labels", {}).get("response") == "Question":
+        print("Question detected. Listening for query...")
     return connection
 
 
@@ -219,7 +242,9 @@ def process_defaults():
 
 
 def process_connections(
-    connections: list[dict], conversation_state: ConversationState, connection_type: str
+    connections: list[dict],
+    conversation_state: ConversationState,
+    connection_type: RelationshipType,
 ) -> list[dict]:
     random_connections = []
     connections_list = []
@@ -232,11 +257,11 @@ def process_connections(
             continue
 
         remaining_time = conversation_state.calculate_unlock_timings(node)
-        if connection_type == "attempt" and (
+        if connection_type == ATTEMPTS and (
             remaining_time is None or remaining_time <= 0
         ):
             logger.info(
-                f"Skipping locked or expired connection: {list(connection.values())[1:4]}"
+                f"Skipping locked or timed out connection: {list(connection.values())[1:4]}"
             )
             continue
 
@@ -272,45 +297,48 @@ def process_relationships(
         f"and locked responses: {conversation_state.locks}"
     )
 
-    locks = []
-    checks = []
-    attempts = []
-    triggers = []
-    defaults = []
-    unlocks = []
+    locks: list[dict] = []
+    checks: list[dict] = []
+    expects: list[dict] = []
+    attempts: list[dict] = []
+    triggers: list[dict] = []
+    defaults: list[dict] = []
+    unlocks: list[dict] = []
 
-    for i in range(len(connections)):
-        relationship = connections[i]["relationship"]
-        if relationship == "LOCKS":
-            locks.append(connections[i])
-        elif relationship == "CHECKS":
-            checks.append(connections[i])
-        elif relationship == "ATTEMPTS":
-            attempts.append(connections[i])
-        elif relationship == "TRIGGERS":
-            triggers.append(connections[i])
-        elif relationship == "DEFAULTS":
-            defaults.append(connections[i])
-        elif relationship == "UNLOCKS":
-            unlocks.append(connections[i])
+    globals
+
+    relationships_map = {
+        "LOCKS": locks,
+        "CHECKS": checks,
+        "ATTEMPTS": attempts,
+        "TRIGGERS": triggers,
+        "DEFAULTS": defaults,
+        "UNLOCKS": unlocks,
+        "EXPECTS": expects,
+    }
+
+    for connection in connections:
+        relationship = connection["relationship"]
+        if relationship in relationships_map:
+            relationships_map[relationship].append(connection)
 
     for lock in locks:
         conversation_state.add_lock(lock["response"])
 
     activated_checks: list[dict] | None = (
-        process_connections(checks, conversation_state, connection_type="checks")
+        process_connections(checks, conversation_state, connection_type=CHECKS)
         if checks
         else None
     )
 
     activated_attempts: list[dict] | None = (
-        process_connections(attempts, conversation_state, connection_type="attempt")
+        process_connections(attempts, conversation_state, connection_type=ATTEMPTS)
         if attempts and not activated_checks
         else None
     )
 
     activated_triggers: list[dict] | None = (
-        process_connections(triggers, conversation_state, connection_type="trigger")
+        process_connections(triggers, conversation_state, connection_type=TRIGGERS)
         if triggers and not activated_attempts and not activated_checks
         else None
     )
@@ -333,6 +361,10 @@ def process_relationships(
         + [trigger["response"] for trigger in activated_triggers or []]
         + [default["response"] for default in activated_defaults or []]
     )
+
+    if expects:
+        process_connections(expects, conversation_state, connection_type=EXPECTS)
+        # TODO Implement process_expectations
 
     return response_nodes_reached
 
