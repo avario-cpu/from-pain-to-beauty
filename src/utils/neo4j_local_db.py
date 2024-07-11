@@ -15,33 +15,50 @@ logger = utils.setup_logger(SCRIPT_NAME)
 class NodeType(enum.Enum):
     PROMPT = auto()
     RESPONSE = auto()
+    TRANSMISSION = auto()
 
 
 class RelationshipType(enum.Enum):
-    LOCKS = auto()
     CHECKS = auto()
     ATTEMPTS = auto()
     TRIGGERS = auto()
     DEFAULTS = auto()
+
+    LOCKS = auto()
     UNLOCKS = auto()
     EXPECTS = auto()
+    PRIMES = auto()
 
 
-# Aliases for readability
-ATTEMPTS = RelationshipType.ATTEMPTS
+PROMPT = NodeType.PROMPT
+RESPONSE = NodeType.RESPONSE
+TRANSMISSION = NodeType.TRANSMISSION
+
 CHECKS = RelationshipType.CHECKS
-DEFAULTS = RelationshipType.DEFAULTS
-LOCKS = RelationshipType.LOCKS
+ATTEMPTS = RelationshipType.ATTEMPTS
 TRIGGERS = RelationshipType.TRIGGERS
+DEFAULTS = RelationshipType.DEFAULTS
+
+LOCKS = RelationshipType.LOCKS
 UNLOCKS = RelationshipType.UNLOCKS
 EXPECTS = RelationshipType.EXPECTS
+PRIMES = RelationshipType.PRIMES
 
 
 class ConversationState:
     def __init__(self):
         self.unlocks = []
         self.locks = []
-        self.questioning = False
+        self.expectations = []
+
+    def set_expectations(self, expectations: list[str]):
+        self.expectations = expectations
+        logger.info(f"Expectations for current conversation state: {self.expectations}")
+
+    def trigger_expectation_failure(self):
+        logger.info("Expectation failure triggered.")
+        # TODO: Implement trigger_expectation_failure function
+        pass
 
     def add_lock(self, lock):
         if lock not in self.locks:
@@ -108,9 +125,30 @@ def get_node_connections(
     neo4j_session: Session,
     text: str,
     node_type: NodeType,
+    conversation_state: ConversationState,
 ) -> list[dict] | None:
-    start_time = time.time()
-    if node_type == NodeType.PROMPT:
+
+    if conversation_state.expectations:
+        if text in conversation_state.expectations:
+            logger.info(
+                f"'{text}' matches conversation expectations: {conversation_state.expectations}"
+            )
+            result = neo4j_session.run(
+                """
+                MATCH (x:Answer)-[R]->(y)
+                WHERE (x.text) = $prompt_text
+                RETURN x, R, y
+                """,
+                prompt_text=text,
+            )
+        else:
+            logger.info(
+                f"'{text}' does not match conversation expectations: {conversation_state.expectations}"
+            )
+            conversation_state.trigger_expectation_failure()
+            return None
+
+    elif node_type == PROMPT:
         result = neo4j_session.run(
             """
             MATCH (x:Prompt)-[R]->(y)
@@ -119,7 +157,7 @@ def get_node_connections(
             """,
             prompt_text=text,
         )
-    elif node_type == NodeType.RESPONSE:
+    elif node_type == RESPONSE:
         result = neo4j_session.run(
             """
             MATCH (x:Response)-[R]->(y)
@@ -244,24 +282,16 @@ def process_defaults():
 
 def execute_attempt(
     node: str,
-    connection: dict,
     conversation_state: ConversationState,
 ):
     remaining_time = conversation_state.calculate_unlock_timings(node)
     if remaining_time is None or remaining_time <= 0:
-        logger.info(
-            f"Skipping locked or timed out connection: {list(connection.values())[1:4]}"
-        )
         return False
     else:
         return True
 
 
-def process_expects(connection: dict, conversation_state: ConversationState):
-    pass
-
-
-def process_connections(
+def process_activation_connections(
     connections: list[dict],
     conversation_state: ConversationState,
     connection_type: RelationshipType,
@@ -273,20 +303,19 @@ def process_connections(
     for connection in connections:
         node = connection["response"]
         if node in conversation_state.locks:
-            logger.info(f"Skipping locked connection: {list(connection.values())[1:4]}")
+            logger.info(f"Connection is locked: {list(connection.values())[1:4]}")
             continue
 
         if connection_type == ATTEMPTS and not execute_attempt(
             node,
-            connection,
             conversation_state,
         ):
+            logger.info(
+                f"Failed attempt at connection: {list(connection.values())[1:4]}"
+            )
             continue
 
-        elif connection_type == EXPECTS:
-            process_expects(connection, conversation_state)
-
-        if connection.get("params", {}).get("randomWeight"):
+        elif connection.get("params", {}).get("randomWeight"):
             random_connections.append(connection)
         else:
             connections_list.append(connection)
@@ -295,6 +324,12 @@ def process_connections(
     activated_connections.extend(process_random_connections(random_connections))
 
     return activated_connections
+
+
+def process_locks(connections: list[dict], conversation_state: ConversationState):
+    for connection in connections:
+        locked_node = connection.get("response")
+        conversation_state.add_lock(locked_node)
 
 
 def process_unlocks(connections: list[dict], conversation_state: ConversationState):
@@ -306,6 +341,75 @@ def process_unlocks(connections: list[dict], conversation_state: ConversationSta
         conversation_state.add_unlock(unlocked_node)
 
 
+def process_expects(connections: list[dict], conversation_state: ConversationState):
+    conversation_state.set_expectations(
+        [connection.get("response", "") for connection in connections]
+    )
+
+
+def process_activation_relationships(
+    relationships_map: dict[str, list[dict]],
+    conversation_state: ConversationState,
+) -> list[str]:
+
+    activated_checks: list[dict] | None = (
+        process_activation_connections(
+            relationships_map["CHECKS"], conversation_state, connection_type=CHECKS
+        )
+        if relationships_map["CHECKS"]
+        else None
+    )
+
+    activated_attempts: list[dict] | None = (
+        process_activation_connections(
+            relationships_map["ATTEMPTS"], conversation_state, connection_type=ATTEMPTS
+        )
+        if relationships_map["ATTEMPTS"] and not activated_checks
+        else None
+    )
+
+    activated_triggers: list[dict] | None = (
+        process_activation_connections(
+            relationships_map["TRIGGERS"], conversation_state, connection_type=TRIGGERS
+        )
+        if relationships_map["TRIGGERS"]
+        and not activated_attempts
+        and not activated_checks
+        else None
+    )
+
+    activated_defaults: list[dict] | None = (
+        process_defaults()
+        if relationships_map["DEFAULTS"]
+        and not activated_checks
+        and not activated_attempts
+        and not activated_triggers
+        else None
+    )  # TODO: Implement process_defaults function
+
+    response_nodes_reached: list[str] = (
+        [check["response"] for check in activated_checks or []]
+        + [attempt["response"] for attempt in activated_attempts or []]
+        + [trigger["response"] for trigger in activated_triggers or []]
+        + [default["response"] for default in activated_defaults or []]
+    )
+
+    return response_nodes_reached
+
+
+def process_definition_relationships(
+    relationships_map: dict[str, list[dict]], conversation_state: ConversationState
+):
+
+    if relationships_map["LOCKS"]:
+        process_locks(relationships_map["LOCKS"], conversation_state)
+
+    if relationships_map["UNLOCKS"]:
+        process_unlocks(relationships_map["UNLOCKS"], conversation_state)
+
+    process_expects(relationships_map["EXPECTS"], conversation_state)
+
+
 def process_relationships(
     connections: list[dict], conversation_state: ConversationState
 ) -> list[str]:
@@ -315,25 +419,28 @@ def process_relationships(
         f"with unlocked responses :\n{conversation_state.get_unlocks()}\n"
         f"and locked responses: {conversation_state.locks}"
     )
-
-    locks: list[dict] = []
+    # Activation connections
     checks: list[dict] = []
-    expects: list[dict] = []
     attempts: list[dict] = []
     triggers: list[dict] = []
     defaults: list[dict] = []
+    # Definition connections
+    locks: list[dict] = []
     unlocks: list[dict] = []
-
-    globals
+    expects: list[dict] = []
+    primes: list[dict] = []
 
     relationships_map = {
-        "LOCKS": locks,
+        # Activations
         "CHECKS": checks,
         "ATTEMPTS": attempts,
         "TRIGGERS": triggers,
         "DEFAULTS": defaults,
+        # Definitions
+        "LOCKS": locks,
         "UNLOCKS": unlocks,
         "EXPECTS": expects,
+        "PRIMES": primes,
     }
 
     for connection in connections:
@@ -341,49 +448,13 @@ def process_relationships(
         if relationship in relationships_map:
             relationships_map[relationship].append(connection)
 
-    for lock in locks:
-        conversation_state.add_lock(lock["response"])
+    logger.debug(f"Relationships map: {relationships_map.items()}")
 
-    activated_checks: list[dict] | None = (
-        process_connections(checks, conversation_state, connection_type=CHECKS)
-        if checks
-        else None
+    response_nodes_reached = process_activation_relationships(
+        relationships_map, conversation_state
     )
 
-    activated_attempts: list[dict] | None = (
-        process_connections(attempts, conversation_state, connection_type=ATTEMPTS)
-        if attempts and not activated_checks
-        else None
-    )
-
-    activated_triggers: list[dict] | None = (
-        process_connections(triggers, conversation_state, connection_type=TRIGGERS)
-        if triggers and not activated_attempts and not activated_checks
-        else None
-    )
-
-    activated_defaults: list[dict] | None = (
-        process_defaults()
-        if defaults
-        and not activated_checks
-        and not activated_attempts
-        and not activated_triggers
-        else None
-    )  # TODO: Implement process_defaults function
-
-    if unlocks:
-        process_unlocks(unlocks, conversation_state)
-
-    response_nodes_reached: list[str] = (
-        [check["response"] for check in activated_checks or []]
-        + [attempt["response"] for attempt in activated_attempts or []]
-        + [trigger["response"] for trigger in activated_triggers or []]
-        + [default["response"] for default in activated_defaults or []]
-    )
-
-    if expects:
-        process_connections(expects, conversation_state, connection_type=EXPECTS)
-        # TODO Implement process_expectations
+    process_definition_relationships(relationships_map, conversation_state)
 
     return response_nodes_reached
 
@@ -394,8 +465,22 @@ def process_node(
     conversation_state: ConversationState,
     node_type: NodeType,
 ):
-    logger.info(f"Processing node: '{node_text}'...")
-    connections = get_node_connections(session, text=node_text, node_type=node_type)
+    logger.info(f"Processing node: '{node_text}' ({node_type.name})")
+    connections = get_node_connections(
+        session,
+        text=node_text,
+        node_type=node_type,
+        conversation_state=conversation_state,
+    )
+
+    if (
+        not connections
+        and conversation_state.expectations
+        and node_type != TRANSMISSION  # avoid recursive calls (temporary fix)
+    ):
+        logger.info("Failure to match expectations")
+        process_node(session, node_text, conversation_state, NodeType.TRANSMISSION)
+        return
 
     if not connections:
         return
@@ -422,7 +507,7 @@ def listen_for_queries(session, conversation_state, specific_prompt, query_durat
     start_time = time.time()
     print(f"Specific prompt '{specific_prompt}' detected. Listening for query...")
     while time.time() - start_time < query_duration:
-        user_query = input("Query: ").strip().lower()
+        user_query = input("Query: ").strip()
         if user_query == "exit":
             print("Exiting...")
             return False
