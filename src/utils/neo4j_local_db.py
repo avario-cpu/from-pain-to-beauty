@@ -143,7 +143,7 @@ def define_random_pools(connections: list[dict]) -> list[list[dict]]:
 
     grouped_data = defaultdict(list)
     for connection in connections:
-        grouped_data[connection["params"]["randomPoolId"]].append(connection)
+        grouped_data[connection["params"].get("randomPoolId", 0)].append(connection)
 
     result = list(grouped_data.values())
 
@@ -228,14 +228,16 @@ def process_connections(
     for connection in connections:
         node = connection["response"]
         if node in conversation_state.locks:
-            logger.info(f"Skipping locked connection: {connection}")
+            logger.info(f"Skipping locked connection: {list(connection.values())[1:4]}")
             continue
 
         remaining_time = conversation_state.calculate_unlock_timings(node)
         if connection_type == "attempt" and (
             remaining_time is None or remaining_time <= 0
         ):
-            logger.info(f"Skipping locked or expired connection: {connection}")
+            logger.info(
+                f"Skipping locked or expired connection: {list(connection.values())[1:4]}"
+            )
             continue
 
         if connection.get("params", {}).get("randomWeight"):
