@@ -13,10 +13,10 @@ SCRIPT_NAME = utils.construct_script_name(__file__)
 logger = utils.setup_logger(SCRIPT_NAME)
 
 
-class NodeType(enum.Enum):
-    PROMPT = auto()
-    RESPONSE = auto()
-    TRANSMISSION = auto()
+class QuerySource(enum.Enum):
+    USER = auto()
+    ROBEAU = auto()
+    SYSTEM = auto()
 
 
 class RelationshipType(enum.Enum):
@@ -31,9 +31,9 @@ class RelationshipType(enum.Enum):
     PRIMES = auto()
 
 
-PROMPT = NodeType.PROMPT
-RESPONSE = NodeType.RESPONSE
-TRANSMISSION = NodeType.TRANSMISSION
+USER = QuerySource.USER
+ROBEAU = QuerySource.ROBEAU
+SYSTEM = QuerySource.SYSTEM
 
 CHECKS = RelationshipType.CHECKS
 ATTEMPTS = RelationshipType.ATTEMPTS
@@ -53,80 +53,128 @@ class ConversationState:
         self.expectations = []
         self.primes = []
 
-    def set_expectations(self, expectations: list[str]):
-        self.expectations = expectations
-        logger.info(f"Expectations for current conversation state: {self.expectations}")
-
-    def add_prime(self, prime):
-        if prime not in self.primes:
-            self.primes.append(prime)
-            logger.info(f"Added prime: '{prime}'")
-
-    def add_lock(self, lock):
-        if lock not in self.locks:
-            self.locks.append(lock)
-            logger.info(f"Locked the node: '{lock}'")
-
-    def add_unlock(self, unlock: dict[str, str | float | None]):
-        node = unlock.get("node")
-        duration = unlock.get("timeLeft")
+    def _add_item(
+        self, node: str, duration: float | None, item_list: list, item_type: str
+    ):
         start_time = time.time()
 
-        for existing_unlock in self.unlocks:
-            if existing_unlock["node"] != node:
+        for existing_item in item_list:
+            if existing_item["node"] != node:
                 continue
 
             if duration is None:
                 logger.info(
-                    f"Refused to unlock the node: '{node}' because it is infinite and already tracked."
+                    f"Refused to set {item_type} for node: '{node}' because it is infinite and already tracked."
                 )
                 return
-
-            # Refresh the time duration
-            existing_unlock["timeLeft"] = duration
-            existing_unlock["start_time"] = start_time
-            logger.info(f"Refreshed the time duration for node: '{node}'")
+            existing_item["timeLeft"] = duration
+            existing_item["start_time"] = start_time
+            logger.info(f"Refreshed the time duration for {item_type} node: '{node}'")
             return
 
-        self.unlocks.append(
-            {"node": node, "timeLeft": duration, "start_time": start_time}
+        item_list.append({"node": node, "timeLeft": duration, "start_time": start_time})
+        logger.info(f"Set {item_type} for node: '{node}'")
+
+    def add_unlock(self, node: str, duration: float | None):
+        self._add_item(node, duration, self.unlocks, "unlock")
+
+    def add_lock(self, node: str, duration: float | None):
+        self._add_item(node, duration, self.locks, "lock")
+
+    def add_expectation(self, node: str, duration: float | None):
+        self._add_item(node, duration, self.expectations, "expectation")
+
+    def add_prime(self, node: str, duration: float | None):
+        self._add_item(node, duration, self.primes, "prime")
+
+    def _update_time_left(self, item):
+        current_time = time.time()
+        start_time = item["start_time"]
+        time_left = item["timeLeft"]
+
+        if time_left is not None:
+            elapsed_time = current_time - start_time
+            remaining_time = max(0, time_left - elapsed_time)
+            item["timeLeft"] = remaining_time
+
+    def _remove_expired(self, items: list):
+        valid_items = []
+        for item in items:
+            self._update_time_left(item)
+            if item["timeLeft"] is None or item["timeLeft"] > 0:
+                valid_items.append(item)
+            else:
+                logger.info(f"Item has expired: {item}")
+        return valid_items
+
+    def actualize_conditions(self):
+        self.unlocks = self._remove_expired(self.unlocks)
+        self.locks = self._remove_expired(self.locks)
+        self.expectations = self._remove_expired(self.expectations)
+        self.primes = self._remove_expired(self.primes)
+
+    def reset_attribute(self, attribute: str):
+        attributes: dict = {
+            "locks": [],
+            "unlocks": [],
+            "primes": [],
+            "expectations": [],
+        }
+
+        if attribute in attributes:
+            setattr(self, attribute, attributes[attribute])
+        else:
+            logger.error(f"Invalid attribute: {attribute}")
+
+
+def log_conversation_state(conversation_state: ConversationState):
+    join_str = "\n"
+
+    # Check if each list has items before joining and formatting
+    formatted_locks = (
+        join_str.join([str(lock) for lock in conversation_state.locks])
+        if conversation_state.locks
+        else ""
+    )
+    formatted_unlocks = (
+        join_str.join([str(unlock) for unlock in conversation_state.unlocks])
+        if conversation_state.unlocks
+        else ""
+    )
+    formatted_expectations = (
+        join_str.join(
+            [str(expectation) for expectation in conversation_state.expectations]
         )
-        logger.info(f"Unlocked the node: '{node}'")
+        if conversation_state.expectations
+        else ""
+    )
+    formatted_primes = (
+        join_str.join([str(prime) for prime in conversation_state.primes])
+        if conversation_state.primes
+        else ""
+    )
 
-    def calculate_unlock_timings(self, node: str):
-        for unlock in self.unlocks:
-            if unlock["node"] != node:
-                continue
+    log_messages = []
 
-            if unlock["timeLeft"] is None:
-                return None  # Infinite duration
+    if formatted_locks:
+        log_messages.append(f"Locked responses:\n{formatted_locks}")
+    if formatted_unlocks:
+        log_messages.append(f"Unlocked responses:\n{formatted_unlocks}")
+    if formatted_expectations:
+        log_messages.append(f"Expectations:\n{formatted_expectations}")
+    if formatted_primes:
+        log_messages.append(f"Primes:\n{formatted_primes}")
 
-            elapsed_time = time.time() - unlock["start_time"]
-            remaining_time = unlock["timeLeft"] - elapsed_time
-            return max(0, remaining_time)  # Ensure non-negative remaining time
-
-        return None
-
-    def get_unlocks(self):
-        """Used only for logging. Returns the formatted and updated unlocks with the remaining time left for each node."""
-        updated_unlocks = []
-        for unlock in self.unlocks:
-            updated_unlock = unlock.copy()
-            remaining_time = self.calculate_unlock_timings(unlock["node"])
-            updated_unlock["timeLeft"] = (
-                f"{remaining_time:.2f}" if remaining_time is not None else "Infinite"
-            )
-            updated_unlock["start_time"] = time.strftime(
-                "%H:%M:%S", time.localtime(unlock["start_time"])
-            )
-            updated_unlocks.append(updated_unlock)
-        return "\n".join(str(unlock) for unlock in updated_unlocks)
+    if log_messages:
+        logger.info("Actual state of conversation is...\n" + "\n".join(log_messages))
+    else:
+        logger.info("No particular conversation state context yet.")
 
 
 def get_node_data(neo4j_session: Session, text: str, label: str) -> Result | None:
     query = f"""
     MATCH (x:{label})-[R]->(y)
-    WHERE (x.text) = "{text}"
+    WHERE toLower(x.text) = toLower("{text}")
     RETURN x, R, y
     """
     result = neo4j_session.run(query)
@@ -136,19 +184,24 @@ def get_node_data(neo4j_session: Session, text: str, label: str) -> Result | Non
 def get_node_connections(
     neo4j_session: Session,
     text: str,
-    node_type: NodeType,
+    source: QuerySource,
     conversation_state: ConversationState,
 ) -> list[dict] | None:
-    if node_type == PROMPT and text in conversation_state.expectations:
-        logger.info(
-            f"'{text}' matches conversation expectations: {conversation_state.expectations}"
-        )
-        label = "Answer"
-    elif node_type == PROMPT:
+
+    log_conversation_state(conversation_state)
+
+    if conversation_state.expectations and source == USER:
+        if any(
+            item["node"].lower() == text.lower()
+            for item in conversation_state.expectations
+        ):
+            logger.info(f"'{text}' matches conversation expectations")
+            label = "Answer"
+    elif source == USER:
         label = "Prompt"
-    elif node_type == RESPONSE:
+    elif source == ROBEAU:
         label = "Response"
-    elif node_type == TRANSMISSION:
+    elif source == SYSTEM:
         label = "Transmission"
 
     result = get_node_data(neo4j_session, text, label)
@@ -250,7 +303,7 @@ def activate_connections(connections: list[dict]):
     for connection in connections:
         output = list(connection.values())[3]
         print(output)
-        logger.info(f"\n Output: '{output}'\n")
+        logger.info(f">>> OUTPUT: '{output}' ")
     return connections
 
 
@@ -267,16 +320,17 @@ def process_defaults():
 
 
 def execute_attempt(
+    connection: dict,
     node: str,
     conversation_state: ConversationState,
 ):
-    remaining_time = conversation_state.calculate_unlock_timings(node)
-    if node in conversation_state.primes:
+    if (any(item["node"] == node for item in conversation_state.unlocks)) or (
+        any(item["node"] == node for item in conversation_state.primes)
+    ):
         return True
-    elif remaining_time is None or remaining_time <= 0:
-        return False
     else:
-        return True
+        logger.info(f"Failed attempt at connection: {list(connection.values())[1:4]}")
+    return False
 
 
 def process_activation_connections(
@@ -290,17 +344,15 @@ def process_activation_connections(
 
     for connection in connections:
         node = connection["end_node"]
-        if node in conversation_state.locks:
+        if any(item["node"] == node for item in conversation_state.locks):
             logger.info(f"Connection is locked: {list(connection.values())[1:4]}")
             continue
 
         if connection_type == ATTEMPTS and not execute_attempt(
+            connection,
             node,
             conversation_state,
         ):
-            logger.info(
-                f"Failed attempt at connection: {list(connection.values())[1:4]}"
-            )
             continue
 
         elif connection.get("params", {}).get("randomWeight"):
@@ -312,43 +364,18 @@ def process_activation_connections(
     activated_connections.extend(process_random_connections(random_connections))
 
     if activated_connections:
+        # reset primes after any successful activation
         logger.info(f"Resetting primes")
-        conversation_state.primes = []  # Reset all primes after any activation
+        conversation_state.reset_attribute("primes")
 
     return activated_connections
-
-
-def process_locks(connections: list[dict], conversation_state: ConversationState):
-    for connection in connections:
-        locked_node = connection.get("end_node")
-        conversation_state.add_lock(locked_node)
-
-
-def process_unlocks(connections: list[dict], conversation_state: ConversationState):
-    for connection in connections:
-        unlocked_node = {
-            "node": connection.get("end_node"),
-            "timeLeft": connection.get("params", {}).get("limitedDuration"),
-        }
-        conversation_state.add_unlock(unlocked_node)
-
-
-def process_primes(connections: list[dict], conversation_state: ConversationState):
-    for connection in connections:
-        prime = connection.get("end_node")
-        conversation_state.add_prime(prime)
-
-
-def process_expects(connections: list[dict], conversation_state: ConversationState):
-    conversation_state.set_expectations(
-        [connection.get("end_node", "") for connection in connections]
-    )
 
 
 def process_activation_relationships(
     relationships_map: dict[str, list[dict]],
     conversation_state: ConversationState,
 ) -> list[str]:
+    """Walk down the activation relationships priority order and return the end nodes reached."""
 
     activated_checks: list[dict] | None = (
         process_activation_connections(
@@ -377,13 +404,15 @@ def process_activation_relationships(
     )
 
     activated_defaults: list[dict] | None = (
-        process_defaults()
+        process_activation_connections(
+            relationships_map["DEFAULTS"], conversation_state, connection_type=DEFAULTS
+        )
         if relationships_map["DEFAULTS"]
         and not activated_checks
         and not activated_attempts
         and not activated_triggers
         else None
-    )  # TODO: Implement process_defaults function
+    )
 
     end_nodes_reached: list[str] = (
         [check["end_node"] for check in activated_checks or []]
@@ -395,34 +424,42 @@ def process_activation_relationships(
     return end_nodes_reached
 
 
+def process_definitions_connections(
+    connections: list[dict], conversation_state: ConversationState, method: str
+):
+    for connection in connections:
+        end_node = connection.get("end_node", "")
+        duration = connection.get("params", {}).get("limitedDuration")
+        getattr(conversation_state, method)(end_node, duration)
+
+
 def process_definition_relationships(
     relationships_map: dict[str, list[dict]], conversation_state: ConversationState
 ):
+    relationship_methods = {
+        "LOCKS": "add_lock",
+        "UNLOCKS": "add_unlock",
+        "PRIMES": "add_prime",
+        "EXPECTS": "add_expectation",
+    }
 
-    if relationships_map["LOCKS"]:
-        process_locks(relationships_map["LOCKS"], conversation_state)
+    for relationship, method in relationship_methods.items():
+        connections = relationships_map.get(relationship, [])
+        if connections:
+            process_definitions_connections(connections, conversation_state, method)
 
-    if relationships_map["UNLOCKS"]:
-        process_unlocks(relationships_map["UNLOCKS"], conversation_state)
-
-    if relationships_map["PRIMES"]:
-        process_primes(relationships_map["PRIMES"], conversation_state)
-
-    process_expects(
-        relationships_map["EXPECTS"], conversation_state
-    )  # Always processed, so that when empty, it resets the expectations
+    if not relationships_map.get("EXPECTS"):
+        # Reset expectations if no new expectations are set
+        logger.info("Resetting expectations")
+        conversation_state.reset_attribute("expectations")
 
 
 def process_relationships(
     connections: list[dict], conversation_state: ConversationState
 ) -> list[str]:
     formatted_connections = "\n".join([str(connection) for connection in connections])
-    logger.info(
-        f"Processing relationships:\n{formatted_connections}\n"
-        f"with unlocked responses :{conversation_state.get_unlocks()}\n"
-        f"with locked responses: {conversation_state.locks}\n"
-        f"with primes: {conversation_state.primes}"
-    )
+
+    logger.info(f"Processing connections:\n{formatted_connections}")
     # Activation connections
     checks: list[dict] = []
     attempts: list[dict] = []
@@ -463,24 +500,25 @@ def process_relationships(
 
 def handle_expectation_failure(session: Session, conversation_state: ConversationState):
     logger.info("Failure to match expectations, Processing transmission...")
-    conversation_state.set_expectations([])  # Reset expectations to avoid infinite loop
-    process_node(
-        session, "Expect. Failure", conversation_state, TRANSMISSION
-    )  # Remember to match the text with the Transmission node in the database
+    process_node(session, "Expect. Failure", conversation_state, SYSTEM)
+    # (Remember to match the "Expect. Failure" with the node text in the database)
 
 
 def process_node(
     session: Session,
     node_text: str,
     conversation_state: ConversationState,
-    node_type: NodeType,
+    source: QuerySource,
 ):
-    logger.info(f"Processing node: '{node_text}' ({node_type.name})")
+
+    conversation_state.actualize_conditions()
+
+    logger.info(f"Processing node: '{node_text}' ({source.name})")
     connections = get_node_connections(
         neo4j_session=session,
         text=node_text,
         conversation_state=conversation_state,
-        node_type=node_type,
+        source=source,
     )
 
     if conversation_state.expectations and not connections:
@@ -495,7 +533,7 @@ def process_node(
     logger.info(f"Response nodes reached: {end_nodes_reached}")
 
     for response_text in end_nodes_reached:
-        process_node(session, response_text, conversation_state, RESPONSE)
+        process_node(session, response_text, conversation_state, ROBEAU)
 
 
 def establish_connection():
@@ -518,12 +556,11 @@ def listen_for_queries(session, conversation_state, specific_prompt, query_durat
             print("Exiting...")
             return False
         elif user_query:
-            logger.info(f"\n\nNew query: {user_query}")
             process_node(
                 session=session,
                 node_text=user_query,
                 conversation_state=conversation_state,
-                node_type=NodeType.PROMPT,
+                source=QuerySource.USER,
             )
             start_time = time.time()
             print(f"Waiting for new query within {query_duration} seconds...\n")
