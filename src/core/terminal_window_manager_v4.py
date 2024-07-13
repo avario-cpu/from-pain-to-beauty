@@ -12,16 +12,16 @@ import win32gui
 
 from src.core import constants as const
 from src.core import slots_db_handler as sdh
-from src.core import utils
+from src.utils import helpers
 
 MAIN_WINDOW_WIDTH = 600
 MAIN_WINDOW_HEIGHT = 260
 MAX_WINDOWS_PER_COLUMN = 1040 // MAIN_WINDOW_HEIGHT  # So currently 4
 
-SCRIPT_NAME = utils.construct_script_name(__file__)
+SCRIPT_NAME = helpers.construct_script_name(__file__)
 WINDOW_NAME_SUFFIX = "twm_"
 
-logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
+logger = helpers.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 
 class WinType(Enum):

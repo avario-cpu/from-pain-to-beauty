@@ -7,7 +7,7 @@ from websockets import (
     WebSocketClientProtocol,
 )
 
-from src.core.utils import construct_script_name, setup_logger
+from src.utils.helpers import construct_script_name, setup_logger
 
 SCRIPT_NAME = construct_script_name(__file__)
 

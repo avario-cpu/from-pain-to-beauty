@@ -17,11 +17,11 @@ from websockets import WebSocketServerProtocol
 from src.core import constants as const
 from src.core import slots_db_handler as sdh
 from src.core import terminal_window_manager_v4 as twm
-from src.core import utils
+from src.utils import helpers
 
-SCRIPT_NAME = utils.construct_script_name(__file__)
+SCRIPT_NAME = helpers.construct_script_name(__file__)
 
-logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
+logger = helpers.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 
 async def manage_subprocess(message: str):

@@ -14,11 +14,11 @@ from src.connection import websocket
 from src.core import constants as const
 from src.core import slots_db_handler as sdh
 from src.core import terminal_window_manager_v4 as twm
-from src.core import utils
+from src.utils import helpers, classes
 from src.core.setup import setup_script_basics
 from src.core.terminal_window_manager_v4 import SecondaryWindow, WinType
 
-SCRIPT_NAME = utils.construct_script_name(__file__)
+SCRIPT_NAME = helpers.construct_script_name(__file__)
 PORT = const.SUBPROCESSES_PORTS[SCRIPT_NAME]
 URL = const.STREAMERBOT_WS_URL
 DB = const.SLOTS_DB_FILE_PATH
@@ -31,7 +31,7 @@ SHOP_TEMPLATE_IMAGE_PATH = (
     "\\shop_watch\\shop_top_right_icon.jpg"
 )
 
-logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
+logger = helpers.setup_logger(SCRIPT_NAME, logging.DEBUG)
 secondary_windows_spawned = asyncio.Event()
 mute_ssim_prints = asyncio.Event()
 
@@ -214,7 +214,7 @@ async def main():
     socket_server_task = None
 
     try:
-        lfm = utils.LockFileManager(SCRIPT_NAME)
+        lfm = classes.LockFileManager(SCRIPT_NAME)
         db_conn = await sdh.create_connection(DB)
 
         if lfm.lock_exists():
@@ -250,4 +250,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    utils.countdown()
+    helpers.countdown()

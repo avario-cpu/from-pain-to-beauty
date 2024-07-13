@@ -5,14 +5,14 @@ from typing import Optional
 import aiosqlite
 
 from src.core import constants as const
-from src.core import utils
+from src.utils import helpers
 
 AMOUNT_OF_SLOTS = 8
 MAX_AMOUNT_OF_WINDOWS = 7  # main and secondaries included
 DENIED_SLOTS_AMOUNT = 10
 
-SCRIPT_NAME = utils.construct_script_name(__file__)
-logger = utils.setup_logger(SCRIPT_NAME, logging.DEBUG)
+SCRIPT_NAME = helpers.construct_script_name(__file__)
+logger = helpers.setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 
 async def create_connection(db_file: str) -> aiosqlite.Connection | None:
