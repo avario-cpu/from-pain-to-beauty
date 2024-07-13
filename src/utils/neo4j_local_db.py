@@ -126,49 +126,44 @@ class ConversationState:
         else:
             logger.error(f"Invalid attribute: {attribute}")
 
+    def log_conversation_state(self):
+        join_str = "\n"
 
-def log_conversation_state(conversation_state: ConversationState):
-    join_str = "\n"
-
-    # Check if each list has items before joining and formatting
-    formatted_locks = (
-        join_str.join([str(lock) for lock in conversation_state.locks])
-        if conversation_state.locks
-        else ""
-    )
-    formatted_unlocks = (
-        join_str.join([str(unlock) for unlock in conversation_state.unlocks])
-        if conversation_state.unlocks
-        else ""
-    )
-    formatted_expectations = (
-        join_str.join(
-            [str(expectation) for expectation in conversation_state.expectations]
+        # Check if each list has items before joining and formatting
+        formatted_locks = (
+            join_str.join([str(lock) for lock in self.locks]) if self.locks else ""
         )
-        if conversation_state.expectations
-        else ""
-    )
-    formatted_primes = (
-        join_str.join([str(prime) for prime in conversation_state.primes])
-        if conversation_state.primes
-        else ""
-    )
+        formatted_unlocks = (
+            join_str.join([str(unlock) for unlock in self.unlocks])
+            if self.unlocks
+            else ""
+        )
+        formatted_expectations = (
+            join_str.join([str(expectation) for expectation in self.expectations])
+            if self.expectations
+            else ""
+        )
+        formatted_primes = (
+            join_str.join([str(prime) for prime in self.primes]) if self.primes else ""
+        )
 
-    log_messages = []
+        log_messages = []
 
-    if formatted_locks:
-        log_messages.append(f"Locked responses (↓):\n{formatted_locks}")
-    if formatted_unlocks:
-        log_messages.append(f"Unlocked responses (↓):\n{formatted_unlocks}")
-    if formatted_expectations:
-        log_messages.append(f"Expectations (↓):\n{formatted_expectations}")
-    if formatted_primes:
-        log_messages.append(f"Primes (↓):\n{formatted_primes}")
+        if formatted_locks:
+            log_messages.append(f"Locked responses (↓):\n{formatted_locks}")
+        if formatted_unlocks:
+            log_messages.append(f"Unlocked responses (↓):\n{formatted_unlocks}")
+        if formatted_expectations:
+            log_messages.append(f"Expectations (↓):\n{formatted_expectations}")
+        if formatted_primes:
+            log_messages.append(f"Primes (↓):\n{formatted_primes}")
 
-    if log_messages:
-        logger.info("Conversational_state items are...:\n" + "\n".join(log_messages))
-    else:
-        logger.info("No particular conversation_state context yet.")
+        if log_messages:
+            logger.info(
+                "Conversational_state items are...:\n" + "\n".join(log_messages)
+            )
+        else:
+            logger.info("No particular conversation_state context yet.")
 
 
 def get_node_data(
@@ -195,7 +190,7 @@ def get_node_connections(
     conversation_state: ConversationState,
 ) -> list[dict] | None:
 
-    log_conversation_state(conversation_state)
+    conversation_state.log_conversation_state()
 
     if source == USER and conversation_state.expectations:
         if any(
