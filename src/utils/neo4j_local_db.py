@@ -64,16 +64,16 @@ class ConversationState:
 
             if duration is None:
                 logger.info(
-                    f"Refused to set {item_type} for node: '{node}' because it is infinite and already tracked."
+                    f'Refused to set {item_type} for node: "{node}" because it is infinite and already tracked.'
                 )
                 return
             existing_item["timeLeft"] = duration
             existing_item["start_time"] = start_time
-            logger.info(f"Refreshed the time duration for {item_type} node: '{node}'")
+            logger.info(f'Refreshed the time duration for {item_type} node: "{node}"')
             return
 
         item_list.append({"node": node, "timeLeft": duration, "start_time": start_time})
-        logger.info(f"Set {item_type} for node: '{node}'")
+        logger.info(f'Set {item_type} for node: "{node}"')
 
     def add_unlock(self, node: str, duration: float | None):
         self._add_item(node, duration, self.unlocks, "unlock")
@@ -157,27 +157,34 @@ def log_conversation_state(conversation_state: ConversationState):
     log_messages = []
 
     if formatted_locks:
-        log_messages.append(f"Locked responses:\n{formatted_locks}")
+        log_messages.append(f"Locked responses (↓):\n{formatted_locks}")
     if formatted_unlocks:
-        log_messages.append(f"Unlocked responses:\n{formatted_unlocks}")
+        log_messages.append(f"Unlocked responses (↓):\n{formatted_unlocks}")
     if formatted_expectations:
-        log_messages.append(f"Expectations:\n{formatted_expectations}")
+        log_messages.append(f"Expectations (↓):\n{formatted_expectations}")
     if formatted_primes:
-        log_messages.append(f"Primes:\n{formatted_primes}")
+        log_messages.append(f"Primes (↓):\n{formatted_primes}")
 
     if log_messages:
-        logger.info("Actual state of conversation is...\n" + "\n".join(log_messages))
+        logger.info("Conversational_state items are...:\n" + "\n".join(log_messages))
     else:
-        logger.info("No particular conversation state context yet.")
+        logger.info("No particular conversation_state context yet.")
 
 
-def get_node_data(neo4j_session: Session, text: str, label: str) -> Result | None:
+def get_node_data(
+    neo4j_session: Session, text: str, label: str, source: QuerySource
+) -> Result:
     query = f"""
     MATCH (x:{label})-[R]->(y)
     WHERE toLower(x.text) = toLower("{text}")
     RETURN x, R, y
     """
     result = neo4j_session.run(query)
+
+    if not result.peek() and label == "Prompt" and source == USER:
+        logger.warning(f'Prompt "{text}" not found in database')
+        print(f"Sorry, didn't understand that...")
+
     return result
 
 
@@ -190,13 +197,13 @@ def get_node_connections(
 
     log_conversation_state(conversation_state)
 
-    if conversation_state.expectations and source == USER:
+    if source == USER and conversation_state.expectations:
         if any(
             item["node"].lower() == text.lower()
             for item in conversation_state.expectations
         ):
-            logger.info(f"'{text}' matches conversation expectations")
-            label = "Answer"
+            logger.info(f' "{text}" matches conversation expectations')
+        label = "Answer"
     elif source == USER:
         label = "Prompt"
     elif source == ROBEAU:
@@ -204,9 +211,10 @@ def get_node_connections(
     elif source == SYSTEM:
         label = "Transmission"
 
-    result = get_node_data(neo4j_session, text, label)
+    result = get_node_data(neo4j_session, text, label, source)
 
-    if result is None:
+    if not result.peek():
+        logger.info(f'No connections found for node: "{text}"')
         return None
 
     result_data = []
@@ -292,7 +300,7 @@ def select_random_connections(random_pool_groups: list[list[dict]]) -> list[dict
     for pooled_group in random_pool_groups:
         connection: dict = select_random_connection(pooled_group)
         logger.info(
-            f"Selected response for random pool Id {connection['params']['randomPoolId']} is: '{connection['end_node']}'"
+            f'Selected response for random pool Id {connection["params"].get("randomPoolId")} is: "{connection["end_node"]}"'
         )
         selected_connections.append(connection)
     return selected_connections
@@ -303,7 +311,7 @@ def activate_connections(connections: list[dict]):
     for connection in connections:
         output = list(connection.values())[3]
         print(output)
-        logger.info(f">>> OUTPUT: '{output}' ")
+        logger.info(f'>>> OUTPUT: "{output}" ')
     return connections
 
 
@@ -513,7 +521,7 @@ def process_node(
 
     conversation_state.actualize_conditions()
 
-    logger.info(f"Processing node: '{node_text}' ({source.name})")
+    logger.info(f'Processing node: "{node_text}" ({source.name})')
     connections = get_node_connections(
         neo4j_session=session,
         text=node_text,
@@ -526,7 +534,7 @@ def process_node(
         return
 
     if not connections:
-        logger.info(f"End of process for node: '{node_text}'")
+        logger.info(f'End of process for node: "{node_text}"')
         return
 
     end_nodes_reached = process_relationships(connections, conversation_state)
@@ -563,7 +571,6 @@ def listen_for_queries(session, conversation_state, specific_prompt, query_durat
                 source=QuerySource.USER,
             )
             start_time = time.time()
-            print(f"Waiting for new query within {query_duration} seconds...\n")
     print("ran out of time")
     return True
 
