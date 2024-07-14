@@ -16,10 +16,12 @@ python-dotenv
 pygetwindow
 pywin32
 gtts
+prompt_toolkit
 pydub
 scikit-image
 sounddevice
 websockets
+
 
 --index-url https://download.pytorch.org/whl/cu121
 

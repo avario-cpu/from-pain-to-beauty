@@ -6,6 +6,11 @@ from collections import defaultdict
 from enum import auto
 
 from neo4j import GraphDatabase, Result, Session
+from prompt_toolkit import PromptSession
+from prompt_toolkit.application import Application
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.patch_stdout import patch_stdout
+from prompt_toolkit.shortcuts import print_formatted_text
 
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from src.utils import helpers
@@ -77,18 +82,15 @@ class ConversationState:
             if existing_item["node"] != node:
                 continue
 
-            if duration is None:
-                logger.info(
-                    f'Refused to set {item_type} for node: "{node}" because it is infinite and already tracked.'
-                )
+            if duration is None:  # None means infinite duration here
                 return
+
             existing_item["timeLeft"] = duration
             existing_item["start_time"] = start_time
             logger.info(f'Refreshed the time duration for {item_type} node: "{node}"')
             return
 
         item_list.append({"node": node, "timeLeft": duration, "start_time": start_time})
-        logger.info(f'Set "{item_type}" for node: "{node}"')
 
     def add_unlock(self, node: str, duration: float | None):
         self._add_item(node, duration, self.unlocks, "unlock")
@@ -186,23 +188,27 @@ class ConversationState:
             join_str.join([str(prime) for prime in self.primes]) if self.primes else ""
         )
 
-        log_messages = []
+        if any(
+            [
+                formatted_locks,
+                formatted_unlocks,
+                formatted_expectations,
+                formatted_primes,
+            ]
+        ):
+            logger.info("Conversational_state is...:\n")
 
-        if formatted_locks:
-            log_messages.append(f"Locked responses (↓):\n{formatted_locks}")
-        if formatted_unlocks:
-            log_messages.append(f"Unlocked responses (↓):\n{formatted_unlocks}")
-        if formatted_expectations:
-            log_messages.append(f"Expectations (↓):\n{formatted_expectations}")
-        if formatted_primes:
-            log_messages.append(f"Primes (↓):\n{formatted_primes}")
-
-        if log_messages:
-            logger.info(
-                "Conversational_state items are...:\n" + "\n".join(log_messages)
-            )
         else:
             logger.info("No particular conversation_state context yet.")
+
+        if formatted_locks:
+            logger.info(f"Locked responses:\n{formatted_locks}")
+        if formatted_unlocks:
+            logger.info(f"Unlocked responses:\n{formatted_unlocks}")
+        if formatted_expectations:
+            logger.info(f"Expectations:\n{formatted_expectations}")
+        if formatted_primes:
+            logger.info(f"Primes:\n{formatted_primes}")
 
 
 def get_node_data(
@@ -594,11 +600,13 @@ def establish_connection():
     return driver, session
 
 
-def listen_for_queries(session, conversation_state, specific_prompt, query_duration):
+def listen_for_queries(
+    session, conversation_state, specific_prompt, query_duration, prompt_session
+):
     start_time = time.time()
     print(f"Specific prompt '{specific_prompt}' detected. Listening for query...")
     while time.time() - start_time < query_duration:
-        user_query = input("Query: ").strip()
+        user_query = prompt_session.prompt("Query: ").strip()
         if user_query == "exit":
             print("Exiting...")
             return False
@@ -639,15 +647,22 @@ def main():
         specific_prompt = "start"
         query_duration = 10
 
-        while True:
-            user_input = input("start or exit: ").strip().lower()
-            if user_input == "exit":
-                print("Exiting...")
-                break
-            elif user_input == specific_prompt:
-                listen_for_queries(
-                    session, conversation_state, specific_prompt, query_duration
-                )
+        prompt_session = PromptSession()
+
+        with patch_stdout():
+            while True:
+                user_input = prompt_session.prompt("start or exit: ").strip().lower()
+                if user_input == "exit":
+                    print("Exiting...")
+                    break
+                elif user_input == specific_prompt:
+                    listen_for_queries(
+                        session,
+                        conversation_state,
+                        specific_prompt,
+                        query_duration,
+                        prompt_session,
+                    )
     except Exception as e:
         print(f"Error occurred: {e}")
         logger.exception(e)
