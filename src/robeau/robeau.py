@@ -12,12 +12,12 @@ from src.robeau import google_stt
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from src.connection import socks
 from src.core import constants as const
-from src.core import utils
+from src.utils import helpers
 
-SCRIPT_NAME = utils.construct_script_name(__file__)
+SCRIPT_NAME = helpers.construct_script_name(__file__)
 HOST = "localhost"
 PORT = const.SUBPROCESSES_PORTS[SCRIPT_NAME]
-logger = utils.setup_logger(SCRIPT_NAME)
+logger = helpers.setup_logger(SCRIPT_NAME)
 
 NEO4J_URI = NEO4J_URI
 NEO4J_USER = NEO4J_USER

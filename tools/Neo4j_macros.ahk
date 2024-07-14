@@ -19,6 +19,13 @@ MatchNodeGroup() {
     SendInput, % HandleNodeInput(Input1)
 }
 
+MatchNodeOutPath() {
+    SendInput, match p=(a)-[r*]->(b)
+    SendInput {Shift down}{Enter}{Shift up}where apoc.node.id(a)=
+    SendInput {Shift down}{Enter}{Shift up}return p
+    Send, {Up}{End}
+}
+
 CreateNode() {
     SendInput, Create(
     Input, Input1, L1
@@ -141,6 +148,11 @@ HandleNodeInput(input) {
             } else if (NextKey2 = "r") {
                 MatchRelationshipGroup()
             }
+        } else if (NextKey = "o") {
+            Input, NextKey2, L1
+            if (NextKey2 = "n") {
+                MatchNodeOutPath()
+            } 
         }
     }
 return

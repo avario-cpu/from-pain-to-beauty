@@ -1,6 +1,6 @@
-import threading
 import enum
 import random
+import threading
 import time
 from collections import defaultdict
 from enum import auto
@@ -88,7 +88,7 @@ class ConversationState:
             return
 
         item_list.append({"node": node, "timeLeft": duration, "start_time": start_time})
-        logger.info(f'Set {item_type} for node: "{node}"')
+        logger.info(f'Set "{item_type}" for node: "{node}"')
 
     def add_unlock(self, node: str, duration: float | None):
         self._add_item(node, duration, self.unlocks, "unlock")
@@ -127,18 +127,25 @@ class ConversationState:
 
     def _check_initiations(self, session: Session):
         ongoing_initiations = []
+        complete_initiations = []
+        logger.debug(f"{self.initiations}")
         for initiation in self.initiations:
             self._update_time_left(initiation)
             if initiation["timeLeft"] is None or initiation["timeLeft"] > 0:
                 ongoing_initiations.append(initiation)
             else:
                 logger.info(f"Initiation complete: {initiation}")
-                process_node(
-                    session, initiation["node"], self, QuerySource.ROBEAU
-                )  # Process the node before removing it
+                complete_initiations.append(initiation)
         self.initiations = ongoing_initiations
+        for initiation in complete_initiations:
+            process_node(
+                session,
+                initiation["node"],
+                self,
+                QuerySource.ROBEAU,
+            )
 
-    def actualize_conditions(self, session: Session):
+    def update_conversation_state(self, session: Session):
         self.unlocks = self._remove_expired(self.unlocks)
         self.locks = self._remove_expired(self.locks)
         self.expectations = self._remove_expired(self.expectations)
@@ -399,7 +406,7 @@ def process_activation_connections(
     activated_connections.extend(process_random_connections(random_connections))
 
     if activated_connections:
-        # reset primes after any successful activation
+        # reset primes after any successful activation that are not Warnings
         logger.info(f"Resetting primes")
         conversation_state.reset_attribute("primes")
 
@@ -464,7 +471,7 @@ def process_definitions_connections(
 ):
     for connection in connections:
         end_node = connection.get("end_node", "")
-        duration = connection.get("params", {}).get("limitedDuration")
+        duration = connection.get("params", {}).get("duration")
         getattr(conversation_state, method)(end_node, duration)
 
 
@@ -486,7 +493,7 @@ def process_definition_relationships(
 
     if not relationships_map.get("EXPECTS"):
         # Reset expectations if no new expectations are set
-        logger.info("Resetting expectations")
+        logger.info("Resetting expectations (no new expectations set)")
         conversation_state.reset_attribute("expectations")
 
 
@@ -551,7 +558,7 @@ def process_node(
     source: QuerySource,
 ):
 
-    conversation_state.actualize_conditions(session)
+    conversation_state.update_conversation_state(session)
 
     logger.info(f'Processing node: "{node_text}" ({source.name})')
     connections = get_node_connections(
@@ -607,16 +614,30 @@ def listen_for_queries(session, conversation_state, specific_prompt, query_durat
     return True
 
 
+def run_update_conversation_state(
+    conversation_state: ConversationState, session: Session, stop_event: threading.Event
+):
+    while not stop_event.is_set():
+        conversation_state.update_conversation_state(session)
+        time.sleep(1)  # Adjust the sleep duration as needed
+
+
 def main():
 
     driver, session = None, None
     try:
         driver, session = establish_connection()
         conversation_state = ConversationState()
-        specific_prompt = "start"
-        query_duration = (
-            10  # Duration in seconds to wait for a query after specific prompt
+
+        stop_event = threading.Event()
+        update_thread = threading.Thread(
+            target=run_update_conversation_state,
+            args=(conversation_state, session, stop_event),
         )
+        update_thread.start()
+
+        specific_prompt = "start"
+        query_duration = 10
 
         while True:
             user_input = input("start or exit: ").strip().lower()
@@ -636,6 +657,8 @@ def main():
             session.close()
         if driver:
             driver.close()
+        stop_event.set()
+        update_thread.join()
 
 
 if __name__ == "__main__":

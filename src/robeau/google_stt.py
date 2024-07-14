@@ -11,13 +11,13 @@ from google.cloud import speech
 from src.config import settings
 from src.core import constants as const
 from src.core import slots_db_handler as sdh
-from src.core import utils
+from src.utils import helpers, classes
 from src.core.setup import setup_script_basics
 from src.core.terminal_window_manager_v4 import WinType
 
 RATE = 16000
 CHUNK = int(RATE / 10)  # 100ms
-SCRIPT_NAME = utils.construct_script_name(__file__)
+SCRIPT_NAME = helpers.construct_script_name(__file__)
 
 SERVER_HOST = "localhost"
 SERVER_PORT = const.SUBPROCESSES_PORTS["robeau"]
@@ -26,7 +26,7 @@ if settings.GOOGLE_CLOUD_API_KEY is None:
     raise ValueError("Missing Google API Key")
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_CLOUD_API_KEY
 
-logger = utils.setup_logger(SCRIPT_NAME)
+logger = helpers.setup_logger(SCRIPT_NAME)
 
 
 class MicrophoneStream:
@@ -122,7 +122,7 @@ async def recognize_speech(interim: bool, sock: Optional[socket.socket] = None):
 # noinspection PyTypeChecker
 async def main(interim: bool):
     try:
-        lock_file_manager = utils.LockFileManager(SCRIPT_NAME)
+        lock_file_manager = classes.LockFileManager(SCRIPT_NAME)
         db_conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
 
         if lock_file_manager.lock_exists():

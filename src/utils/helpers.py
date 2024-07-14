@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+import sys
 
 from src.core import constants as const
 
@@ -19,29 +20,27 @@ def setup_logger(script_name: str, level: int = logging.DEBUG, log_dir: str = LO
     script_log_file_path = os.path.join(log_dir, f"{script_name}.log")
     common_log_file_path = COMMON_LOGS
 
-    with open(script_log_file_path, "a") as log_file:
+    with open(script_log_file_path, "a", encoding="utf-8") as log_file:
         log_file.write("<< New Log Entry >>\n")
 
     logger = logging.getLogger(script_name)
     if not logger.hasHandlers():
         logger.setLevel(level)
 
-        # Script-specific file handler
-        script_fh = logging.FileHandler(script_log_file_path)
+        # Script-specific file handler with UTF-8 encoding
+        script_fh = logging.FileHandler(script_log_file_path, encoding="utf-8")
         script_fh.setLevel(level)
         formatter = logging.Formatter(
-            "%(asctime)s - %(filename)s:%(lineno)d - %(levelname)s - %(" "message)s"
+            "%(asctime)s - %(filename)s:%(lineno)d - %(levelname)s - %(message)s"
         )
         script_fh.setFormatter(formatter)
         logger.addHandler(script_fh)
 
-        # Common file handler
-        common_fh = logging.FileHandler(common_log_file_path)
+        # Common file handler with UTF-8 encoding
+        common_fh = logging.FileHandler(common_log_file_path, encoding="utf-8")
         common_fh.setLevel(level)
         common_formatter = logging.Formatter(
-            "%(asctime)s - %(name)s:%(filename)s:%(lineno)d - %(levelname)s "
-            "- %("
-            "message)s"
+            "%(asctime)s - %(name)s:%(filename)s:%(lineno)d - %(levelname)s %(message)s"
         )
         common_fh.setFormatter(common_formatter)
         logger.addHandler(common_fh)
