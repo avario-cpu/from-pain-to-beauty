@@ -5,7 +5,7 @@ import threading
 import time
 from collections import defaultdict
 from enum import auto
-
+from typing import Optional
 from neo4j import GraphDatabase, Result, Session
 from prompt_toolkit import PromptSession
 from prompt_toolkit.application import Application
@@ -86,6 +86,7 @@ class ConversationState:
             if duration is None:  # None means infinite duration here
                 return
 
+            # Refresh duration if the item already exists
             existing_item["duration"] = duration    
             existing_item["timeLeft"] = duration
             existing_item["start_time"] = start_time
@@ -118,6 +119,14 @@ class ConversationState:
 
     def add_initiation(self, node: str, duration: float | None):
         self._add_item(node, duration, self.initiations, "initiation")
+    
+    def delay_item(self, node: str, duration: float | None):
+        """Unused right now but may be used in the future, Logic wise just know that the difference between this and add_initiation is that this is for items that are already in the conversation state, which means a previously processed node wont be processed again if they are related with a DELAY relationship"""
+        for node_list in [self.locks, self.unlocks, self.expectations, self.primes]:
+            for item in node_list:
+                if item["node"] == node:
+                    self._add_item(node, duration, node_list, item["type"])
+
 
     def disable_item(self, node: str):
         for node_list in [self.primes, self.initiations]:
@@ -137,7 +146,7 @@ class ConversationState:
             elapsed_time = current_time - start_time
             remaining_time = max(0, duration - elapsed_time)
             item["timeLeft"] = remaining_time
-            logger.debug(f"updated: {item}")
+            logger.info(f"updated: {item}")
 
     def _remove_expired(self, items: list):
         valid_items = []
@@ -186,11 +195,32 @@ class ConversationState:
             "expectations": [],
         }
 
-        if attribute in attributes:
-            setattr(self, attribute, attributes[attribute])
-            logger.info(f'Reset attribute: "{attribute}"')
+        if attribute in attributes and isinstance(getattr(self, attribute, None), list):
+            if getattr(self, attribute):
+                setattr(self, attribute, attributes[attribute])
+                logger.info(f'Reset attribute: "{attribute}"')
         else:
             logger.error(f'Invalid attribute: "{attribute}"')
+
+
+
+    def revert_definitions(self, session, node: str):
+        definitions_to_revert = get_node_connections(session=session, text=node, source=ROBEAU, conversation_state=self) or []
+        readable_definitions = [(i['start_node'], i['relationship'], i['end_node']) for i in definitions_to_revert]
+        logger.info(f"Obtained definitions to revert: {readable_definitions}")
+        for connection in definitions_to_revert:
+            node = connection.get("end_node", "")
+
+            initial_lock_count = len(self.locks)
+            self.locks = [lock for lock in self.locks if lock["node"] != node]
+            if len(self.locks) < initial_lock_count:
+                logger.info(f'Removed lock for: "{node}"')
+
+            initial_unlock_count = len(self.unlocks)
+            self.unlocks = [unlock for unlock in self.unlocks if unlock["node"] != node]
+            if len(self.unlocks) < initial_unlock_count:
+                logger.info(f'Removed unlock for: "{node}"')
+
 
     def log_conversation_state(self):
         conditions = (
@@ -242,7 +272,6 @@ def get_node_connections(
     conversation_state: ConversationState,
 ) -> list[dict] | None:
 
-    conversation_state.log_conversation_state()
 
     if source == USER:
         if not conversation_state.expectations:
@@ -381,11 +410,6 @@ def process_random_connections(random_connection: list[dict]) -> list[dict]:
     return selected_connections
 
 
-def process_defaults():
-    """TODO: Implement process_defaults function"""
-    pass
-
-
 def execute_attempt(
     connection: dict,
     node: str,
@@ -496,21 +520,26 @@ def process_activation_relationships(
 def process_definitions_connections(
     connections: list[dict], conversation_state: ConversationState, method: str
 ):
-    def call_method(conversation_state, method, end_node, duration):
-        method = getattr(conversation_state, method)
-        sig = inspect.signature(method)
-        if "duration" in sig.parameters:
-            method(end_node, duration)
-        else:
-            method(end_node)
-
     for connection in connections:
         end_node = connection.get("end_node", "")
         duration = connection.get("params", {}).get("duration")
-        call_method(conversation_state, method, end_node, duration)
+        getattr(conversation_state, method)(end_node, duration)
 
+def process_modifications_connections(session: Session, connections: list[dict], conversation_state: ConversationState, method: str):
+    method_map = {
+        "revert_definitions": lambda end_node, params: conversation_state.revert_definitions(session, end_node),
+        "delay_item": lambda end_node, params: conversation_state.delay_item(end_node, params.get("duration")),  # unused, might chance in the future
+        "disable_item": lambda end_node, params: conversation_state.disable_item(end_node)
+    }
 
-def process_definition_relationships(
+    if method in method_map:
+        for connection in connections:
+            end_node = connection.get("end_node", "")
+            params = connection.get("params", {})
+            method_map[method](end_node, params)
+        
+
+def process_definitions_relationships(
     session: Session,
     relationships_map: dict[str, list[dict]],
     conversation_state: ConversationState,
@@ -521,8 +550,6 @@ def process_definition_relationships(
         "PRIMES": "add_prime",
         "EXPECTS": "add_expectation",
         "INITIATES": "add_initiation",
-        "DISABLES": "disable_item",
-        "DELAYS": "add_initiation",  # For now this will do. Uses the same method as INITIATES but will refresh the timeLeft.
     }
 
     for relationship, method in relationship_methods.items():
@@ -537,6 +564,17 @@ def process_definition_relationships(
             conversation_state=conversation_state,
             source=SYSTEM,
         )
+
+def process_modifications_relationships(session: Session, relationships_map: dict[str, list[dict]], conversation_state: ConversationState):
+    relationship_methods = {
+        "DISABLES": "disable_item",
+        "DELAYS": "delay_item",  # Unused right now but may be used in the future
+        "REVERTS": "revert_definitions",
+    }
+    for relationship, method in relationship_methods.items():
+        connections = relationships_map.get(relationship, [])
+        if connections:
+            process_modifications_connections(session, connections, conversation_state, method)
 
 
 def process_relationships(
@@ -556,8 +594,10 @@ def process_relationships(
     expects: list[dict] = []
     primes: list[dict] = []
     initiates: list[dict] = []
+    # Modification connections
     disables: list[dict] = []
-    delays: list[dict] = []
+    delays: list[dict] = [] # Unused right now but may be used in the future
+    reverts: list[dict] = []
 
     relationships_map = {
         # Activations
@@ -571,9 +611,10 @@ def process_relationships(
         "EXPECTS": expects,
         "PRIMES": primes,
         "INITIATES": initiates,
-        # Modifications TODO: Implement cleaner way to handle these
+        # Modifications
         "DISABLES": disables,
-        "DELAYS": delays,
+        "DELAYS": delays, # unused right now but may be used in the future
+        "REVERTS": reverts,
     }
 
     for connection in connections:
@@ -584,8 +625,9 @@ def process_relationships(
     end_nodes_reached = process_activation_relationships(
         relationships_map, conversation_state
     )
-
-    process_definition_relationships(session, relationships_map, conversation_state)
+    
+    process_definitions_relationships(session, relationships_map, conversation_state)
+    process_modifications_relationships(session, relationships_map, conversation_state)
 
     return end_nodes_reached
 
@@ -598,6 +640,8 @@ def process_node(
 ):
 
     logger.info(f'Processing node: "{node}" ({source.name})')
+    conversation_state.log_conversation_state()
+
     connections = get_node_connections(
         session=session,
         text=node,
@@ -606,7 +650,7 @@ def process_node(
     )
 
     if not connections:
-        logger.info(f'End of process for node: "{node}"')
+        logger.info(f'End of process for node: "{node}" from source {source.name}')
         return
 
     response_nodes_reached = process_relationships(
@@ -615,6 +659,7 @@ def process_node(
 
     for response_node in response_nodes_reached:
         if response_node == RESET_EXPECTATIONS:
+            # Reset expectations any time they are met or definitively failed to be met (possibility for multiple tries)
             conversation_state.reset_attribute("expectations")
             continue
         process_node(session, response_node, conversation_state, ROBEAU)
