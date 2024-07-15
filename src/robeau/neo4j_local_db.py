@@ -1,17 +1,13 @@
 import enum
-import inspect
 import random
 import threading
 import time
 from collections import defaultdict
 from enum import auto
-from typing import Optional
+
 from neo4j import GraphDatabase, Result, Session
 from prompt_toolkit import PromptSession
-from prompt_toolkit.application import Application
-from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.patch_stdout import patch_stdout
-from prompt_toolkit.shortcuts import print_formatted_text
 
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from src.utils import helpers
@@ -27,6 +23,7 @@ class QuerySource(enum.Enum):
 
 
 class Transmissions(enum.Enum):
+    # IMPORTANT: These values must match the database text values
     EXPECTATIONS_SET_MSG = "EXPECTATIONS SET"
     EXPECTATIONS_SUCCESS_MSG = "EXPECTATIONS SUCCESS"
     EXPECTATIONS_FAILURE_MSG = "EXPECTATIONS FAILURE"
@@ -329,24 +326,80 @@ def get_node_connections(
     return result_data
 
 
-def define_random_pools(connections: list[dict]) -> list[list[dict]]:
+def process_modifications_connections(session: Session, connections: list[dict], conversation_state: ConversationState, method: str):
+    method_map = {
+        "revert_definitions": lambda end_node, params: conversation_state.revert_definitions(session, end_node),
+        "delay_item": lambda end_node, params: conversation_state.delay_item(end_node, params.get("duration")),  # unused, might chance in the future
+        "disable_item": lambda end_node, params: conversation_state.disable_item(end_node)
+    }
 
-    grouped_data = defaultdict(list)
+    if method in method_map:
+        for connection in connections:
+            end_node = connection.get("end_node", "")
+            params = connection.get("params", {})
+            method_map[method](end_node, params)
+
+
+def process_modifications_relationships(session: Session, relationships_map: dict[str, list[dict]], conversation_state: ConversationState):
+    relationship_methods = {
+        "DISABLES": "disable_item",
+        "DELAYS": "delay_item",  # Unused right now but may be used in the future
+        "REVERTS": "revert_definitions",
+    }
+    for relationship, method in relationship_methods.items():
+        connections = relationships_map.get(relationship, [])
+        if connections:
+            process_modifications_connections(session, connections, conversation_state, method)
+
+  
+def process_definitions_connections(
+    connections: list[dict], conversation_state: ConversationState, method: str
+):
     for connection in connections:
-        grouped_data[connection["params"].get("randomPoolId", 0)].append(connection)
+        end_node = connection.get("end_node", "")
+        duration = connection.get("params", {}).get("duration")
+        getattr(conversation_state, method)(end_node, duration)
 
-    result = list(grouped_data.values())
 
-    formatted_pools = "\n".join(
-        [
-            f"\ngroup{index}:\n" + "\n".join([str(conn) for conn in group])
-            for index, group in enumerate(result)
-        ]
-    )
-    if result:
-        logger.info(f"Random pools defined: {formatted_pools}")
+def process_definitions_relationships(
+    session: Session,
+    relationships_map: dict[str, list[dict]],
+    conversation_state: ConversationState,
+):
+    relationship_methods = {
+        "LOCKS": "add_lock",
+        "UNLOCKS": "add_unlock",
+        "PRIMES": "add_prime",
+        "EXPECTS": "add_expectation",
+        "INITIATES": "add_initiation",
+    }
 
-    return result
+    for relationship, method in relationship_methods.items():
+        connections = relationships_map.get(relationship, [])
+        if connections:
+            process_definitions_connections(connections, conversation_state, method)
+
+    if relationships_map["EXPECTS"]:
+        process_node(
+            session=session,
+            node=EXPECTATIONS_SET,
+            conversation_state=conversation_state,
+            source=SYSTEM,
+        )
+
+
+def activate_node(node_dict: dict):
+    """Output. Works for both activation connections (end_node) and initiations from the conversation state(node)."""
+    output = node_dict.get("end_node") or node_dict.get("node")
+    print(output)
+    logger.info(f'>>> OUTPUT: "{output}" ')
+    return node_dict
+
+
+def activate_connections(connections: list[dict]):
+    for connection in connections:
+        activate_node(connection)
+    return connections
 
 
 def select_random_connection(connections: list[dict] | dict) -> dict:
@@ -389,18 +442,24 @@ def select_random_connections(random_pool_groups: list[list[dict]]) -> list[dict
     return selected_connections
 
 
-def activate_connections(connections: list[dict]):
+def define_random_pools(connections: list[dict]) -> list[list[dict]]:
+
+    grouped_data = defaultdict(list)
     for connection in connections:
-        activate_node(connection)
-    return connections
+        grouped_data[connection["params"].get("randomPoolId", 0)].append(connection)
 
+    result = list(grouped_data.values())
 
-def activate_node(activator: dict):
-    """Output. Works for both activation connections and initiations from the conversation state."""
-    output = activator.get("end_node") or activator.get("node")
-    print(output)
-    logger.info(f'>>> OUTPUT: "{output}" ')
-    return activator
+    formatted_pools = "\n".join(
+        [
+            f"\ngroup{index}:\n" + "\n".join([str(conn) for conn in group])
+            for index, group in enumerate(result)
+        ]
+    )
+    if result:
+        logger.info(f"Random pools defined: {formatted_pools}")
+
+    return result
 
 
 def process_random_connections(random_connection: list[dict]) -> list[dict]:
@@ -454,8 +513,8 @@ def process_activation_connections(
         else:
             connections_list.append(connection)
 
-    activated_connections.extend(activate_connections(connections_list))
     activated_connections.extend(process_random_connections(random_connections))
+    activated_connections.extend(activate_connections(connections_list))
 
     if activated_connections:
         # reset primes after any successful activation that are not Warnings
@@ -515,66 +574,6 @@ def process_activation_relationships(
     )
 
     return end_nodes_reached
-
-
-def process_definitions_connections(
-    connections: list[dict], conversation_state: ConversationState, method: str
-):
-    for connection in connections:
-        end_node = connection.get("end_node", "")
-        duration = connection.get("params", {}).get("duration")
-        getattr(conversation_state, method)(end_node, duration)
-
-def process_modifications_connections(session: Session, connections: list[dict], conversation_state: ConversationState, method: str):
-    method_map = {
-        "revert_definitions": lambda end_node, params: conversation_state.revert_definitions(session, end_node),
-        "delay_item": lambda end_node, params: conversation_state.delay_item(end_node, params.get("duration")),  # unused, might chance in the future
-        "disable_item": lambda end_node, params: conversation_state.disable_item(end_node)
-    }
-
-    if method in method_map:
-        for connection in connections:
-            end_node = connection.get("end_node", "")
-            params = connection.get("params", {})
-            method_map[method](end_node, params)
-        
-
-def process_definitions_relationships(
-    session: Session,
-    relationships_map: dict[str, list[dict]],
-    conversation_state: ConversationState,
-):
-    relationship_methods = {
-        "LOCKS": "add_lock",
-        "UNLOCKS": "add_unlock",
-        "PRIMES": "add_prime",
-        "EXPECTS": "add_expectation",
-        "INITIATES": "add_initiation",
-    }
-
-    for relationship, method in relationship_methods.items():
-        connections = relationships_map.get(relationship, [])
-        if connections:
-            process_definitions_connections(connections, conversation_state, method)
-
-    if relationships_map["EXPECTS"]:
-        process_node(
-            session=session,
-            node=EXPECTATIONS_SET,
-            conversation_state=conversation_state,
-            source=SYSTEM,
-        )
-
-def process_modifications_relationships(session: Session, relationships_map: dict[str, list[dict]], conversation_state: ConversationState):
-    relationship_methods = {
-        "DISABLES": "disable_item",
-        "DELAYS": "delay_item",  # Unused right now but may be used in the future
-        "REVERTS": "revert_definitions",
-    }
-    for relationship, method in relationship_methods.items():
-        connections = relationships_map.get(relationship, [])
-        if connections:
-            process_modifications_connections(session, connections, conversation_state, method)
 
 
 def process_relationships(
@@ -667,17 +666,6 @@ def process_node(
     logger.info(f'End of process for node: "{node}"')
 
 
-def establish_connection():
-    start_time = time.time()
-    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
-    session = driver.session()
-    session.run("RETURN 1").consume()  # Warmup query
-    connection_time = time.time() - start_time
-    print(f"Connection established in {connection_time:.3f} seconds")
-    print(driver.get_server_info())
-    return driver, session
-
-
 def listen_for_queries(
     session, conversation_state, specific_prompt, query_duration, prompt_session
 ):
@@ -698,6 +686,17 @@ def listen_for_queries(
             start_time = time.time()
     print("ran out of time")
     return True
+
+
+def establish_connection():
+    start_time = time.time()
+    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+    session = driver.session()
+    session.run("RETURN 1").consume()  # Warmup query
+    connection_time = time.time() - start_time
+    print(f"Connection established in {connection_time:.3f} seconds")
+    print(driver.get_server_info())
+    return driver, session
 
 
 def run_update_conversation_state(

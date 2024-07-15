@@ -6,29 +6,29 @@ SetTitleMatchMode, 2 ; Allows for partial matching of the window title
 targetWindowTitle := "neo4j@bolt://localhost:7687/neo4j - Neo4j Browser"
 
 MatchNode() {
-    SendInput, match(
+    SendInput, MATCH(
     Input, UserInput, L1
-    SendInput, %UserInput%){Shift down}{Enter}{Shift up}where apoc.node.id(%UserInput%)=
+    SendInput, %UserInput%){Shift down}{Enter}{Shift up}WHERE apoc.node.id(%UserInput%)=
 }
 
 MatchNodeGroup() {
-    SendInput, match(a:)-[r]-(b)
-    SendInput {Shift down}{Enter}{Shift up}return a,r,b
+    SendInput, MATCH(a:)-[r]-(b)
+    SendInput {Shift down}{Enter}{Shift up}RETURN a,r,b
     Send, {Up}{Left 4}
     Input, Input1, L1
     SendInput, % HandleNodeInput(Input1)
 }
 
 MatchNodeOutPath() {
-    SendInput, match p=(a)-[r*]->(b)
-    SendInput {Shift down}{Enter}{Shift up}where apoc.node.id(a)=
-    SendInput {Shift down}{Enter}{Shift up}return p
+    SendInput, MATCH p=(a)-[r*]->(b)
+    SendInput {Shift down}{Enter}{Shift up}WHERE apoc.node.id(a)=
+    SendInput {Shift down}{Enter}{Shift up}RETURN p
     Send, {Up}{End}
 }
 
 MatchLabelsOnPath(arg) {
-    SendInput, match p%arg%=(a%arg%)-[r%arg%*]->(b%arg%)
-    SendInput, {Shift down}{Enter}{Shift up}where apoc.node.id(a%arg%)=
+    SendInput, MATCH p%arg%=(a%arg%)-[r%arg%*]->(b%arg%)
+    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(a%arg%)=
     SendInput, {Shift down}{Enter}{Shift up}WITH p%arg%, [n IN nodes(p%arg%) WHERE "" IN labels(n)] AS matchNodes%arg%
     Loop, 6
     {
@@ -43,20 +43,13 @@ MatchLabelsOnPath(arg) {
 }
 
 MatchRelationship() {
-    SendInput, match(
-    Input, Input1, L1
-    SendInput, %Input1%)-[
-    Input, Input2, L1
-    SendInput, %Input2%%suffix%]->(
-    Input, Input3, L1
-    SendInput, %Input3%)
-    SendInput, % HandleRelationshipInput(Input4)
-    SendInput, {Shift down}{Enter}{Shift up}where apoc.rel.id(%Input2%)=
+    SendInput, MATCH(a)-[r]->(b)
+    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.rel.id(r)=
 }
 
 MatchRelationshipGroup() {
-    SendInput, match(a)-[r:]-(b)
-    SendInput, {Shift down}{Enter}{Shift up}return a,r,b
+    SendInput, MATCH(a)-[r:]-(b)
+    SendInput, {Shift down}{Enter}{Shift up}RETURN a,r,b
     Send, {Up}
     Input, Input1, L1
     SendInput, % HandleRelationshipInput(Input1)
@@ -70,7 +63,7 @@ MatchPropertyKey() {
 }
 
 CreateRelationship() {
-    SendInput, create(
+    SendInput, CREATE(
     Input, Input1, L1
     SendInput, %Input1%)-[
     Input, Input2, L1
@@ -84,7 +77,7 @@ CreateRelationship() {
 }
 
 CreateRelationshipNoLabel() {
-    SendInput, create(
+    SendInput, CREATE(
     Input, Input1, L1
     SendInput, %Input1%)-[:]->(
     Input, Input3, L1
@@ -96,7 +89,7 @@ CreateRelationshipNoLabel() {
 }
 
 CreateNode() {
-    SendInput, Create(
+    SendInput, CREATE(
     Input, Input1, L1
     SendInput, %Input1%:
         Input, Input2, L1
@@ -232,6 +225,6 @@ return
 
 ^+\:: ; Return all Hotkey: Ctrl+Shift+\
     if WinActive(targetWindowTitle) {
-        SendInput,^{End}{Shift down}{Enter}{Shift up}with *{Shift down}{Enter}{Shift up}match(all){Shift down}{Enter}{Shift up}Return all
+        SendInput,^{End}{Shift down}{Enter}{Shift up}WITH *{Shift down}{Enter}{Shift up}MATCH(all){Shift down}{Enter}{Shift up}RETURN all
     }
 return
