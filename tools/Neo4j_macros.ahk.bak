@@ -43,8 +43,15 @@ MatchLabelsOnPath(arg) {
 }
 
 MatchRelationship() {
-    SendInput, MATCH(a)-[r]->(b)
-    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.rel.id(r)=
+    SendInput, MATCH(
+    Input, Input1, L1
+    SendInput, %Input1%)-[
+    Input, Input2, L1
+    SendInput, %Input2%%suffix%]->(
+    Input, Input3, L1
+    SendInput, %Input3%)
+    SendInput, % HandleRelationshipInput(Input4)
+    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.rel.id(%Input2%)=
 }
 
 MatchRelationshipGroup() {
