@@ -124,6 +124,9 @@ HandleRelationshipInput(input) {
         if (input = "d") {
             return "DISABLES"
         }
+        if (input = "l") {
+            return "LISTENS"
+        }
     } else {
         if (input = "a") {
             return "ATTEMPTS"
@@ -182,7 +185,7 @@ HandleNodeInput(input) {
     }
 }
 
-^+m:: ; Matches Hotkey: Ctrl+Shift+M (+G for groups)
+^+m:: ; Matches Hotkey: Ctrl+Shift+M (+G for groups) (+l for labels
     if WinActive(targetWindowTitle) {
         Input, NextKey, L1
         if (NextKey = "n") {
@@ -194,14 +197,18 @@ HandleNodeInput(input) {
         } else if (NextKey = "l"){
             Input, UserInput, L1
             MatchLabelsOnPath(UserInput)
-        } else if (NextKey = "g") {
+        } 
+        
+        else if (NextKey = "g") {
             Input, NextKey2, L1
             if (NextKey2 = "n") {
                 MatchNodeGroup()
             } else if (NextKey2 = "r") {
                 MatchRelationshipGroup()
             }
-        } else if (NextKey = "o") {
+        } 
+        
+        else if (NextKey = "o") {
             Input, NextKey2, L1
             if (NextKey2 = "n") {
                 MatchNodeOutPath()

@@ -48,6 +48,8 @@ class ConversationState:
         self.unlocks = []
         self.expectations = []
         self.primes = []
+        self.listens = []
+
         self.initiations = []
 
     def _add_item(
@@ -56,18 +58,16 @@ class ConversationState:
         start_time = time.time()
 
         for existing_item in item_list:
-            if existing_item["node"] != node:
-                continue
+            if existing_item["node"] == node:
+                if duration is None:  # None means infinite duration here
+                    return
 
-            if duration is None:  # None means infinite duration here
+                # Refresh duration if the item already exists
+                existing_item["duration"] = duration
+                existing_item["timeLeft"] = duration
+                existing_item["start_time"] = start_time
+                logger.info(f"Refreshed the time duration of {existing_item}")
                 return
-
-            # Refresh duration if the item already exists
-            existing_item["duration"] = duration
-            existing_item["timeLeft"] = duration
-            existing_item["start_time"] = start_time
-            logger.info(f"Refreshed the time duration of {existing_item}")
-            return
 
         item_list.append(
             {
@@ -91,11 +91,14 @@ class ConversationState:
     def add_prime(self, node: str, duration: float | None):
         self._add_item(node, duration, self.primes, "prime")
 
+    def add_listens(self, node: str, duration: float | None):
+        self._add_item(node, duration, self.listens, "listen")
+
     def add_initiation(self, node: str, duration: float | None):
         self._add_item(node, duration, self.initiations, "initiation")
 
     def delay_item(self, node: str, duration: float | None):
-        """Unused right now but may be used in the future, Logic wise just know that the difference between this and add_initiation is that this is for items that are already in the conversation state, which means a previously processed node wont be processed again if they are related with a DELAY relationship"""
+        """Unused right now but may be used in the future, Logic wise just know that the difference between this and add_initiation is that this is for items that are already in the conversation state, which means a previously processed node wont be processed again if they are pointed to with a DELAY relationship"""
         for node_list in [self.locks, self.unlocks, self.expectations, self.primes]:
             for item in node_list:
                 if item["node"] == node:
@@ -160,7 +163,7 @@ class ConversationState:
             process_node(session, initiation["node"], self, source=ROBEAU)
 
     def update_timed_items(self, session: Session):
-        items_to_update = ["locks", "unlocks", "expectations", "primes"]
+        items_to_update = ["locks", "unlocks", "expectations", "primes", "listens"]
         for item in items_to_update:
             setattr(self, item, self._remove_expired(getattr(self, item)))
         self._check_initiations(session)
@@ -211,6 +214,7 @@ class ConversationState:
             "Unlock": self.unlocks,
             "Expectation": self.expectations,
             "Prime": self.primes,
+            "Listen": self.listens,
             "Initiation": self.initiations,
         }
 
@@ -263,6 +267,9 @@ def determine_label_and_text(
     if source == USER:
         if not conversation_state.expectations:
             labels = ["Prompt", "Request"]
+            if conversation_state.listens:
+                labels.append("Exclamation")
+
         elif meets_expectations():
             logger.info(f'"{text}" meets conversation expectations')
             process_expectation_success()
@@ -375,8 +382,9 @@ def process_definitions_relationships(
     relationship_methods = {
         "LOCKS": "add_lock",
         "UNLOCKS": "add_unlock",
-        "PRIMES": "add_prime",
         "EXPECTS": "add_expectation",
+        "LISTENS": "add_listens",
+        "PRIMES": "add_prime",
         "INITIATES": "add_initiation",
     }
 
@@ -567,6 +575,7 @@ def process_relationships(
     locks: list[dict] = []
     unlocks: list[dict] = []
     expects: list[dict] = []
+    listens: list[dict] = []
     primes: list[dict] = []
     initiates: list[dict] = []
     # Modification connections
@@ -584,6 +593,7 @@ def process_relationships(
         "LOCKS": locks,
         "UNLOCKS": unlocks,
         "EXPECTS": expects,
+        "LISTENS": listens,
         "PRIMES": primes,
         "INITIATES": initiates,
         # Modifications
