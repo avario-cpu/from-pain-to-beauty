@@ -152,6 +152,9 @@ HandleRelationshipInput(input) {
         if (input = "u") {
             return "UNLOCKS"
         }
+        if (input = "r") {
+            return "RESETS"
+        }
         return input
     }
 }

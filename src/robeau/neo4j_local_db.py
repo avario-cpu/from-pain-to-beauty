@@ -175,7 +175,8 @@ class ConversationState:
         else:
             logger.error(f'Invalid attribute: "{attribute}"')
 
-    def revert_definitions(self, session, node: str):
+    def reset_definitions(self, session, node: str):
+        """Reverts the locks and unlock which the target node had instilled on other nodes"""
         definitions_to_revert = (
             get_node_connections(
                 session=session, text=node, source=ROBEAU, conversation_state=self
@@ -191,10 +192,10 @@ class ConversationState:
         for connection in definitions_to_revert:
             end_node = connection.get("end_node", "")
 
-            self._revert_individual_definition("lock", end_node, self.locks)
-            self._revert_individual_definition("unlock", end_node, self.unlocks)
+            self._reset_individual_definition("lock", end_node, self.locks)
+            self._reset_individual_definition("unlock", end_node, self.unlocks)
 
-    def _revert_individual_definition(
+    def _reset_individual_definition(
         self, definition_type: str, node: str, definitions: list
     ):
         initial_count = len(definitions)
@@ -224,20 +225,58 @@ class ConversationState:
 
 
 def get_node_data(
-    session: Session, text: str, label: str, source: QuerySource
+    session: Session, text: str, labels: list[str], source: QuerySource
 ) -> Result:
+    labels_query = "|".join(labels)
     query = f"""
-    MATCH (x:{label})-[R]->(y)
+    MATCH (x:{labels_query})-[R]->(y)
     WHERE toLower(x.text) = toLower($text)
     RETURN x, R, y
     """
     result = session.run(query, text=text)
 
-    if not result.peek() and label == "Prompt" and source == USER:
+    if not result.peek() and "Prompt" in labels and source == USER:
         logger.warning(f'Prompt "{text}" not found in database')
         print(f"Sorry, didn't understand that...")
 
     return result
+
+
+def determine_label_and_text(
+    session: Session,
+    text: str,
+    source: QuerySource,
+    conversation_state: ConversationState,
+) -> list[str] | None:
+    def meets_expectations():
+        return any(
+            item["node"].lower() == text.lower()
+            for item in conversation_state.expectations
+        )
+
+    def process_expectation_success():
+        process_node(session, EXPECTATIONS_SUCCESS, conversation_state, source=SYSTEM)
+
+    def process_expectation_failure():
+        process_node(session, EXPECTATIONS_FAILURE, conversation_state, source=SYSTEM)
+
+    if source == USER:
+        if not conversation_state.expectations:
+            labels = ["Prompt", "Request"]
+        elif meets_expectations():
+            logger.info(f'"{text}" meets conversation expectations')
+            process_expectation_success()
+            labels = ["Answer"]
+        else:
+            logger.info(f'"{text}" does not meet conversation expectations')
+            process_expectation_failure()
+            return None  # abort processing initial target node: if it doesn't match the expectations then finding it within the database is irrelevant anyways
+    elif source == ROBEAU:
+        labels = ["Response", "Question"]
+    elif source == SYSTEM:
+        labels = ["Input"]
+
+    return labels
 
 
 def get_node_connections(
@@ -247,31 +286,12 @@ def get_node_connections(
     conversation_state: ConversationState,
 ) -> list[dict] | None:
 
-    def meets_expectations():
-        return any(
-            item["node"].lower() == text.lower()
-            for item in conversation_state.expectations
-        )
+    labels = determine_label_and_text(session, text, source, conversation_state)
 
-    if source == USER:
-        if not conversation_state.expectations:
-            label = "Prompt"
-        elif meets_expectations():
-            logger.info(f'"{text}" meets conversation expectations')
-            process_node(
-                session, EXPECTATIONS_SUCCESS, conversation_state, source=SYSTEM
-            )
-            label = "Answer"
-        else:
-            logger.info(f'"{text}" does not meet conversation expectations')
-            text = EXPECTATIONS_FAILURE
-            label = "Input"
-    elif source == ROBEAU:
-        label = "Response"
-    elif source == SYSTEM:
-        label = "Input"
+    if not labels:
+        return None
 
-    result = get_node_data(session, text, label, source)
+    result = get_node_data(session, text, labels, source)
 
     if not result.peek():
         logger.info(f'No connections found for node: "{text}"')
@@ -302,7 +322,7 @@ def process_modifications_connections(
     method: str,
 ):
     method_map = {
-        "revert_definitions": lambda end_node, params: conversation_state.revert_definitions(
+        "reset_definitions": lambda end_node, params: conversation_state.reset_definitions(
             session, end_node
         ),
         "delay_item": lambda end_node, params: conversation_state.delay_item(
@@ -328,7 +348,7 @@ def process_modifications_relationships(
     relationship_methods = {
         "DISABLES": "disable_item",
         "DELAYS": "delay_item",  # Unused right now but may be used in the future
-        "REVERTS": "revert_definitions",
+        "RESETS": "reset_definitions",
     }
     for relationship, method in relationship_methods.items():
         connections = relationships_map.get(relationship, [])
@@ -552,7 +572,7 @@ def process_relationships(
     # Modification connections
     disables: list[dict] = []
     delays: list[dict] = []  # Unused right now but may be used in the future
-    reverts: list[dict] = []
+    resets: list[dict] = []
 
     relationships_map = {
         # Activations
@@ -569,7 +589,7 @@ def process_relationships(
         # Modifications
         "DISABLES": disables,
         "DELAYS": delays,  # unused right now but may be used in the future
-        "REVERTS": reverts,
+        "RESETS": resets,
     }
 
     for connection in connections:

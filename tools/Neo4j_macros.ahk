@@ -146,12 +146,16 @@ HandleRelationshipInput(input) {
         if (input = "p") {
             return "PRIMES"
         }
+        if (input = "r") {
+            return "RESETS"
+        }
         if (input = "t") {
             return "TRIGGERS"
         }
         if (input = "u") {
             return "UNLOCKS"
         }
+        
         return input
     }
 }
