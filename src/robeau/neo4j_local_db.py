@@ -246,7 +246,7 @@ def get_node_data(
     return result
 
 
-def determine_label_and_text(
+def determine_labels_and_text(
     session: Session,
     text: str,
     source: QuerySource,
@@ -268,7 +268,7 @@ def determine_label_and_text(
         if not conversation_state.expectations:
             labels = ["Prompt", "Request"]
             if conversation_state.listens:
-                labels.append("Exclamation")
+                labels.append("Whisper")
 
         elif meets_expectations():
             logger.info(f'"{text}" meets conversation expectations')
@@ -293,7 +293,7 @@ def get_node_connections(
     conversation_state: ConversationState,
 ) -> list[dict] | None:
 
-    labels = determine_label_and_text(session, text, source, conversation_state)
+    labels = determine_labels_and_text(session, text, source, conversation_state)
 
     if not labels:
         return None

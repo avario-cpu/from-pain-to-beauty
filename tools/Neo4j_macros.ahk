@@ -7,7 +7,7 @@ targetWindowTitle := "neo4j@bolt://localhost:7687/neo4j - Neo4j Browser"
 
 MatchNode() {
     SendInput, MATCH(
-    Input, UserInput, L1
+    Input, UserInput, L2
     SendInput, %UserInput%){Shift down}{Enter}{Shift up}WHERE apoc.node.id(%UserInput%)=
 }
 
@@ -27,8 +27,8 @@ MatchNodeOutPath() {
 }
 
 MatchLabelsOnPath(arg) {
-    SendInput, MATCH p%arg%=(a%arg%)-[r%arg%*]->(b%arg%)
-    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(a%arg%)=
+    SendInput, MATCH p%arg%=(x%arg%)-[R%arg%*]->(y%arg%)
+    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(x%arg%)=
     SendInput, {Shift down}{Enter}{Shift up}WITH p%arg%, [n IN nodes(p%arg%) WHERE "" IN labels(n)] AS matchNodes%arg%
     Loop, 6
     {
@@ -44,11 +44,11 @@ MatchLabelsOnPath(arg) {
 
 MatchRelationship() {
     SendInput, MATCH(
-    Input, Input1, L1
+    Input, Input1, L2
     SendInput, %Input1%)-[
-    Input, Input2, L1
+    Input, Input2, L2
     SendInput, %Input2%%suffix%]->(
-    Input, Input3, L1
+    Input, Input3, L2
     SendInput, %Input3%)
     SendInput, % HandleRelationshipInput(Input4)
     SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.rel.id(%Input2%)=
@@ -69,15 +69,20 @@ MatchPropertyKey() {
     SendInput, {Up}{End}{Left 2}
 }
 
+MatchNodesOutPath(){
+    SendInput, MATCH p0=(x0)-[R0*]->(y0)
+    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(x0)=
+}
+
 CreateRelationship() {
     SendInput, CREATE(
-    Input, Input1, L1
+    Input, Input1, L2
     SendInput, %Input1%)-[
-    Input, Input2, L1
+    Input, Input2, L2
     SendInput, %Input2%:]->(
-    Input, Input3, L1
+    Input, Input3, L2
     SendInput, %Input3%)
-    Send, {Left 6}
+    Send, ^{Left}^{Left}{Right}
     Input, Input4, L1
     SendInput, % HandleRelationshipInput(Input4)
     Send, {End}{Shift down}{Enter}{Shift up}
@@ -85,11 +90,11 @@ CreateRelationship() {
 
 CreateRelationshipNoLabel() {
     SendInput, CREATE(
-    Input, Input1, L1
+    Input, Input1, L2
     SendInput, %Input1%)-[:]->(
-    Input, Input3, L1
+    Input, Input3, L2
     SendInput, %Input3%)
-    Send, {Left 6}
+    Send, ^{Left}{Left 4}
     Input, Input4, L1
     SendInput, % HandleRelationshipInput(Input4)
     Send, {End}{Shift down}{Enter}{Shift up}
@@ -97,7 +102,7 @@ CreateRelationshipNoLabel() {
 
 CreateNode() {
     SendInput, CREATE(
-    Input, Input1, L1
+    Input, Input1, L2
     SendInput, %Input1%:
         Input, Input2, L1
         SendInput, % HandleNodeInput(Input2)
@@ -172,15 +177,17 @@ HandleNodeInput(input) {
         if (input = "a")
             return "Answer"
         if (input = "e")
-            return "Error"
+            return "Exclamation"
         if (input = "p")
             return "Prompt"
         if (input = "q")
-            return "Response:Question"
+            return "Question"
         if (input = "r")
             return "Response"
-        if (input = "t")
-            return "Transmission"
+        if (input = "i")
+            return "Input"
+        if (input = "o")
+            return "Output"
         return input
     }
 }
@@ -190,20 +197,35 @@ HandleNodeInput(input) {
         Input, NextKey, L1
         if (NextKey = "n") {
             MatchNode()
-        } else if (NextKey = "r") {
+        } 
+        else if (NextKey = "r") {
             MatchRelationship()
-        } else if (NextKey = "p"){
+        } 
+        else if (NextKey = "k"){
             MatchPropertyKey()
-        } else if (NextKey = "l"){
+        } 
+        else if (NextKey = "l"){
             Input, UserInput, L1
             MatchLabelsOnPath(UserInput)
+        } 
+        
+        else if (NextKey = "p"){
+            Input, NextKey2, L1
+            if (NextKey2 = "l"){
+                Input, UserInput, L1
+                MatchLabelsOnPath(UserInput)
+            }
+            else if (NextKey2 = "n"){
+                MatchNodesOutPath()
+            } 
         } 
         
         else if (NextKey = "g") {
             Input, NextKey2, L1
             if (NextKey2 = "n") {
                 MatchNodeGroup()
-            } else if (NextKey2 = "r") {
+            } 
+            else if (NextKey2 = "r") {
                 MatchRelationshipGroup()
             }
         } 
@@ -241,8 +263,20 @@ return
     }
 return
 
+^+*:: ; With * Hotkey: Ctrl+Shift+*
+    if WinActive(targetWindowTitle) {
+        SendInput,^{End}{Shift down}{Enter}{Shift up}WITH *{Shift down}{Enter}{Shift up}
+    }
+return
+
 ^+\:: ; Return all Hotkey: Ctrl+Shift+\
     if WinActive(targetWindowTitle) {
         SendInput,^{End}{Shift down}{Enter}{Shift up}WITH *{Shift down}{Enter}{Shift up}MATCH(all){Shift down}{Enter}{Shift up}RETURN all
+    }
+return
+
+^+BackSpace:: ; Return Hotkey: Ctrl+Shift+Backspace
+    if WinActive(targetWindowTitle) {
+        SendInput,^{End}{Shift down}{Enter}{Shift up}RETURN{Space}
     }
 return
