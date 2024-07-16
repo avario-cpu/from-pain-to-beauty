@@ -5,28 +5,67 @@ SetTitleMatchMode, 2 ; Allows for partial matching of the window title
 
 targetWindowTitle := "neo4j@bolt://localhost:7687/neo4j - Neo4j Browser"
 
-MatchNode() {
+MatchNodeSingle() {
     SendInput, MATCH(
     Input, UserInput, L2
     SendInput, %UserInput%){Shift down}{Enter}{Shift up}WHERE apoc.node.id(%UserInput%)=
 }
 
-MatchNodeGroup() {
-    SendInput, MATCH(a:)-[r]-(b)
-    SendInput {Shift down}{Enter}{Shift up}RETURN a,r,b
+MatchNodeLabel() {
+    SendInput, MATCH(x:)-[r]-(y)
+    SendInput {Shift down}{Enter}{Shift up}RETURN x,r,y
     Send, {Up}{Left 4}
     Input, Input1, L1
     SendInput, % HandleNodeInput(Input1)
 }
 
-MatchNodeOutPath() {
-    SendInput, MATCH p=(a)-[r*]->(b)
-    SendInput {Shift down}{Enter}{Shift up}WHERE apoc.node.id(a)=
-    SendInput {Shift down}{Enter}{Shift up}RETURN p
-    Send, {Up}{End}
+MatchRelationshipSingle() {
+    SendInput, MATCH(x)-[r]-(y)
+    SendInput, {End}{Shift down}{Enter}{Shift up}WHERE apoc.rel.id(r)=
 }
 
-MatchLabelsOnPath(arg) {
+MatchRelationshipAlias() {
+    SendInput, MATCH()-[]-()
+    SendInput, {Left 4}
+    Input, Input1, L2
+    SendInput, %Input1%
+    SendInput, {End}{Shift down}{Enter}{Shift up}WHERE apoc.rel.id(%Input1%)=
+}
+
+MatchRelationshipType() {
+    SendInput, MATCH(x)-[r:]-(y)
+    SendInput, {Shift down}{Enter}{Shift up}RETURN x,r,y
+    Send, {Up}
+    Input, Input1, L1
+    SendInput, % HandleRelationshipInput(Input1)
+}
+
+MatchRelationshipNodes() {
+    SendInput, MATCH(
+    Input, Input1, L2
+    SendInput, %Input1%)-[]->(
+    Input, Input2, L2
+    SendInput, %Input2%)
+    Send, ^{Left}{Left 4}
+    Input, Input3, L2
+    SendInput, %Input3%
+    Send, {Right}
+    Send, {End}{Shift down}{Enter}{Shift up}WHERE apoc.rel.id(%Input3%)=
+}
+
+MatchKey() {
+    SendInput, MATCH (x)-[r]->(y)
+    SendInput, {Shift down}{Enter}{Shift up}WHERE any(key IN keys(r) WHERE key = "")
+    SendInput, {Shift down}{Enter}{Shift up}RETURN x,r,y
+    SendInput, {Up}{End}{Left 2}
+}
+
+MatchPathNode(){
+    SendInput, MATCH p=(x)-[r*]->(y)
+    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(x)=
+}
+
+MatchPathLabel(arg) {
     SendInput, MATCH p%arg%=(x%arg%)-[R%arg%*]->(y%arg%)
     SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(x%arg%)=
     SendInput, {Shift down}{Enter}{Shift up}WITH p%arg%, [n IN nodes(p%arg%) WHERE "" IN labels(n)] AS matchNodes%arg%
@@ -42,64 +81,6 @@ MatchLabelsOnPath(arg) {
     SendInput, {Up 2}{End}
 }
 
-MatchRelationship() {
-    SendInput, MATCH(
-    Input, Input1, L2
-    SendInput, %Input1%)-[
-    Input, Input2, L2
-    SendInput, %Input2%%suffix%]->(
-    Input, Input3, L2
-    SendInput, %Input3%)
-    SendInput, % HandleRelationshipInput(Input4)
-    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.rel.id(%Input2%)=
-}
-
-MatchRelationshipGroup() {
-    SendInput, MATCH(a)-[r:]-(b)
-    SendInput, {Shift down}{Enter}{Shift up}RETURN a,r,b
-    Send, {Up}
-    Input, Input1, L1
-    SendInput, % HandleRelationshipInput(Input1)
-}
-
-MatchPropertyKey() {
-    SendInput, MATCH (a)-[r]->(b)
-    SendInput, {Shift down}{Enter}{Shift up}WHERE any(key IN keys(r) WHERE key = "")
-    SendInput, {Shift down}{Enter}{Shift up}RETURN a,r,b
-    SendInput, {Up}{End}{Left 2}
-}
-
-MatchNodesOutPath(){
-    SendInput, MATCH p0=(x0)-[R0*]->(y0)
-    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(x0)=
-}
-
-CreateRelationship() {
-    SendInput, CREATE(
-    Input, Input1, L2
-    SendInput, %Input1%)-[
-    Input, Input2, L2
-    SendInput, %Input2%:]->(
-    Input, Input3, L2
-    SendInput, %Input3%)
-    Send, ^{Left}^{Left}{Right}
-    Input, Input4, L1
-    SendInput, % HandleRelationshipInput(Input4)
-    Send, {End}{Shift down}{Enter}{Shift up}
-}
-
-CreateRelationshipNoLabel() {
-    SendInput, CREATE(
-    Input, Input1, L2
-    SendInput, %Input1%)-[:]->(
-    Input, Input3, L2
-    SendInput, %Input3%)
-    Send, ^{Left}{Left 4}
-    Input, Input4, L1
-    SendInput, % HandleRelationshipInput(Input4)
-    Send, {End}{Shift down}{Enter}{Shift up}
-}
-
 CreateNode() {
     SendInput, CREATE(
     Input, Input1, L2
@@ -109,6 +90,33 @@ CreateNode() {
         SendRaw, {text:""}
         Send, {Left 2}
     }
+
+CreateRelationship() {
+    SendInput, CREATE(
+    Input, Input1, L2
+    SendInput, %Input1%)-[:]->(
+    Input, Input2, L2
+    SendInput, %Input2%)
+    Send, ^{Left}{Left 5}
+    Input, Input3, L2
+    SendInput, %Input3%
+    Send, {Right}
+    Input, Input4, L1
+    SendInput, % HandleRelationshipInput(Input4)
+    Send, {End}{Shift down}{Enter}{Shift up}
+}
+
+CreateRelationshipNoLabel() {
+    SendInput, CREATE(
+    Input, Input1, L2
+    SendInput, %Input1%)-[:]->(
+    Input, Input2, L2
+    SendInput, %Input2%)
+    Send, ^{Left}{Left 4}
+    Input, Input3, L1
+    SendInput, % HandleRelationshipInput(Input3)
+    Send, {End}{Shift down}{Enter}{Shift up}
+}
 
 SetText() {
     SendInput, set{space}
@@ -176,8 +184,6 @@ HandleNodeInput(input) {
     } else {
         if (input = "a")
             return "Answer"
-        if (input = "e")
-            return "Exclamation"
         if (input = "p")
             return "Prompt"
         if (input = "q")
@@ -188,6 +194,8 @@ HandleNodeInput(input) {
             return "Input"
         if (input = "o")
             return "Output"
+         if (input = "w")
+            return "Whisper"
         return input
     }
 }
@@ -196,46 +204,48 @@ HandleNodeInput(input) {
     if WinActive(targetWindowTitle) {
         Input, NextKey, L1
         if (NextKey = "n") {
-            MatchNode()
-        } 
+            Input, NextKey2, L1
+            if (NextKey2 = "s"){
+                MatchNodeSingle()
+            }
+            else if (NextKey2 = "l") {
+                MatchNodeLabel()
+            }
+        }   
+        
+         
         else if (NextKey = "r") {
-            MatchRelationship()
+            Input, NextKey2, L1
+            if (NextKey2 = "s"){
+                MatchRelationshipSingle()
+            }
+            else if (NextKey2 = "a"){
+                MatchRelationshipAlias()
+            } 
+            else if (NextKey2 = "t"){
+                MatchRelationshipType()
+            }
+            else if (NextKey2 = "n"){
+                MatchRelationshipNodes()
+            }
         } 
+        
+        
         else if (NextKey = "k"){
-            MatchPropertyKey()
+            MatchKey()
         } 
-        else if (NextKey = "l"){
-            Input, UserInput, L1
-            MatchLabelsOnPath(UserInput)
-        } 
+        
         
         else if (NextKey = "p"){
             Input, NextKey2, L1
             if (NextKey2 = "l"){
                 Input, UserInput, L1
-                MatchLabelsOnPath(UserInput)
+                MatchPathLabel(UserInput)
             }
             else if (NextKey2 = "n"){
-                MatchNodesOutPath()
+                MatchPathNode()
             } 
         } 
-        
-        else if (NextKey = "g") {
-            Input, NextKey2, L1
-            if (NextKey2 = "n") {
-                MatchNodeGroup()
-            } 
-            else if (NextKey2 = "r") {
-                MatchRelationshipGroup()
-            }
-        } 
-        
-        else if (NextKey = "o") {
-            Input, NextKey2, L1
-            if (NextKey2 = "n") {
-                MatchNodeOutPath()
-            } 
-        }
     }
 return
 

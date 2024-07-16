@@ -178,7 +178,7 @@ class ConversationState:
         else:
             logger.error(f'Invalid attribute: "{attribute}"')
 
-    def reset_definitions(self, session, node: str):
+    def revert_definitions(self, session, node: str):
         """Reverts the locks and unlock which the target node had instilled on other nodes"""
         definitions_to_revert = (
             get_node_connections(
@@ -195,10 +195,10 @@ class ConversationState:
         for connection in definitions_to_revert:
             end_node = connection.get("end_node", "")
 
-            self._reset_individual_definition("lock", end_node, self.locks)
-            self._reset_individual_definition("unlock", end_node, self.unlocks)
+            self._revert_individual_definition("lock", end_node, self.locks)
+            self._revert_individual_definition("unlock", end_node, self.unlocks)
 
-    def _reset_individual_definition(
+    def _revert_individual_definition(
         self, definition_type: str, node: str, definitions: list
     ):
         initial_count = len(definitions)
@@ -329,7 +329,7 @@ def process_modifications_connections(
     method: str,
 ):
     method_map = {
-        "reset_definitions": lambda end_node, params: conversation_state.reset_definitions(
+        "revert_definitions": lambda end_node, params: conversation_state.revert_definitions(
             session, end_node
         ),
         "delay_item": lambda end_node, params: conversation_state.delay_item(
@@ -355,7 +355,7 @@ def process_modifications_relationships(
     relationship_methods = {
         "DISABLES": "disable_item",
         "DELAYS": "delay_item",  # Unused right now but may be used in the future
-        "RESETS": "reset_definitions",
+        "REVERTS": "revert_definitions",
     }
     for relationship, method in relationship_methods.items():
         connections = relationships_map.get(relationship, [])
@@ -581,7 +581,7 @@ def process_relationships(
     # Modification connections
     disables: list[dict] = []
     delays: list[dict] = []  # Unused right now but may be used in the future
-    resets: list[dict] = []
+    reverts: list[dict] = []
 
     relationships_map = {
         # Activations
@@ -599,7 +599,7 @@ def process_relationships(
         # Modifications
         "DISABLES": disables,
         "DELAYS": delays,  # unused right now but may be used in the future
-        "RESETS": resets,
+        "REVERTS": reverts,
     }
 
     for connection in connections:
