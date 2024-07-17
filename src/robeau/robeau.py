@@ -25,11 +25,10 @@ NEO4J_PASSWORD = NEO4J_PASSWORD
 
 
 class RobeauHandler(socks.BaseHandler):
-    def __init__(self, port, script_logger, db, debounce_interval=1.0):
+    def __init__(self, port, script_logger, debounce_interval=1.0):
         super().__init__(port, script_logger)
         self.stop_event = asyncio.Event()
         self.test_event = asyncio.Event()
-        self.db = db
         self.last_processed_message = None
         self.last_processed_time = 0
         self.debounce_interval = debounce_interval
@@ -42,8 +41,7 @@ class RobeauHandler(socks.BaseHandler):
             self.test_event.set()
             self.logger.info("Received test message")
         else:
-            await handle_stt(self.db, message)
-        await self.send_ack()
+            await self.send_ack()
 
 
 async def greet(db, msg):
@@ -61,13 +59,6 @@ async def greet(db, msg):
             play(audio)
         except Exception as e:
             print(f"Error playing audio file: {e}")
-
-
-async def handle_stt(db, msg):
-    if db.is_greeting(msg):
-        await greet(db, msg)
-    else:
-        print("Not a greeting")
 
 
 def launch_stt(interim: bool = False):
