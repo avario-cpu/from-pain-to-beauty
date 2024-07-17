@@ -4,6 +4,7 @@ import threading
 import time
 from collections import defaultdict
 from enum import auto
+from logging import DEBUG, INFO
 
 from neo4j import GraphDatabase, Result, Session
 from prompt_toolkit import PromptSession
@@ -13,7 +14,7 @@ from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from src.utils import helpers
 
 SCRIPT_NAME = helpers.construct_script_name(__file__)
-logger = helpers.setup_logger(SCRIPT_NAME)
+logger = helpers.setup_logger(SCRIPT_NAME, level=INFO)
 
 
 class QuerySource(enum.Enum):
@@ -44,13 +45,14 @@ RESET_EXPECTATIONS = Transmissions.EXPECTATIONS_RESET_MSG.value
 
 class ConversationState:
     def __init__(self):
-        self.locks = []
-        self.unlocks = []
-        self.expectations = []
-        self.primes = []
-        self.listens = []
-
-        self.initiations = []
+        # definitions
+        self.locks: list[dict] = []
+        self.unlocks: list[dict] = []
+        self.expectations: list[dict] = []
+        self.primes: list[dict] = []
+        self.listens: list[dict] = []
+        # activations
+        self.initiations: list[dict] = []
 
     def _add_item(
         self, node: str, duration: float | None, item_list: list, item_type: str
@@ -122,7 +124,7 @@ class ConversationState:
             elapsed_time = current_time - start_time
             remaining_time = max(0, duration - elapsed_time)
             item["timeLeft"] = remaining_time
-            logger.info(f"Updated time for item: {item}")
+            logger.debug(f"Updated time for item: {item}")
 
     def _remove_expired(self, items: list) -> list:
         valid_items = []
@@ -169,7 +171,14 @@ class ConversationState:
         self._check_initiations(session)
 
     def reset_attribute(self, attribute: str):
-        valid_attributes = ["locks", "unlocks", "primes", "expectations"]
+        valid_attributes = [
+            "locks",
+            "unlocks",
+            "primes",
+            "expectations",
+            "listens",
+            "initiations",
+        ]
 
         if attribute in valid_attributes:
             if getattr(self, attribute, None):
@@ -218,19 +227,23 @@ class ConversationState:
             "Initiation": self.initiations,
         }
 
+        log_message = []
+
         if any(state_types.values()):
-            logger.info("Conversation state -------------------")
+            log_message.append("\nConversation state:")
             for state_name, items in state_types.items():
                 for item in items:
-                    logger.info(f"{state_name}: {item}")
-            logger.info("--------------------------------------")
+                    log_message.append(f"{state_name}: list{item}")
+            log_message.append(" ")
         else:
-            logger.info("No items in conversation state")
+            log_message.append("No items in conversation state")
+
+        logger.info("\n".join(log_message))
 
 
 def get_node_data(
     session: Session, text: str, labels: list[str], source: QuerySource
-) -> Result:
+) -> Result | None:
     labels_query = "|".join(labels)
     query = f"""
     MATCH (x:{labels_query})-[R]->(y)
@@ -242,15 +255,16 @@ def get_node_data(
     if not result.peek() and "Prompt" in labels and source == USER:
         logger.warning(f'Prompt "{text}" not found in database')
         print(f"Sorry, didn't understand that...")
+        return None
 
     return result
 
 
-def determine_labels_and_text(
+def define_labels_and_text(
     session: Session,
     text: str,
-    source: QuerySource,
     conversation_state: ConversationState,
+    source: QuerySource,
 ) -> list[str] | None:
     def meets_expectations():
         return any(
@@ -279,7 +293,7 @@ def determine_labels_and_text(
             process_expectation_failure()
             return None  # abort processing initial target node: if it doesn't match the expectations then finding it within the database is irrelevant anyways
     elif source == ROBEAU:
-        labels = ["Response", "Question"]
+        labels = ["Response", "Question", "Action", "LogicGate"]
     elif source == SYSTEM:
         labels = ["Input"]
 
@@ -289,19 +303,18 @@ def determine_labels_and_text(
 def get_node_connections(
     session: Session,
     text: str,
-    source: QuerySource,
     conversation_state: ConversationState,
+    source: QuerySource,
 ) -> list[dict] | None:
 
-    labels = determine_labels_and_text(session, text, source, conversation_state)
+    labels = define_labels_and_text(session, text, conversation_state, source)
 
     if not labels:
         return None
 
     result = get_node_data(session, text, labels, source)
 
-    if not result.peek():
-        logger.info(f'No connections found for node: "{text}"')
+    if not result:
         return None
 
     result_data = [
@@ -320,6 +333,138 @@ def get_node_connections(
     ]
 
     return result_data
+
+
+def process_logic_activations(
+    session: Session,
+    connections: list[dict],
+    logic_gate: str,
+    conversation_state: ConversationState,
+):
+    if not connections:
+        logger.error(f'No "THEN" connection found for LogicGate: "{logic_gate}"')
+        return
+
+    for connection in connections:
+        activate_node(connection)
+        process_node(session, connection["end_node"], conversation_state, ROBEAU)
+
+
+def process_and_logic_checks(connections: list[dict], attribute: list[dict]):
+    return all(
+        any(connection["end_node"] == item["node"] for item in attribute)
+        for connection in connections
+    )
+
+
+def process_initial_logic_check(connection: dict, attribute: list[dict]):
+    return any(connection["end_node"] == item["node"] for item in attribute)
+
+
+def filter_logic_connections(connections: list[dict], logic_gate: str):
+    initial_conditions_rel = {
+        "IS_LOCKED",
+        "IS_UNLOCKED",
+        "IS_EXPECTED",
+        "IS_PRIMED",
+        "IS_LISTENED",
+        "IS_INITIATED",
+    }
+    and_conditions_rel = {
+        "AND_IS_LOCKED",
+        "AND_IS_UNLOCKED",
+        "AND_IS_EXPECTED",
+        "AND_IS_PRIMED",
+        "AND_IS_LISTENED",
+        "AND_IS_INITIATED",
+    }
+
+    initial_conn = None
+    and_conns = []
+    then_conns = []
+    other_conns = []
+
+    for conn in connections:
+        if conn["relationship"] in initial_conditions_rel:
+            initial_conn = conn
+        elif conn["relationship"] in and_conditions_rel:
+            and_conns.append(conn)
+        elif conn["relationship"] == "THEN":
+            then_conns.append(conn)
+        else:
+            other_conns.append(conn)
+            logger.warning(f'Atypical connection for logicGate {logic_gate}: "{conn}"')
+
+    logger.info(
+        f"LogicGate {logic_gate} connections: \nInitial: {initial_conn} \nAnd: {and_conns} \nThen: {then_conns}"
+    )
+    return initial_conn, and_conns, then_conns
+
+
+def determine_attribute(conversation_state: ConversationState, relationship: dict):
+    attribute_map = {
+        "IS_LOCKED": conversation_state.locks,
+        "IS_UNLOCKED": conversation_state.unlocks,
+        "IS_EXPECTED": conversation_state.expectations,
+        "IS_PRIMED": conversation_state.primes,
+        "IS_LISTENED": conversation_state.listens,
+        "IS_INITIATED": conversation_state.initiations,
+    }
+    for key, value in attribute_map.items():
+        if key in relationship:
+            return value
+    return None
+
+
+def process_logic_connections(
+    session: Session,
+    connections: list[dict],
+    logic_gate: str,
+    conversation_state: ConversationState,
+):
+    initial_conn, and_conns, then_conns = filter_logic_connections(
+        connections, logic_gate
+    )
+
+    if not initial_conn:
+        logger.error(f"No initial connection found for LogicGate: {logic_gate}")
+        return
+
+    attribute = determine_attribute(conversation_state, initial_conn["relationship"])
+    if not attribute:
+        logger.error(
+            f"Could not determine attribute for relationship: {initial_conn['relationship']}. (attribute was: '{attribute}')"
+        )
+        return
+
+    if not process_initial_logic_check(initial_conn, attribute):
+        return
+
+    if and_conns and not process_and_logic_checks(and_conns, attribute):
+        return
+
+    process_logic_activations(session, then_conns, logic_gate, conversation_state)
+
+
+def process_logic_relationships(
+    session: Session, relations_map: dict, conversation_state: ConversationState
+):
+    if not relations_map.get("IF"):
+        return
+
+    for if_connection in relations_map["IF"]:
+        logic_gate = if_connection["end_node"]
+        gate_connections = get_node_connections(
+            session, logic_gate, conversation_state, ROBEAU
+        )
+
+        if not gate_connections:
+            logger.info(f'No connections found for LogicGate: "{logic_gate}"')
+            continue
+
+        process_logic_connections(
+            session, gate_connections, logic_gate, conversation_state
+        )
 
 
 def process_modifications_connections(
@@ -403,7 +548,7 @@ def process_definitions_relationships(
 
 
 def activate_node(node_dict: dict):
-    """Output. Works for both activation connections (end_node) and initiations from the conversation state(node)."""
+    """Output. Works for both activation connections (end_node) and dictionaries from the conversation state(node)."""
     output = node_dict.get("end_node") or node_dict.get("node")
     print(output)
     logger.info(f'>>> OUTPUT: "{output}" ')
@@ -565,7 +710,7 @@ def process_relationships(
 ) -> list[str]:
     formatted_connections = "\n".join([str(connection) for connection in connections])
 
-    logger.info(f"Processing connections:\n{formatted_connections}")
+    logger.info(f"Processing connections:\n{formatted_connections}\n")
     # Activation connections
     checks: list[dict] = []
     attempts: list[dict] = []
@@ -582,6 +727,8 @@ def process_relationships(
     disables: list[dict] = []
     delays: list[dict] = []  # Unused right now but may be used in the future
     reverts: list[dict] = []
+    # Logic connections
+    ifs: list[dict] = []
 
     relationships_map = {
         # Activations
@@ -600,6 +747,8 @@ def process_relationships(
         "DISABLES": disables,
         "DELAYS": delays,  # unused right now but may be used in the future
         "REVERTS": reverts,
+        # Logics checks
+        "IF": ifs,
     }
 
     for connection in connections:
@@ -613,6 +762,7 @@ def process_relationships(
 
     process_definitions_relationships(session, relationships_map, conversation_state)
     process_modifications_relationships(session, relationships_map, conversation_state)
+    process_logic_relationships(session, relationships_map, conversation_state)
 
     return end_nodes_reached
 
@@ -647,9 +797,10 @@ def process_node(
             # Reset expectations any time they are met or definitively failed to be met (possibility for multiple tries)
             conversation_state.reset_attribute("expectations")
             continue
+        # Process further nodes that are activated by the current node
         process_node(session, response_node, conversation_state, ROBEAU)
 
-    logger.info(f'End of process for node: "{node}"')
+    logger.info(f'End of process for node: "{node}" from source {source.name}')
 
 
 def listen_for_queries(
@@ -677,7 +828,8 @@ def listen_for_queries(
 
 def establish_connection():
     start_time = time.time()
-    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+    if NEO4J_URI:
+        driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
     session = driver.session()
 
     session.run("RETURN 1").consume()  # Warmup query
@@ -713,7 +865,7 @@ def main():
         specific_prompt = "start"
         query_duration = 10
 
-        prompt_session = PromptSession()
+        prompt_session: PromptSession = PromptSession()
 
         with patch_stdout():
             while True:
