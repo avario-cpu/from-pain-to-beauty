@@ -686,9 +686,7 @@ def process_activation_relationships(
     relationships_map: dict[str, list[dict]], conversation_state: ConversationState
 ) -> list[str]:
     """Walk down the activation relationships priority order and return the end nodes reached."""
-
     priority_order = ["CHECKS", "ATTEMPTS", "TRIGGERS", "DEFAULTS"]
-
     end_nodes_reached = []
 
     for key in priority_order:
@@ -725,7 +723,7 @@ def process_relationships(
     initiates: list[dict] = []
     # Modification connections
     disables: list[dict] = []
-    delays: list[dict] = []  # Unused right now but may be used in the future
+    delays: list[dict] = []  # Unused right now but may be in the future
     reverts: list[dict] = []
     # Logic connections
     ifs: list[dict] = []
@@ -745,7 +743,7 @@ def process_relationships(
         "INITIATES": initiates,
         # Modifications
         "DISABLES": disables,
-        "DELAYS": delays,  # unused right now but may be used in the future
+        "DELAYS": delays,  # Unused right now but may be in the future
         "REVERTS": reverts,
         # Logics checks
         "IF": ifs,

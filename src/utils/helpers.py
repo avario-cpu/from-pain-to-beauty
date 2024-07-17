@@ -1,7 +1,6 @@
 import logging
 import os
 import time
-import sys
 
 from src.core import constants as const
 
