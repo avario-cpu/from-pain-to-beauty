@@ -5,7 +5,7 @@ import time
 from collections import defaultdict
 from enum import auto
 from logging import DEBUG, INFO
-from src.robeau.audio_player import AudioPlayer
+from src.robeau.core.audio_player import AudioPlayer
 from neo4j import GraphDatabase, Result, Session
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout

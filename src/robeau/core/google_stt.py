@@ -9,17 +9,18 @@ import pyaudio
 from google.cloud import speech
 
 from src.config import settings
+from src.config.setup import setup_script
 from src.core import constants as const
 from src.core.constants import SLOTS_DB_FILE_PATH
-from src.core.setup import setup_script
 from src.utils import helpers
 
 RATE = 16000
 CHUNK = int(RATE / 10)  # 100ms
 SCRIPT_NAME = helpers.construct_script_name(__file__)
 
-SERVER_HOST = "localhost"
-SERVER_PORT = const.SUBPROCESSES_PORTS["robeau"]
+DEFAULT_SERVER_HOST = "localhost"
+ROBEAU_SERVER_PORT = const.SUBPROCESSES_PORTS["robeau"]
+SYNONYMS_SERVER_PORT = const.SUBPROCESSES_PORTS["synonym_adder"]
 
 if settings.GOOGLE_CLOUD_API_KEY is None:
     raise ValueError("Missing Google API Key")
@@ -119,18 +120,21 @@ async def recognize_speech(interim: bool, sock: Optional[socket.socket] = None):
 
 
 # noinspection PyTypeChecker
-async def main(interim: bool = False):
+async def main(interim: bool = False, socket_name: str = "robeau"):
     try:
         db_conn, slot = await setup_script(SCRIPT_NAME, SLOTS_DB_FILE_PATH)
 
         try:
-            print("Attempting to connect to robeau's socket...")
+            print("Attempting to connect to the specified socket...")
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.connect((SERVER_HOST, SERVER_PORT))
+            if socket_name == "syn":
+                sock.connect((DEFAULT_SERVER_HOST, SYNONYMS_SERVER_PORT))
+            else:
+                sock.connect((DEFAULT_SERVER_HOST, ROBEAU_SERVER_PORT))
             logger.info(f"Connected with {sock}")
             print(f"Connected with {sock}")
         except ConnectionError:
-            print(f"Couldn't connect to robeau's socket, proceeding without it.")
+            print(f"Couldn't connect to the specified socket, proceeding without it.")
             sock = None
 
         await recognize_speech(interim, sock)
@@ -156,6 +160,13 @@ def str2bool(value):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="STT recognition stream")
-    parser.add_argument("arg1", type=str2bool, help="Interim value for stt " "stream")
+    parser.add_argument("interim", type=str2bool, help="Interim value for stt stream")
+    parser.add_argument(
+        "--socket",
+        type=str,
+        choices=["robeau", "syn"],
+        default="robeau",
+        help="Specify which socket to connect to",
+    )
     args = parser.parse_args()
-    asyncio.run(main(args.arg1))
+    asyncio.run(main(args.interim, args.socket))

@@ -1,21 +1,21 @@
 import asyncio
 import logging
-
 import subprocess
-from src.robeau.graph_logic_network import (
-    initialize,
-    process_node,
-    cleanup,
-    ConversationState,
-    USER,
-)
-from pydub.playback import play  # type: ignore
-from neo4j import Session
 
-from src.robeau import google_stt
+from neo4j import Session
+from pydub.playback import play  # type: ignore
+
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from src.connection import socket_server
 from src.core import constants as const
+from src.robeau.core import google_stt
+from src.robeau.core.graph_logic_network import (
+    USER,
+    ConversationState,
+    cleanup,
+    initialize,
+    process_node,
+)
 from src.utils import helpers
 
 SCRIPT_NAME = helpers.construct_script_name(__file__)
@@ -54,7 +54,7 @@ class RobeauHandler(socket_server.BaseHandler):
         )
 
 
-def launch_stt(interim: bool = False):
+def launch_google_stt(interim: bool = False):
     command = (
         f'start cmd /c "cd /d {const.PROJECT_DIR_PATH} '
         f"&& set PYTHONPATH={const.PYTHONPATH} "
@@ -74,7 +74,7 @@ async def main():
     try:
         driver, session, conversation_state, stop_event, update_thread = initialize()
         handler = RobeauHandler(PORT, logger, session, conversation_state)
-        launch_stt(interim=False)  # Set interim as needed
+        launch_google_stt(interim=False)  # Set interim as needed
         socket_server_task = asyncio.create_task(handler.run_socket_server())
         await socket_server_task
     except Exception as e:

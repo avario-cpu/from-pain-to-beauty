@@ -12,7 +12,7 @@ from src.connection import socket_server, websocket
 from src.core import constants as const
 from src.core import terminal_window_manager_v4 as twm
 from src.utils import helpers
-from src.core.setup import setup_script
+from src.config.setup import setup_script
 from src.core.terminal_window_manager_v4 import SecondaryWindow, WinType
 
 SCRIPT_NAME = helpers.construct_script_name(__file__)
@@ -602,6 +602,9 @@ async def main():
         slots_db_conn, slot = await setup_script(
             SCRIPT_NAME, SLOTS_DB, SECONDARY_WINDOWS
         )
+        if slot is None:
+            logger.error("No slot available, exiting.")
+            return
         socket_server_handler = PreGamePhaseHandler(PORT, logger)
         socket_server_task = asyncio.create_task(
             socket_server_handler.run_socket_server()
