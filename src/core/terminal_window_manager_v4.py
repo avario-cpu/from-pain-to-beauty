@@ -334,14 +334,15 @@ async def manage_window(
     if window_type == WinType.ACCEPTED and slot is not None:
         data = generate_window_data(title, secondary_windows)
         await sdh.occupy_slot_with_data(conn, slot, data)
-    return slot, window_name
+    return slot, window_name  # slot can be none in case of window_type SERVER
 
 
 async def main():
     # Example usage
     conn = await sdh.create_connection("../../data/slots.db")
     await manage_window(conn, WinType.ACCEPTED, "Example Script")
-    await sdh.free_all_slots(conn)
+    if conn:
+        await sdh.free_all_slots(conn)
 
 
 if __name__ == "__main__":

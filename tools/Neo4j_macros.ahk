@@ -120,7 +120,7 @@ CreateRelationshipNoLabel() {
 
 SetText() {
     SendInput, set{space}
-    Input, Input1, L1
+    Input, Input1, L2
     SendInput, %Input1%.text=""
     Send, {Left}
 }

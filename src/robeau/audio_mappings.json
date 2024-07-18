@@ -1,0 +1,10 @@
+{
+    "Hello!": [
+        {"file": "C:\\Users\\ville\\MyMegaScript\\data\\robeau\\voicelines\\greetings.mp3", "weight": 1},
+        {"file": "C:\\Users\\ville\\MyMegaScript\\data\\robeau\\voicelines\\hello.mp3", "weight": 2},
+        {"file": "C:\\Users\\ville\\MyMegaScript\\data\\robeau\\voicelines\\hi_there.mp3", "weight": 1}
+    ],
+    "output_string_2": [
+        {"file": "path/to/audio/file3.mp3", "weight": 1}
+    ]
+}

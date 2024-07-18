@@ -1,25 +1,24 @@
 import asyncio
 import logging
 import time
-
+from typing import Optional
 import cv2 as cv
 import mss
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
 from websockets import WebSocketClientProtocol
 
-from src.connection import socks, websocket
+from src.connection import socket_server, websocket
 from src.core import constants as const
-from src.core import slots_db_handler as sdh
 from src.core import terminal_window_manager_v4 as twm
-from src.utils import helpers, classes
-from src.core.setup import setup_script_basics
+from src.utils import helpers
+from src.core.setup import setup_script
 from src.core.terminal_window_manager_v4 import SecondaryWindow, WinType
 
 SCRIPT_NAME = helpers.construct_script_name(__file__)
 PORT = const.SUBPROCESSES_PORTS[SCRIPT_NAME]
-URL = const.STREAMERBOT_WS_URL
-DB = const.SLOTS_DB_FILE_PATH
+STREAMERBOT_URL = const.STREAMERBOT_WS_URL
+SLOTS_DB = const.SLOTS_DB_FILE_PATH
 SECONDARY_WINDOWS = [
     SecondaryWindow("first_scanner", 150, 80),
     SecondaryWindow("second_scanner", 150, 80),
@@ -204,22 +203,18 @@ class PreGamePhase:
                 self.__dict__[attr] = False
 
 
-class PreGamePhaseHandler(socks.BaseHandler):
+class PreGamePhaseHandler(socket_server.BaseHandler):
     """Handler for the socket server of the script. Allows for communication
     from the server to the script."""
 
     def __init__(self, port, script_logger):
         super().__init__(port, script_logger)
         self.stop_event = asyncio.Event()
-        self.other_event = asyncio.Event()  # Demonstrative place holder
 
     async def handle_message(self, message: str):
         if message == const.STOP_SUBPROCESS_MESSAGE:
             self.stop_event.set()
             self.logger.info("Socket received stop message")
-        elif message == "OTHER":
-            self.other_event.set()
-            self.logger.info("Socket received other message")
         else:
             self.logger.info(f"Socket received: {message}")
         await self.send_ack()
@@ -343,79 +338,79 @@ async def set_state_finding_game() -> tuple[Tabbed, PreGamePhase]:
 
 
 async def set_state_game_found(
-    tabbed: Tabbed, game_phase: PreGamePhase, ws: WebSocketClientProtocol
+    tabbed: Tabbed, game_phase: PreGamePhase, ws: Optional[WebSocketClientProtocol]
 ) -> tuple[Tabbed, PreGamePhase]:
     tabbed.in_game = True
     game_phase.hero_pick = True
     print("\nFound a game !")
-
-    await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/scene_change_in_game.json", logger
-    )
+    if ws:
+        await websocket.send_json_requests(
+            ws, "data/ws_requests/pregame/scene_change_in_game.json", logger
+        )
     return tabbed, game_phase
 
 
 async def set_state_hero_pick(
-    tabbed: Tabbed, game_phase: PreGamePhase, ws: WebSocketClientProtocol
+    tabbed: Tabbed, game_phase: PreGamePhase, ws: Optional[WebSocketClientProtocol]
 ) -> tuple[Tabbed, PreGamePhase]:
     tabbed.in_game = True
     game_phase.hero_pick = True
     print("\nBack to hero select !")
-
-    await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/scene_change_dslr_move_hero_pick.json"
-    )
+    if ws:
+        await websocket.send_json_requests(
+            ws, "data/ws_requests/pregame/scene_change_dslr_move_hero_pick.json"
+        )
     return tabbed, game_phase
 
 
 async def set_state_starting_buy(
-    tabbed: Tabbed, game_phase: PreGamePhase, ws: WebSocketClientProtocol
+    tabbed: Tabbed, game_phase: PreGamePhase, ws: Optional[WebSocketClientProtocol]
 ) -> tuple[Tabbed, PreGamePhase]:
     tabbed.in_game = True
     game_phase.starting_buy = True
     print("\nStarting buy !")
-
-    await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/dslr_move_starting_buy.json", logger
-    )
+    if ws:
+        await websocket.send_json_requests(
+            ws, "data/ws_requests/pregame/dslr_move_starting_buy.json", logger
+        )
     return tabbed, game_phase
 
 
 async def set_state_vs_screen(
-    tabbed: Tabbed, game_phase: PreGamePhase, ws: WebSocketClientProtocol
+    tabbed: Tabbed, game_phase: PreGamePhase, ws: Optional[WebSocketClientProtocol]
 ) -> tuple[Tabbed, PreGamePhase]:
     tabbed.in_game = True
     game_phase.versus_screen = True
-
-    await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger
-    )
+    if ws:
+        await websocket.send_json_requests(
+            ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger
+        )
     print("\nWe are in vs screen !")
     return tabbed, game_phase
 
 
 async def set_state_in_game(
-    tabbed: Tabbed, game_phase: PreGamePhase, ws: WebSocketClientProtocol
+    tabbed: Tabbed, game_phase: PreGamePhase, ws: Optional[WebSocketClientProtocol]
 ) -> tuple[Tabbed, PreGamePhase]:
     tabbed.in_game = True
     game_phase.in_game = True
-
-    await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/scene_change_in_game.json", logger
-    )
+    if ws:
+        await websocket.send_json_requests(
+            ws, "data/ws_requests/pregame/scene_change_in_game.json", logger
+        )
     print("\nWe are in now game !")
     return tabbed, game_phase
 
 
 async def set_state_dota_menu(
-    tabbed: Tabbed, game_phase: PreGamePhase, ws: WebSocketClientProtocol
+    tabbed: Tabbed, game_phase: PreGamePhase, ws: Optional[WebSocketClientProtocol]
 ) -> tuple[Tabbed, PreGamePhase]:
     tabbed.to_dota_menu = True
     game_phase.unknown = True
-
-    await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger
-    )
+    if ws:
+        await websocket.send_json_requests(
+            ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger
+        )
     print("\nWe are in Dota Menus !")
     return tabbed, game_phase
 
@@ -430,14 +425,14 @@ async def set_state_desktop(
 
 
 async def set_state_settings_screen(
-    tabbed: Tabbed, game_phase: PreGamePhase, ws: WebSocketClientProtocol
+    tabbed: Tabbed, game_phase: PreGamePhase, ws: Optional[WebSocketClientProtocol]
 ) -> tuple[Tabbed, PreGamePhase]:
     tabbed.to_settings_screen = True
     game_phase.unknown = True
-
-    await websocket.send_json_requests(
-        ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger
-    )
+    if ws:
+        await websocket.send_json_requests(
+            ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger
+        )
     print("\nWe are in settings !")
     return tabbed, game_phase
 
@@ -446,7 +441,7 @@ async def confirm_transition_to_vs_screen(
     tabbed: Tabbed,
     game_phase: PreGamePhase,
     target_value: float,
-    ws: WebSocketClientProtocol,
+    ws: Optional[WebSocketClientProtocol],
 ) -> tuple[Tabbed, PreGamePhase]:
     """Nothing matches: we might be in vs screen. Make sure nothing keeps
     matching for a while before asserting this, because we might just
@@ -492,7 +487,7 @@ async def wait_for_starting_buy_screen_fade_out(
 ) -> PreGamePhase:
     """Delay to allow time for the starting buy screen fade out when
     transitioning to the hero select or settings screen. Does not trigger
-    if tabbing out to Dota or Desktop since in the progressive fade from
+    if tabbing out to Dota or Desktop since in those cases the progressive fade from
     starting buy screen does not occur."""
     game_phase.starting_buy = False
     await asyncio.sleep(0.25)
@@ -508,7 +503,7 @@ async def capture_new_area(capture_area: dict[str, int], filename: str):
 
 
 async def detect_pregame_phase(
-    ws: WebSocketClientProtocol, socket_handler: PreGamePhaseHandler
+    ws: Optional[WebSocketClientProtocol], socket_handler: PreGamePhaseHandler
 ):
     #  ----------- The code below is not part of the main logic ------------
     new_capture = False  # Set manually to capture new screen area
@@ -588,7 +583,9 @@ async def detect_pregame_phase(
 
 
 async def run_main_task(
-    slot: int, socket_handler: PreGamePhaseHandler, ws: WebSocketClientProtocol
+    slot: int,
+    socket_handler: PreGamePhaseHandler,
+    ws: Optional[WebSocketClientProtocol],
 ):
     mute_ssim_prints.set()
     main_task = asyncio.create_task(detect_pregame_phase(ws, socket_handler))
@@ -601,27 +598,15 @@ async def run_main_task(
 
 
 async def main():
-    db_conn = None
-    ws = None
-    socket_server_task = None
-
     try:
-        lfm = classes.LockFileManager(SCRIPT_NAME)
-        db_conn = await sdh.create_connection(DB)
+        db_conn, slot = await setup_script(SCRIPT_NAME, SLOTS_DB, SECONDARY_WINDOWS)
+        socket_server_handler = PreGamePhaseHandler(PORT, logger)
+        socket_server_task = asyncio.create_task(
+            socket_server_handler.run_socket_server()
+        )
 
-        if lfm.lock_exists():
-            await setup_script_basics(db_conn, WinType.DENIED, SCRIPT_NAME)
-        else:
-            slot, name = await setup_script_basics(
-                db_conn, WinType.ACCEPTED, SCRIPT_NAME, lfm, SECONDARY_WINDOWS
-            )
-            socket_server_handler = PreGamePhaseHandler(PORT, logger)
-            socket_server_task = asyncio.create_task(
-                socket_server_handler.run_socket_server()
-            )
-
-            ws = await websocket.establish_ws_connection(URL, logger)
-            await run_main_task(slot, socket_server_handler, ws)
+        ws = await websocket.establish_ws_connection(STREAMERBOT_URL, logger)
+        await run_main_task(slot, socket_server_handler, ws)
 
     except Exception as e:
         print(f"Unexpected error of type: {type(e).__name__}: {e}")

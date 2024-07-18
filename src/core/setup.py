@@ -1,3 +1,4 @@
+import asyncio
 import atexit
 import signal
 import sys
@@ -29,7 +30,7 @@ def witness_atexit_execution():
 
 
 def signal_module_cleanup():
-    atexit.unregister(witness_atexit_execution)  # scrip will exit using signal
+    atexit.unregister(witness_atexit_execution)  # script will exit using signal
     for func, args, kwargs in cleanup_functions:
         try:
             print(f"called clean up func: {func.__name__}")
@@ -54,22 +55,19 @@ def setup_signal_handlers():
     signal.signal(signal.SIGINT, signal_handler)
 
 
-async def setup_script_basics(
-    db_conn: Optional[aiosqlite.Connection],
+async def manage_script_startup(
+    slots_db_conn: Optional[aiosqlite.Connection],
     window_type: WinType,
     script_name: str,
     lock_file_manager: Optional[LockFileManager] = None,
     secondary_windows: Optional[list[SecondaryWindow]] = None,
-) -> tuple[int | None, str]:
-    """Handles task performed on most scripts launch: positioning of terminal
-    window, handling of potential secondary windows, lock_file assessment,
-    registering of functions called at exit"""
-    setup_signal_handlers()  # Ensure signal handlers are set up
+) -> int | None:
+    setup_signal_handlers()
     atexit.register(witness_atexit_execution)  # Lets us tell if cleanup
     # function were called from the atexit module, or from signal.
 
     slot, name = await twm.manage_window(
-        db_conn, window_type, script_name, secondary_windows
+        slots_db_conn, window_type, script_name, secondary_windows
     )
     if window_type == WinType.DENIED:
         register_atexit_func(sdh.free_denied_slot_sync, slot)
@@ -81,4 +79,27 @@ async def setup_script_basics(
             lock_file_manager.create_lock_file()
             register_atexit_func(lock_file_manager.remove_lock_file)
         register_atexit_func(sdh.free_slot_by_name_sync, name)
-    return slot, name
+    return slot
+
+
+async def setup_script(
+    script_name: str,
+    slots_db_file_path: str,
+    secondary_windows: Optional[list[SecondaryWindow]] = None,
+) -> asyncio.Connection:
+    lock_file_manager = LockFileManager(script_name)
+    db_conn = await sdh.create_connection(slots_db_file_path)
+
+    setup_signal_handlers()
+    atexit.register(witness_atexit_execution)
+
+    if lock_file_manager.lock_exists():
+        window_type = WinType.DENIED
+    else:
+        window_type = WinType.ACCEPTED
+
+    slot = await manage_script_startup(
+        db_conn, window_type, script_name, lock_file_manager, secondary_windows
+    )
+
+    return db_conn, slot

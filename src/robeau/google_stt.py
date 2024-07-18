@@ -10,10 +10,9 @@ from google.cloud import speech
 
 from src.config import settings
 from src.core import constants as const
-from src.core import slots_db_handler as sdh
-from src.utils import helpers, classes
-from src.core.setup import setup_script_basics
-from src.core.terminal_window_manager_v4 import WinType
+from src.core.constants import SLOTS_DB_FILE_PATH
+from src.core.setup import setup_script
+from src.utils import helpers
 
 RATE = 16000
 CHUNK = int(RATE / 10)  # 100ms
@@ -120,23 +119,18 @@ async def recognize_speech(interim: bool, sock: Optional[socket.socket] = None):
 
 
 # noinspection PyTypeChecker
-async def main(interim: bool):
+async def main(interim: bool = False):
     try:
-        lock_file_manager = classes.LockFileManager(SCRIPT_NAME)
-        db_conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
+        db_conn = await setup_script(SCRIPT_NAME, SLOTS_DB_FILE_PATH)
 
-        if lock_file_manager.lock_exists():
-            await setup_script_basics(db_conn, WinType.DENIED, SCRIPT_NAME)
-        else:
-            await setup_script_basics(
-                db_conn, WinType.ACCEPTED, SCRIPT_NAME, lock_file_manager
-            )
         try:
+            print("Attempting to connect to robeau's socket...")
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((SERVER_HOST, SERVER_PORT))
             logger.info(f"Connected with {sock}")
+            print(f"Connected with {sock}")
         except ConnectionError:
-            print(f"Couldn't connect to robeau's socket")
+            print(f"Couldn't connect to robeau's socket, proceeding without it.")
             sock = None
 
         await recognize_speech(interim, sock)

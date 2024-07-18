@@ -5,7 +5,7 @@ import time
 from collections import defaultdict
 from enum import auto
 from logging import DEBUG, INFO
-
+from src.robeau.audio_player import AudioPlayer
 from neo4j import GraphDatabase, Result, Session
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
@@ -15,6 +15,7 @@ from src.utils import helpers
 
 SCRIPT_NAME = helpers.construct_script_name(__file__)
 logger = helpers.setup_logger(SCRIPT_NAME, level=INFO)
+audio_player = AudioPlayer("src/robeau/audio_mappings.json")
 
 
 class QuerySource(enum.Enum):
@@ -346,7 +347,6 @@ def process_logic_activations(
         return
 
     for connection in connections:
-        activate_node(connection)
         process_node(session, connection["end_node"], conversation_state, ROBEAU)
 
 
@@ -479,7 +479,7 @@ def process_modifications_connections(
         ),
         "delay_item": lambda end_node, params: conversation_state.delay_item(
             end_node, params.get("duration")
-        ),  # unused, might chance in the future
+        ),  # unused, might change in the future
         "disable_item": lambda end_node, params: conversation_state.disable_item(
             end_node
         ),
@@ -552,6 +552,7 @@ def activate_node(node_dict: dict):
     output = node_dict.get("end_node") or node_dict.get("node")
     print(output)
     logger.info(f'>>> OUTPUT: "{output}" ')
+    audio_player.play_audio(output)
     return node_dict
 
 

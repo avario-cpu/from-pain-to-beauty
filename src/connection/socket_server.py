@@ -14,7 +14,7 @@ class BaseHandler:
         )
 
         if not (59000 <= port <= 59999):
-            self.logger.warning(f"{port} not between 59000 and 59999")
+            self.logger.warning(f"port {port} should rather be between 59000 and 59999")
             print("Please use a port between 59000 and 59999")
 
     async def handle_client(self):

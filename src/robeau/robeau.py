@@ -10,7 +10,7 @@ from pydub.playback import play  # type: ignore
 
 from src.robeau import google_stt
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
-from src.connection import socks
+from src.connection import socket_server
 from src.core import constants as const
 from src.utils import helpers
 
@@ -19,19 +19,12 @@ HOST = "localhost"
 PORT = const.SUBPROCESSES_PORTS[SCRIPT_NAME]
 logger = helpers.setup_logger(SCRIPT_NAME)
 
-NEO4J_URI = NEO4J_URI
-NEO4J_USER = NEO4J_USER
-NEO4J_PASSWORD = NEO4J_PASSWORD
 
-
-class RobeauHandler(socks.BaseHandler):
-    def __init__(self, port, script_logger, debounce_interval=1.0):
+class RobeauHandler(socket_server.BaseHandler):
+    def __init__(self, port, script_logger):
         super().__init__(port, script_logger)
         self.stop_event = asyncio.Event()
         self.test_event = asyncio.Event()
-        self.last_processed_message = None
-        self.last_processed_time = 0
-        self.debounce_interval = debounce_interval
 
     async def handle_message(self, message: str):
         if message == const.STOP_SUBPROCESS_MESSAGE:
@@ -44,29 +37,12 @@ class RobeauHandler(socks.BaseHandler):
             await self.send_ack()
 
 
-async def greet(db, msg):
-    responses = db.get_responses_for_phrase(msg)
-    if not responses:
-        print("No response found for the greeting.")
-        return
-    response, audio_file = random.choice(responses)
-    print(response)
-    if audio_file:
-        if not os.path.exists(audio_file):
-            return
-        try:
-            audio = AudioSegment.from_mp3(rf"{audio_file}")
-            play(audio)
-        except Exception as e:
-            print(f"Error playing audio file: {e}")
-
-
 def launch_stt(interim: bool = False):
     command = (
         f'start cmd /c "cd /d {const.PROJECT_DIR_PATH} '
         f"&& set PYTHONPATH={const.PYTHONPATH} "
         f"&& .\\venv\\Scripts\\activate "
-        f"&& cd {const.AI_DIR_PATH} "
+        f"&& cd {const.ROBEAU_DIR_PATH} "
         f'&& py {google_stt.SCRIPT_NAME}.py {interim}"'
     )
 

@@ -37,7 +37,7 @@ async def send_json_requests(
     if isinstance(json_file_paths, str):
         json_file_paths = [json_file_paths]
     else:
-        raise TypeError(f"must json_file_path must be of type 'str'")
+        raise TypeError(f"json_file_path must be of type 'str'")
 
     for json_file in json_file_paths:
         try:
