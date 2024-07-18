@@ -86,7 +86,7 @@ async def setup_script(
     script_name: str,
     slots_db_file_path: str,
     secondary_windows: Optional[list[SecondaryWindow]] = None,
-) -> asyncio.Connection:
+) -> tuple[aiosqlite.Connection | None, int | None]:
     lock_file_manager = LockFileManager(script_name)
     db_conn = await sdh.create_connection(slots_db_file_path)
 

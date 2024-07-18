@@ -802,13 +802,9 @@ def process_node(
     logger.info(f'End of process for node: "{node}" from source {source.name}')
 
 
-def listen_for_queries(
-    session, conversation_state, specific_prompt, query_duration, prompt_session
-):
-    start_time = time.time()
-    print(f"Specific prompt '{specific_prompt}' detected. Listening for query...")
-
-    while time.time() - start_time < query_duration:
+def listen_for_queries(session, conversation_state):
+    prompt_session: PromptSession = PromptSession()
+    while True:
         user_query = prompt_session.prompt("Query: ").strip()
         if user_query == "exit":
             print("Exiting...")
@@ -820,9 +816,14 @@ def listen_for_queries(
                 conversation_state=conversation_state,
                 source=USER,
             )
-            start_time = time.time()
-    print("ran out of time")
-    return True
+
+
+def run_update_conversation_state(
+    conversation_state: ConversationState, session, stop_event: threading.Event
+):
+    while not stop_event.is_set():
+        conversation_state.update_timed_items(session)
+        time.sleep(1)  # Adjust the sleep duration as needed
 
 
 def establish_connection():
@@ -839,59 +840,47 @@ def establish_connection():
     return driver, session
 
 
-def run_update_conversation_state(
-    conversation_state: ConversationState, session: Session, stop_event: threading.Event
-):
-    while not stop_event.is_set():
-        conversation_state.update_timed_items(session)
-        time.sleep(1)  # Adjust the sleep duration as needed
+def initialize():
+    driver, session = establish_connection()
+    conversation_state = ConversationState()
+    stop_event = threading.Event()
+    update_thread = threading.Thread(
+        target=run_update_conversation_state,
+        args=(conversation_state, session, stop_event),
+    )
+    update_thread.start()
+    return driver, session, conversation_state, stop_event, update_thread
+
+
+def cleanup(driver, session, stop_event, update_thread):
+    if session:
+        session.close()
+    if driver:
+        driver.close()
+    stop_event.set()
+    update_thread.join()
 
 
 def main():
+    driver, session, conversation_state, stop_event, update_thread = initialize()
+    prompt_session: PromptSession = PromptSession()
 
-    driver, session = None, None
     try:
-        driver, session = establish_connection()
-        conversation_state = ConversationState()
-
-        stop_event = threading.Event()
-        update_thread = threading.Thread(
-            target=run_update_conversation_state,
-            args=(conversation_state, session, stop_event),
-        )
-        update_thread.start()
-
-        specific_prompt = "start"
-        query_duration = 10
-
-        prompt_session: PromptSession = PromptSession()
-
-        with patch_stdout():
-            while True:
-                user_input = prompt_session.prompt("start or exit: ").strip().lower()
-                if user_input == "exit":
-                    print("Exiting...")
-                    break
-                elif user_input == specific_prompt:
-                    listen_for_queries(
-                        session,
-                        conversation_state,
-                        specific_prompt,
-                        query_duration,
-                        prompt_session,
-                    )
-
+        while True:
+            user_input = prompt_session.prompt("start or exit: ").lower()
+            if user_input == "exit":
+                print("Exiting...")
+                break
+            elif user_input == "start":
+                listen_for_queries(
+                    session,
+                    conversation_state,
+                )
     except Exception as e:
         print(f"Error occurred: {e}")
         logger.exception(e)
-
     finally:
-        if session:
-            session.close()
-        if driver:
-            driver.close()
-        stop_event.set()
-        update_thread.join()
+        cleanup(driver, session, stop_event, update_thread)
 
 
 if __name__ == "__main__":

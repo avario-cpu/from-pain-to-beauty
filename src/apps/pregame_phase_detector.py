@@ -599,7 +599,9 @@ async def run_main_task(
 
 async def main():
     try:
-        db_conn, slot = await setup_script(SCRIPT_NAME, SLOTS_DB, SECONDARY_WINDOWS)
+        slots_db_conn, slot = await setup_script(
+            SCRIPT_NAME, SLOTS_DB, SECONDARY_WINDOWS
+        )
         socket_server_handler = PreGamePhaseHandler(PORT, logger)
         socket_server_task = asyncio.create_task(
             socket_server_handler.run_socket_server()
@@ -619,8 +621,8 @@ async def main():
             await socket_server_task
         if ws:
             await ws.close()
-        if db_conn:
-            await db_conn.close()
+        if slots_db_conn:
+            await slots_db_conn.close()
         cv.destroyAllWindows()
 
 

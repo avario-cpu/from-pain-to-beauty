@@ -489,6 +489,8 @@ async def reset_databases(conn: aiosqlite.Connection):
 async def main():
     database = const.SLOTS_DB_FILE_PATH
     conn = await create_connection(database)
+    if conn is None:
+        return
     await delete_slots_table(conn)
     await create_slots_table(conn)
     await initialize_slots(conn)

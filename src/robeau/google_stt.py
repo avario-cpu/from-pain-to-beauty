@@ -121,7 +121,7 @@ async def recognize_speech(interim: bool, sock: Optional[socket.socket] = None):
 # noinspection PyTypeChecker
 async def main(interim: bool = False):
     try:
-        db_conn = await setup_script(SCRIPT_NAME, SLOTS_DB_FILE_PATH)
+        db_conn, slot = await setup_script(SCRIPT_NAME, SLOTS_DB_FILE_PATH)
 
         try:
             print("Attempting to connect to robeau's socket...")
