@@ -59,7 +59,7 @@ Will gather all connections of the target logic gate node and resolve them to be
 ## Logics Relationships
 
 ### IS_ATTRIBUTE
-Will check if the attribute is being kept track off in the `ConversationState` class (locks, unlocks, etc.).
+Will check if the attribute is being kept track off in the `ConversationState` class (`locks`, `unlocks`, etc.).
 
 ### AND_IS_ATTRIBUTE
 Will check if all the attributes connected are being kept track off (including the original one: IS_ATTRIBUTE).

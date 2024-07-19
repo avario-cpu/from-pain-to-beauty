@@ -69,17 +69,28 @@ class SBERTMatcher:
         inference_time = end_time - start_time
 
         if show_details:
-            print(f"\nInput: {message}")
-            print(f"Best Matching Text: {best_match}")
-            print(f"Matched Synonym: {best_synonym}")
-            print(f"Similarity: {max_similarity:.4f}")
-            print(f"Inference Time: {inference_time:.4f} seconds")
+            print(
+                f'Input: "{message}" has match value <<{max_similarity:.3f}>> from matching with "{best_synonym}" for text: "{best_match}" (exec.time: {inference_time:.4f})'
+            )
 
         if max_similarity < self.similarity_threshold:
-            print(
-                f"Similarity {max_similarity:.4f} < {self.similarity_threshold} (threshold). Returning original message.\n"
-            )
             return message
         else:
-            print(f"\n")
             return best_match
+
+
+def main():
+    matcher = SBERTMatcher(file_path=STRING_WITH_SYNS)
+    while True:
+        message = input("Enter a message (or type 'exit' to quit): ")
+        if message.lower() == "exit":
+            break
+
+        best_match = matcher.check_for_best_matching_synonym(
+            message, show_details=True, labels=["Greeting"]
+        )
+        print(f"Best Match: {best_match}\n")
+
+
+if __name__ == "__main__":
+    main()

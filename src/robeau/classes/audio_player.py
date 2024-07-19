@@ -27,9 +27,9 @@ class AudioPlayer:
                 audio = AudioSegment.from_file(audio_file)
                 play(audio)
             else:
-                print(f"Audio file '{audio_file}' not found or does not exist.")
+                print(f'Audio file "{audio_file}" not found or does not exist.')
         else:
-            print(f"No audio files found for '{output_string}'.")
+            print(f'No audio files found for "{output_string}".')
 
     def _select_weighted_random_file(self, audio_files):
         total_weight = sum(file["weight"] for file in audio_files)

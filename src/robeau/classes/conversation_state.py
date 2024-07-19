@@ -6,15 +6,16 @@ from neo4j import Session
 
 class ConversationState:
     def __init__(self, logger: Logger):
-        # definitions
+        self.greeted: bool = False
+        self.logger = logger
+        # definitions items
         self.locks: list[dict] = []
         self.unlocks: list[dict] = []
         self.expectations: list[dict] = []
         self.primes: list[dict] = []
         self.listens: list[dict] = []
-        # activations
+        # activations items
         self.initiations: list[dict] = []
-        self.logger = logger
 
     def set_process_node_func(self, process_node_func):
         self.process_node = process_node_func

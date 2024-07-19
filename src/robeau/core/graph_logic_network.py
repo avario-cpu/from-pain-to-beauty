@@ -29,6 +29,7 @@ class QuerySource(enum.Enum):
     USER = auto()
     ROBEAU = auto()
     SYSTEM = auto()
+    GREETING = auto()
 
 
 class Transmissions(enum.Enum):
@@ -38,19 +39,23 @@ class Transmissions(enum.Enum):
     EXPECTATIONS_FAILURE_MSG = "EXPECTATIONS FAILURE"
     EXPECTATIONS_RESET_MSG = "RESET EXPECTATIONS"
     ANY_PROMPT_UTTERED_MSG = "ANY PROMPT UTTERED"
+    RESET_GREETED_STATE_MSG = "RESET GREETED STATE"
 
 
 # Query source aliases
 USER = QuerySource.USER
 ROBEAU = QuerySource.ROBEAU
 SYSTEM = QuerySource.SYSTEM
+GREETING = QuerySource.GREETING
 
 # Transmission aliases (Communication between the script and the database)
 EXPECTATIONS_SET = Transmissions.EXPECTATIONS_SET_MSG.value
 EXPECTATIONS_SUCCESS = Transmissions.EXPECTATIONS_SUCCESS_MSG.value
 EXPECTATIONS_FAILURE = Transmissions.EXPECTATIONS_FAILURE_MSG.value
 RESET_EXPECTATIONS = Transmissions.EXPECTATIONS_RESET_MSG.value
+
 ANY_PROMPT_UTTERED = Transmissions.ANY_PROMPT_UTTERED_MSG.value
+RESET_GREETED_STATE = Transmissions.RESET_GREETED_STATE_MSG.value
 
 
 def get_node_data(
@@ -109,6 +114,8 @@ def define_labels_and_text(
             logger.info(f'"{text}" does not meet conversation expectations')
             process_expectation_failure()
             return None
+    elif source == GREETING:
+        labels = ["Greeting"]
     elif source == ROBEAU:
         labels = ["Response", "Question", "Action", "LogicGate"]
     elif source == SYSTEM:
@@ -613,9 +620,11 @@ def process_node(
     )
 
     for response_node in response_nodes_reached:
+        # check for particular "output" transmission nodes
         if response_node == RESET_EXPECTATIONS:
-            # Reset expectations any time they are met or definitively failed to be met (possibility for multiple tries)
             conversation_state.reset_attribute("expectations")
+        elif response_node == RESET_GREETED_STATE:
+            conversation_state.greeted = False
             continue
         # Process further nodes that are activated by the current node
         process_node(session, response_node, conversation_state, ROBEAU)

@@ -1,10 +1,11 @@
 import asyncio
 import logging
+import re
 import subprocess
 
 from neo4j import Session
 
-from src.connection import socket_server
+from src.connection.socket_server import BaseHandler
 from src.core.constants import (
     PROJECT_DIR_PATH,
     PYTHONPATH,
@@ -16,6 +17,7 @@ from src.robeau.classes.sbert_matcher import SBERTMatcher  # type: ignore
 from src.robeau.core import google_stt
 from src.robeau.core.constants import STRING_WITH_SYNS_FILE_PATH
 from src.robeau.core.graph_logic_network import (
+    GREETING,
     USER,
     ConversationState,
     cleanup,
@@ -31,10 +33,10 @@ STRING_WITH_SYNS = STRING_WITH_SYNS_FILE_PATH
 logger = helpers.setup_logger(SCRIPT_NAME)
 
 # Initialize SBERT matcher
-sbert_matcher = SBERTMatcher(file_path=STRING_WITH_SYNS, similarity_threshold=0.6)
+sbert_matcher = SBERTMatcher(file_path=STRING_WITH_SYNS, similarity_threshold=0.65)
 
 
-class RobeauHandler(socket_server.BaseHandler):
+class RobeauHandler(BaseHandler):
     def __init__(
         self,
         port,
@@ -42,59 +44,110 @@ class RobeauHandler(socket_server.BaseHandler):
         session: Session,
         conversation_state: ConversationState,
         show_details=False,
+        check_interval=0.1,  # interval in seconds to check greeted state
     ):
         super().__init__(port, logger)
         self.stop_event = asyncio.Event()
         self.session = session
         self.conversation_state = conversation_state
         self.show_details = show_details
-        self.greeting_received = False
 
     async def handle_message(self, message: str):
         if message == STOP_SUBPROCESS_MESSAGE:
-            self.stop_event.set()
-            self.logger.info("Received stop message")
+            await self.stop_subprocess()
             return
 
         if (
-            not self.greeting_received
+            not self.conversation_state.greeted
             and not self.conversation_state.expectations
             and not self.conversation_state.listens
         ):
+            self.process_initial_greeting(message)
+        else:
+            self.process_message(message)
+
+    async def stop_subprocess(self):
+        self.stop_event.set()
+        self.logger.info("Received stop message")
+
+    def check_greeting_in_message(self, msg: str):
+        words = msg.split()
+        segments = [
+            " ".join(words[:i]) for i in range(2, 5)
+        ]  # first 2, 3, and 4 words segments
+        for segment in segments:
             greeting = sbert_matcher.check_for_best_matching_synonym(
-                message, self.show_details, labels=["Greeting"]
+                segment, self.show_details, labels=["Greeting"]
             )
             if greeting and "hey robeau" in greeting.lower():
-                self.greeting_received = True
-                self.logger.info("Greeting received, ready to process messages.")
-                return  # You may send a response indicating readiness if needed
+                return segment
+        return None
+
+    def process_initial_greeting(self, message: str):
+        greeting_segment = self.check_greeting_in_message(message)
+        if greeting_segment:
+            remaining_message = self.extract_remaining_message(
+                message, greeting_segment
+            )
+            if remaining_message:
+                self.handle_greeting_with_message(greeting_segment, remaining_message)
             else:
-                self.logger.info("Waiting for greeting...")
-                return  # You may send a response indicating waiting for greeting
-        else:
-            if self.conversation_state.listens:
-                labels = ["Prompt", "Whisper"]
-            else:
-                labels = (
-                    ["Answer"] if self.conversation_state.expectations else ["Prompt"]
+                self.conversation_state.greeted = True
+                self.logger.info(
+                    f'Greeting "{greeting_segment}" received, ready to process messages.'
                 )
+                process_node(
+                    session=self.session,
+                    node="hey robeau",
+                    conversation_state=self.conversation_state,
+                    source=GREETING,
+                )
+        else:
+            print("Waiting for greeting...")
 
-            matched_message = sbert_matcher.check_for_best_matching_synonym(
-                message, self.show_details, labels=labels
-            )
+    def extract_remaining_message(self, message: str, greeting_segment: str):
+        return re.sub(re.escape(greeting_segment), "", message, count=1).strip()
 
-            process_node(
-                session=self.session,
-                node=matched_message,
-                conversation_state=self.conversation_state,
-                source=USER,
-            )
+    def handle_greeting_with_message(
+        self, greeting_segment: str, remaining_message: str
+    ):
+        self.logger.info(
+            f'Greeting "{greeting_segment}" and prompt "{remaining_message}" received in one message.'
+        )
+        matched_message = sbert_matcher.check_for_best_matching_synonym(
+            remaining_message, self.show_details, labels=["Prompt"]
+        )
+        self.logger.info(
+            f'Matched prompt "{remaining_message}" with node text: "{matched_message}"'
+        )
+        self.process_node_with_message(matched_message)
 
-            if (
-                not self.conversation_state.expectations
-                and not self.conversation_state.listens
-            ):
-                self.greeting_received = False
+    def process_message(self, message: str):
+        labels = self.determine_labels()
+        matched_message = sbert_matcher.check_for_best_matching_synonym(
+            message, self.show_details, labels=labels
+        )
+        self.logger.info(
+            f"Matched prompt '{message}' with node text: '{matched_message if matched_message != message else None}'"  # reason for != message check is because sbert will return the same message if no sufficient match is found
+        )
+        self.process_node_with_message(matched_message)
+        self.conversation_state.greeted = False
+
+    def determine_labels(self):
+        if self.conversation_state.listens:
+            return ["Prompt", "Whisper"]
+        elif self.conversation_state.expectations:
+            return ["Answer"]
+        else:
+            return ["Prompt"]
+
+    def process_node_with_message(self, matched_message: str):
+        process_node(
+            session=self.session,
+            node=matched_message,
+            conversation_state=self.conversation_state,
+            source=USER,
+        )
 
 
 def launch_google_stt(interim: bool = False, socket: str = "robeau"):
