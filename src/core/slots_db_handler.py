@@ -4,15 +4,15 @@ import sqlite3
 from typing import Optional
 import aiosqlite
 
-from src.core import constants as const
-from src.utils import helpers
+from src.core.constants import SLOTS_DB_FILE_PATH
+from src.utils.helpers import construct_script_name, setup_logger
 
 AMOUNT_OF_SLOTS = 8
 MAX_AMOUNT_OF_WINDOWS = 7  # main and secondaries included
 DENIED_SLOTS_AMOUNT = 10
 
-SCRIPT_NAME = helpers.construct_script_name(__file__)
-logger = helpers.setup_logger(SCRIPT_NAME, logging.DEBUG)
+SCRIPT_NAME = construct_script_name(__file__)
+logger = setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 
 async def create_connection(db_file: str) -> aiosqlite.Connection | None:
@@ -170,7 +170,7 @@ def free_slot_by_name_sync(name: str):
     conn = None
     cursor = None
     try:
-        conn = sqlite3.connect(const.SLOTS_DB_FILE_PATH)
+        conn = sqlite3.connect(SLOTS_DB_FILE_PATH)
         cursor = conn.cursor()
         cursor.execute("SELECT id, is_open FROM slots WHERE name0 = ?", (name,))
         row = cursor.fetchone()
@@ -449,7 +449,7 @@ def free_denied_slot_sync(slot_id: int):
     conn = None
     cursor = None
     try:
-        conn = sqlite3.connect(const.SLOTS_DB_FILE_PATH)
+        conn = sqlite3.connect(SLOTS_DB_FILE_PATH)
         cursor = conn.cursor()
         cursor.execute(
             "UPDATE denied_slots SET is_open = True WHERE id = ?", (slot_id,)
@@ -487,7 +487,7 @@ async def reset_databases(conn: aiosqlite.Connection):
 
 
 async def main():
-    database = const.SLOTS_DB_FILE_PATH
+    database = SLOTS_DB_FILE_PATH
     conn = await create_connection(database)
     if conn is None:
         return

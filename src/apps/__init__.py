@@ -1,1 +1,1 @@
-print("reached script __init__")
+print("reached apps __init__")

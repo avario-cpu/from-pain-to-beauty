@@ -1,14 +1,20 @@
 import asyncio
 import logging
 import subprocess
-from src.core.constants import STRING_WITH_SYNS_FILE_PATH
 
 from neo4j import Session
-from sbert_matcher import SBERTMatcher  # type: ignore
 
 from src.connection import socket_server
-from src.core import constants as const
+from src.core.constants import (
+    PROJECT_DIR_PATH,
+    PYTHONPATH,
+    ROBEAU_DIR_PATH,
+    STOP_SUBPROCESS_MESSAGE,
+    SUBPROCESSES_PORTS,
+)
+from src.robeau.classes.sbert_matcher import SBERTMatcher  # type: ignore
 from src.robeau.core import google_stt
+from src.robeau.core.constants import STRING_WITH_SYNS_FILE_PATH
 from src.robeau.core.graph_logic_network import (
     USER,
     ConversationState,
@@ -20,7 +26,7 @@ from src.utils import helpers
 
 SCRIPT_NAME = helpers.construct_script_name(__file__)
 HOST = "localhost"
-PORT = const.SUBPROCESSES_PORTS[SCRIPT_NAME]
+PORT = SUBPROCESSES_PORTS["robeau"]
 STRING_WITH_SYNS = STRING_WITH_SYNS_FILE_PATH
 logger = helpers.setup_logger(SCRIPT_NAME)
 
@@ -45,7 +51,7 @@ class RobeauHandler(socket_server.BaseHandler):
         self.greeting_received = False
 
     async def handle_message(self, message: str):
-        if message == const.STOP_SUBPROCESS_MESSAGE:
+        if message == STOP_SUBPROCESS_MESSAGE:
             self.stop_event.set()
             self.logger.info("Received stop message")
             return
@@ -98,10 +104,10 @@ class RobeauHandler(socket_server.BaseHandler):
 
 def launch_google_stt(interim: bool = False, socket: str = "robeau"):
     command = (
-        f'start cmd /c "cd /d {const.PROJECT_DIR_PATH} '
-        f"&& set PYTHONPATH={const.PYTHONPATH} "
+        f'start cmd /c "cd /d {PROJECT_DIR_PATH} '
+        f"&& set PYTHONPATH={PYTHONPATH} "
         f"&& .\\venv\\Scripts\\activate "
-        f"&& cd {const.ROBEAU_DIR_PATH}\\core "
+        f"&& cd {ROBEAU_DIR_PATH}\\core "
         f'&& py {google_stt.SCRIPT_NAME}.py --interim {interim} --socket {socket}"'
     )
 

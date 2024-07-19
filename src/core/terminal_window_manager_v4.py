@@ -10,18 +10,18 @@ import pygetwindow as gw  # type: ignore
 import win32con
 import win32gui
 
-from src.core import constants as const
 from src.core import slots_db_handler as sdh
-from src.utils import helpers
+from src.core.constants import SERVER_WINDOW_NAME
+from src.utils.helpers import construct_script_name, setup_logger
 
 MAIN_WINDOW_WIDTH = 600
 MAIN_WINDOW_HEIGHT = 260
 MAX_WINDOWS_PER_COLUMN = 1040 // MAIN_WINDOW_HEIGHT  # So currently 4
 
-SCRIPT_NAME = helpers.construct_script_name(__file__)
+SCRIPT_NAME = construct_script_name(__file__)
 WINDOW_NAME_SUFFIX = "twm_"
 
-logger = helpers.setup_logger(SCRIPT_NAME, logging.DEBUG)
+logger = setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 
 class WinType(Enum):
@@ -137,7 +137,7 @@ async def assign_slot_and_name_window(
 
     elif window_type is WinType.SERVER:
         # Server doesn't take a slot in the database
-        title = const.SERVER_WINDOW_NAME
+        title = SERVER_WINDOW_NAME
         set_window_title(title)
         return None, title
 

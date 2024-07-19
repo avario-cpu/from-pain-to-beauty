@@ -2,23 +2,31 @@ import asyncio
 import logging
 import time
 from typing import Optional
+
 import cv2 as cv
 import mss
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
 from websockets import WebSocketClientProtocol
 
-from src.connection import socket_server, websocket
-from src.core import constants as const
-from src.core import terminal_window_manager_v4 as twm
-from src.utils import helpers
 from src.config.initialize import setup_script
-from src.core.terminal_window_manager_v4 import SecondaryWindow, WinType
+from src.connection import socket_server, websocket
+from src.core import terminal_window_manager_v4 as twm
+from src.core.constants import (
+    SLOTS_DB_FILE_PATH,
+    STOP_SUBPROCESS_MESSAGE,
+    STREAMERBOT_WS_URL,
+    SUBPROCESSES_PORTS,
+)
+from src.core.terminal_window_manager_v4 import SecondaryWindow
+from src.utils.helpers import construct_script_name, print_countdown, setup_logger
 
-SCRIPT_NAME = helpers.construct_script_name(__file__)
-PORT = const.SUBPROCESSES_PORTS[SCRIPT_NAME]
-STREAMERBOT_URL = const.STREAMERBOT_WS_URL
-SLOTS_DB = const.SLOTS_DB_FILE_PATH
+SCRIPT_NAME = construct_script_name(__file__)
+logger = setup_logger(SCRIPT_NAME, logging.DEBUG)
+
+PORT = SUBPROCESSES_PORTS["pregame_phase_detector"]
+STREAMERBOT_URL = STREAMERBOT_WS_URL
+SLOTS_DB = SLOTS_DB_FILE_PATH
 SECONDARY_WINDOWS = [
     SecondaryWindow("first_scanner", 150, 80),
     SecondaryWindow("second_scanner", 150, 80),
@@ -59,7 +67,7 @@ HERO_PICK_TEMPLATE = cv.imread(
     "data/opencv/pregame/dota_hero_select_chat_icons.jpg", cv.IMREAD_GRAYSCALE
 )
 
-logger = helpers.setup_logger(SCRIPT_NAME, logging.DEBUG)
+
 secondary_windows_spawned = asyncio.Event()
 mute_ssim_prints = asyncio.Event()
 
@@ -212,7 +220,7 @@ class PreGamePhaseHandler(socket_server.BaseHandler):
         self.stop_event = asyncio.Event()
 
     async def handle_message(self, message: str):
-        if message == const.STOP_SUBPROCESS_MESSAGE:
+        if message == STOP_SUBPROCESS_MESSAGE:
             self.stop_event.set()
             self.logger.info("Socket received stop message")
         else:
@@ -631,4 +639,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    helpers.countdown()
+    print_countdown()

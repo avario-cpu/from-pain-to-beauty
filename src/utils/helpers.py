@@ -47,7 +47,7 @@ def setup_logger(script_name: str, level: int = logging.DEBUG, log_dir: str = LO
     return logger
 
 
-def countdown(duration: int = 3):
+def print_countdown(duration: int = 3):
     for seconds in reversed(range(1, duration)):
         print("\r" + f"Courting down from {seconds} seconds...", end="\r")
         time.sleep(1)

@@ -17,11 +17,11 @@ from websockets import WebSocketServerProtocol
 from src.core import constants as const
 from src.core import slots_db_handler as sdh
 from src.core import terminal_window_manager_v4 as twm
-from src.utils import helpers
+from src.utils.helpers import construct_script_name, setup_logger
 
-SCRIPT_NAME = helpers.construct_script_name(__file__)
+SCRIPT_NAME = construct_script_name(__file__)
 
-logger = helpers.setup_logger(SCRIPT_NAME, logging.DEBUG)
+logger = setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 
 async def manage_subprocess(message: str):
@@ -50,7 +50,7 @@ async def manage_subprocess(message: str):
             f'start /min cmd /c "cd /d {const.PROJECT_DIR_PATH}'
             f"&& set PYTHONPATH={const.PYTHONPATH}"
             f"&& .\\venv\\Scripts\\activate"
-            f"&& cd {const.SUBPROCESSES_DIR_PATH}"
+            f"&& cd {const.APPS_DIR_PATH}"
             f"&& py {target}.py"
         )
 
@@ -155,9 +155,10 @@ async def main():
     print("Welcome to the server, bro. You know what to do.")
     conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
     await twm.manage_window(conn, twm.WinType.SERVER, "SERVER")
-    websocket_server = await websockets.serve(
-        create_websocket_handler(conn), "localhost", 50000
-    )
+    if conn:
+        websocket_server = await websockets.serve(
+            create_websocket_handler(conn), "localhost", 50000
+        )
 
     try:
         await asyncio.Future()

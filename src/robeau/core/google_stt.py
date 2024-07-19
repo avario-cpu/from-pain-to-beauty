@@ -10,7 +10,7 @@ from google.cloud import speech
 
 from src.config import settings
 from src.config.initialize import setup_script
-from src.core import constants as const
+from src.core.constants import SUBPROCESSES_PORTS
 from src.core.constants import SLOTS_DB_FILE_PATH
 from src.utils import helpers
 
@@ -19,8 +19,8 @@ CHUNK = int(RATE / 10)  # 100ms
 SCRIPT_NAME = helpers.construct_script_name(__file__)
 
 DEFAULT_SERVER_HOST = "localhost"
-ROBEAU_SERVER_PORT = const.SUBPROCESSES_PORTS["robeau"]
-SYNONYMS_SERVER_PORT = const.SUBPROCESSES_PORTS["synonym_adder"]
+ROBEAU_SERVER_PORT = SUBPROCESSES_PORTS["robeau"]
+SYNONYMS_SERVER_PORT = SUBPROCESSES_PORTS["synonym_adder"]
 
 if settings.GOOGLE_CLOUD_API_KEY is None:
     raise ValueError("Missing Google API Key")

@@ -8,14 +8,30 @@ from logging import DEBUG, INFO
 
 from neo4j import GraphDatabase, Result, Session
 from prompt_toolkit import PromptSession
+from prompt_toolkit.formatted_text import FormattedText
+from prompt_toolkit.shortcuts import print_formatted_text
 
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
-from src.robeau.core.audio_player import AudioPlayer
+from src.core.constants import AUDIO_MAPPINGS_FILE_PATH
+from src.robeau.classes.audio_player import AudioPlayer
+from src.robeau.classes.conversation_state import ConversationState
 from src.utils import helpers
 
 SCRIPT_NAME = helpers.construct_script_name(__file__)
 logger = helpers.setup_logger(SCRIPT_NAME, level=INFO)
-audio_player = AudioPlayer("src/robeau/jsons/audio_mappings.json")
+
+
+def custom_print(message):
+    formatted_message = FormattedText([("", message)])
+    print_formatted_text(formatted_message)
+
+
+""" Initialize the audio player at the module level so it can be used in the process_node function, which is super deep in the function chain, without having to pass it to every single function before just to use it at the final step. """
+audio_player = AudioPlayer(
+    AUDIO_MAPPINGS_FILE_PATH,
+    print_func=custom_print,
+    format_func=lambda message: FormattedText([("", message)]),
+)
 
 
 class QuerySource(enum.Enum):
@@ -42,204 +58,6 @@ EXPECTATIONS_SET = Transmissions.EXPECTATIONS_SET_MSG.value
 EXPECTATIONS_SUCCESS = Transmissions.EXPECTATIONS_SUCCESS_MSG.value
 EXPECTATIONS_FAILURE = Transmissions.EXPECTATIONS_FAILURE_MSG.value
 RESET_EXPECTATIONS = Transmissions.EXPECTATIONS_RESET_MSG.value
-
-
-class ConversationState:
-    def __init__(self):
-        # definitions
-        self.locks: list[dict] = []
-        self.unlocks: list[dict] = []
-        self.expectations: list[dict] = []
-        self.primes: list[dict] = []
-        self.listens: list[dict] = []
-        # activations
-        self.initiations: list[dict] = []
-
-    def _add_item(
-        self, node: str, duration: float | None, item_list: list, item_type: str
-    ):
-        start_time = time.time()
-
-        for existing_item in item_list:
-            if existing_item["node"] == node:
-                if duration is None:  # None means infinite duration here
-                    return
-
-                # Refresh duration if the item already exists
-                existing_item["duration"] = duration
-                existing_item["timeLeft"] = duration
-                existing_item["start_time"] = start_time
-                logger.info(f"Refreshed the time duration of {existing_item}")
-                return
-
-        item_list.append(
-            {
-                "type": item_type,
-                "node": node,
-                "timeLeft": duration,
-                "duration": duration,
-                "start_time": start_time,
-            }
-        )
-
-    def add_unlock(self, node: str, duration: float | None):
-        self._add_item(node, duration, self.unlocks, "unlock")
-
-    def add_lock(self, node: str, duration: float | None):
-        self._add_item(node, duration, self.locks, "lock")
-
-    def add_expectation(self, node: str, duration: float | None):
-        self._add_item(node, duration, self.expectations, "expectation")
-
-    def add_prime(self, node: str, duration: float | None):
-        self._add_item(node, duration, self.primes, "prime")
-
-    def add_listens(self, node: str, duration: float | None):
-        self._add_item(node, duration, self.listens, "listen")
-
-    def add_initiation(self, node: str, duration: float | None):
-        self._add_item(node, duration, self.initiations, "initiation")
-
-    def delay_item(self, node: str, duration: float | None):
-        """Unused right now but may be used in the future, Logic wise just know that the difference between this and add_initiation is that this is for items that are already in the conversation state, which means a previously processed node wont be processed again if they are pointed to with a DELAY relationship"""
-        for node_list in [self.locks, self.unlocks, self.expectations, self.primes]:
-            for item in node_list:
-                if item["node"] == node:
-                    self._add_item(node, duration, node_list, item["type"])
-
-    def disable_item(self, node: str):
-        for node_list in [self.primes, self.initiations]:
-            for item in node_list:
-                if item["node"] == node:
-                    node_list.remove(item)
-                    logger.info(f"Item disabled: {item}")
-                    return
-
-    def _update_time_left(self, item: dict):
-        current_time = time.time()
-        start_time = item["start_time"]
-        duration = item["duration"]
-        time_left = item.get("timeLeft")
-
-        if time_left is not None:
-            elapsed_time = current_time - start_time
-            remaining_time = max(0, duration - elapsed_time)
-            item["timeLeft"] = remaining_time
-            logger.debug(f"Updated time for item: {item}")
-
-    def _remove_expired(self, items: list) -> list:
-        valid_items = []
-
-        for item in items:
-            self._update_time_left(item)
-            time_left = item.get("timeLeft")
-            if time_left is None or time_left > 0:
-                valid_items.append(item)
-            else:
-                logger.info(f"Item has expired: {item}")
-
-        return valid_items
-
-    def _check_initiations(self, session: Session):
-        ongoing_initiations = []
-        complete_initiations = []
-
-        for initiation in self.initiations:
-            self._update_time_left(initiation)
-            time_left = initiation.get("timeLeft")
-
-            if time_left is None:
-                raise ValueError(
-                    f"Initiation has invalid duration {time_left}: {initiation}"
-                )
-
-            if time_left > 0:
-                ongoing_initiations.append(initiation)
-            else:
-                logger.info(f"Initiation complete: {initiation}")
-                complete_initiations.append(initiation)
-
-        self.initiations = ongoing_initiations
-
-        for initiation in complete_initiations:
-            activate_node(initiation)
-            process_node(session, initiation["node"], self, source=ROBEAU)
-
-    def update_timed_items(self, session: Session):
-        items_to_update = ["locks", "unlocks", "expectations", "primes", "listens"]
-        for item in items_to_update:
-            setattr(self, item, self._remove_expired(getattr(self, item)))
-        self._check_initiations(session)
-
-    def reset_attribute(self, attribute: str):
-        valid_attributes = [
-            "locks",
-            "unlocks",
-            "primes",
-            "expectations",
-            "listens",
-            "initiations",
-        ]
-
-        if attribute in valid_attributes:
-            if getattr(self, attribute, None):
-                setattr(self, attribute, [])
-                logger.info(f'Reset attribute: "{attribute}"')
-        else:
-            logger.error(f'Invalid attribute: "{attribute}"')
-
-    def revert_definitions(self, session, node: str):
-        """Reverts the locks and unlock which the target node had instilled on other nodes"""
-        definitions_to_revert = (
-            get_node_connections(
-                session=session, text=node, source=ROBEAU, conversation_state=self
-            )
-            or []
-        )
-        readable_definitions = [
-            (i["start_node"], i["relationship"], i["end_node"])
-            for i in definitions_to_revert
-        ]
-        logger.info(f"Obtained definitions to revert: {readable_definitions}")
-
-        for connection in definitions_to_revert:
-            end_node = connection.get("end_node", "")
-
-            self._revert_individual_definition("lock", end_node, self.locks)
-            self._revert_individual_definition("unlock", end_node, self.unlocks)
-
-    def _revert_individual_definition(
-        self, definition_type: str, node: str, definitions: list
-    ):
-        initial_count = len(definitions)
-        definitions[:] = [
-            definition for definition in definitions if definition["node"] != node
-        ]
-        if len(definitions) < initial_count:
-            logger.info(f'Removed {definition_type} for: "{node}"')
-
-    def log_conversation_state(self):
-        state_types = {
-            "Lock": self.locks,
-            "Unlock": self.unlocks,
-            "Expectation": self.expectations,
-            "Prime": self.primes,
-            "Listen": self.listens,
-            "Initiation": self.initiations,
-        }
-
-        log_message = []
-
-        if any(state_types.values()):
-            log_message.append("\nConversation state:")
-            for state_name, items in state_types.items():
-                for item in items:
-                    log_message.append(f"{state_name}: list{item}")
-            log_message.append(" ")
-        else:
-            log_message.append("No items in conversation state")
-
-        logger.info("\n".join(log_message))
 
 
 def get_node_data(
@@ -842,7 +660,11 @@ def establish_connection():
 
 def initialize():
     driver, session = establish_connection()
-    conversation_state = ConversationState()
+    conversation_state = ConversationState(logger=logger)
+    conversation_state.set_process_node_func(process_node)
+    conversation_state.set_get_node_connections_func(get_node_connections)
+    conversation_state.set_activate_node_func(activate_node)
+    conversation_state.set_robeau_param(ROBEAU)
     stop_event = threading.Event()
     update_thread = threading.Thread(
         target=run_update_conversation_state,

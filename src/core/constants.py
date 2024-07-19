@@ -8,22 +8,16 @@ PROJECT_DIR_PATH = os.getenv("PROJECT_DIR_PATH")
 VENV_PATH = os.getenv("VENV_PATH")
 PYTHONPATH = os.getenv("PYTHONPATH")
 
-# Specific project paths
+# General project paths
 SLOTS_DB_FILE_PATH = "C:\\Users\\ville\\MyMegaScript\\data\\slots.db"
-SUBPROCESSES_DIR_PATH = "C:\\Users\\ville\\MyMegaScript\\src\\subprocesses"
-SCRIPTS_DIR_PATH = "C:\\Users\\ville\\MyMegaScript\\src\\scripts"
+APPS_DIR_PATH = "C:\\Users\\ville\\MyMegaScript\\src\\apps"
 ROBEAU_DIR_PATH = "C:\\Users\\ville\\MyMegaScript\\src\\robeau"
 
-# General project paths
+# Temp project paths
 TEMP_DIR_PATH = "C:\\Users\\ville\\MyMegaScript\\temp"
 LOG_DIR_PATH = "C:\\Users\\ville\\MyMegaScript\\temp\\logs"
 LOCK_FILES_DIR_PATH = "C:\\Users\\ville\\MyMegaScript\\temp\\lock_files"
 COMMON_LOGS_FILE_PATH = "C:\\Users\\ville\\MyMegaScript\\temp\\logs\\all_logs.log"
-
-# Robeau specific paths
-STRING_WITH_SYNS_FILE_PATH = (
-    "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\strings_with_syns.json"
-)
 
 # URLS
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"

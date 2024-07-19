@@ -1,25 +1,11 @@
 # conversation_state.py
-import logging
+from logging import Logger
 import time
-from src.robeau.core.audio_player import AudioPlayer
-from src.robeau.core.graph_logic_network import (
-    process_node,
-    get_node_connections,
-    activate_node,
-    SYSTEM,
-    ROBEAU,
-    EXPECTATIONS_SET,
-    EXPECTATIONS_SUCCESS,
-    EXPECTATIONS_FAILURE,
-    RESET_EXPECTATIONS,
-)
-
-logger = logging.getLogger(__name__)
-audio_player = AudioPlayer("src/robeau/jsons/audio_mappings.json")
+from neo4j import Session
 
 
 class ConversationState:
-    def __init__(self):
+    def __init__(self, logger: Logger):
         # definitions
         self.locks: list[dict] = []
         self.unlocks: list[dict] = []
@@ -28,6 +14,19 @@ class ConversationState:
         self.listens: list[dict] = []
         # activations
         self.initiations: list[dict] = []
+        self.logger = logger
+
+    def set_process_node_func(self, process_node_func):
+        self.process_node = process_node_func
+
+    def set_get_node_connections_func(self, get_node_connections_func):
+        self.get_node_connections = get_node_connections_func
+
+    def set_activate_node_func(self, activate_node_func):
+        self.activate_node = activate_node_func
+
+    def set_robeau_param(self, ROBEAU_param):
+        self.ROBEAU = ROBEAU_param
 
     def _add_item(
         self, node: str, duration: float | None, item_list: list, item_type: str
@@ -43,7 +42,7 @@ class ConversationState:
                 existing_item["duration"] = duration
                 existing_item["timeLeft"] = duration
                 existing_item["start_time"] = start_time
-                logger.info(f"Refreshed the time duration of {existing_item}")
+                self.logger.info(f"Refreshed the time duration of {existing_item}")
                 return
 
         item_list.append(
@@ -86,7 +85,7 @@ class ConversationState:
             for item in node_list:
                 if item["node"] == node:
                     node_list.remove(item)
-                    logger.info(f"Item disabled: {item}")
+                    self.logger.info(f"Item disabled: {item}")
                     return
 
     def _update_time_left(self, item: dict):
@@ -99,7 +98,7 @@ class ConversationState:
             elapsed_time = current_time - start_time
             remaining_time = max(0, duration - elapsed_time)
             item["timeLeft"] = remaining_time
-            logger.debug(f"Updated time for item: {item}")
+            self.logger.debug(f"Updated time for item: {item}")
 
     def _remove_expired(self, items: list) -> list:
         valid_items = []
@@ -110,7 +109,7 @@ class ConversationState:
             if time_left is None or time_left > 0:
                 valid_items.append(item)
             else:
-                logger.info(f"Item has expired: {item}")
+                self.logger.info(f"Item has expired: {item}")
 
         return valid_items
 
@@ -130,14 +129,14 @@ class ConversationState:
             if time_left > 0:
                 ongoing_initiations.append(initiation)
             else:
-                logger.info(f"Initiation complete: {initiation}")
+                self.logger.info(f"Initiation complete: {initiation}")
                 complete_initiations.append(initiation)
 
         self.initiations = ongoing_initiations
 
         for initiation in complete_initiations:
-            activate_node(initiation)
-            process_node(session, initiation["node"], self, source=ROBEAU)
+            self.activate_node(initiation)
+            self.process_node(session, initiation["node"], self, source=self.ROBEAU)
 
     def update_timed_items(self, session: Session):
         items_to_update = ["locks", "unlocks", "expectations", "primes", "listens"]
@@ -158,23 +157,23 @@ class ConversationState:
         if attribute in valid_attributes:
             if getattr(self, attribute, None):
                 setattr(self, attribute, [])
-                logger.info(f'Reset attribute: "{attribute}"')
+                self.logger.info(f'Reset attribute: "{attribute}"')
         else:
-            logger.error(f'Invalid attribute: "{attribute}"')
+            self.logger.error(f'Invalid attribute: "{attribute}"')
 
-    def revert_definitions(self, session, node: str):
+    def revert_definitions(self, session: Session, node: str):
         """Reverts the locks and unlock which the target node had instilled on other nodes"""
         definitions_to_revert = (
-            get_node_connections(
-                session=session, text=node, source=ROBEAU, conversation_state=self
+            self.get_node_connections(
+                session=session, text=node, source=self.ROBEAU, conversation_state=self
             )
             or []
         )
-        readable_definitions = [
+        formatted_definitions = [
             (i["start_node"], i["relationship"], i["end_node"])
             for i in definitions_to_revert
         ]
-        logger.info(f"Obtained definitions to revert: {readable_definitions}")
+        self.logger.info(f"Obtained definitions to revert: {formatted_definitions}")
 
         for connection in definitions_to_revert:
             end_node = connection.get("end_node", "")
@@ -190,7 +189,7 @@ class ConversationState:
             definition for definition in definitions if definition["node"] != node
         ]
         if len(definitions) < initial_count:
-            logger.info(f'Removed {definition_type} for: "{node}"')
+            self.logger.info(f'Removed {definition_type} for: "{node}"')
 
     def log_conversation_state(self):
         state_types = {
@@ -213,4 +212,4 @@ class ConversationState:
         else:
             log_message.append("No items in conversation state")
 
-        logger.info("\n".join(log_message))
+        self.logger.info("\n".join(log_message))

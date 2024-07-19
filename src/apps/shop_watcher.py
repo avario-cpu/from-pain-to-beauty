@@ -10,17 +10,22 @@ import numpy as np
 from skimage.metrics import structural_similarity as ssim
 from websockets import WebSocketClientProtocol
 
-from src.connection import socket_server, websocket
-from src.core import constants as const
-from src.core import terminal_window_manager_v4 as twm
 from src.config.initialize import setup_script
-from src.utils import helpers
+from src.connection import socket_server, websocket
+from src.core import terminal_window_manager_v4 as twm
+from src.core.constants import (
+    SLOTS_DB_FILE_PATH,
+    STOP_SUBPROCESS_MESSAGE,
+    STREAMERBOT_WS_URL,
+    SUBPROCESSES_PORTS,
+)
 from src.core.terminal_window_manager_v4 import SecondaryWindow
+from src.utils.helpers import construct_script_name, print_countdown, setup_logger
 
-SCRIPT_NAME = helpers.construct_script_name(__file__)
-PORT = const.SUBPROCESSES_PORTS[SCRIPT_NAME]
-STREAMERBOT_URL = const.STREAMERBOT_WS_URL
-SLOTS_DB = const.SLOTS_DB_FILE_PATH
+SCRIPT_NAME = construct_script_name(__file__)
+PORT = SUBPROCESSES_PORTS["shop_watcher"]
+STREAMERBOT_URL = STREAMERBOT_WS_URL
+SLOTS_DB = SLOTS_DB_FILE_PATH
 
 SECONDARY_WINDOWS = [SecondaryWindow("opencv_shop_scanner", 150, 100)]
 SCREEN_CAPTURE_AREA = {"left": 1853, "top": 50, "width": 30, "height": 35}
@@ -30,7 +35,7 @@ SHOP_TEMPLATE_IMAGE_PATH = (
     "\\shop_watch\\shop_top_right_icon.jpg"
 )
 
-logger = helpers.setup_logger(SCRIPT_NAME, logging.DEBUG)
+logger = setup_logger(SCRIPT_NAME, logging.DEBUG)
 secondary_windows_spawned = asyncio.Event()
 mute_ssim_prints = asyncio.Event()
 
@@ -92,7 +97,7 @@ class ShopWatcherHandler(socket_server.BaseHandler):
         self.stop_event = asyncio.Event()
 
     async def handle_message(self, message: str):
-        if message == const.STOP_SUBPROCESS_MESSAGE:
+        if message == STOP_SUBPROCESS_MESSAGE:
             self.stop_event.set()
             self.logger.info("Socket received stop message")
             print("Socket received stop message")
@@ -248,4 +253,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    helpers.countdown()
+    print_countdown()
