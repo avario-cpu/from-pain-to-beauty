@@ -37,6 +37,7 @@ class Transmissions(enum.Enum):
     EXPECTATIONS_SUCCESS_MSG = "EXPECTATIONS SUCCESS"
     EXPECTATIONS_FAILURE_MSG = "EXPECTATIONS FAILURE"
     EXPECTATIONS_RESET_MSG = "RESET EXPECTATIONS"
+    ANY_PROMPT_UTTERED_MSG = "ANY PROMPT UTTERED"
 
 
 # Query source aliases
@@ -49,6 +50,7 @@ EXPECTATIONS_SET = Transmissions.EXPECTATIONS_SET_MSG.value
 EXPECTATIONS_SUCCESS = Transmissions.EXPECTATIONS_SUCCESS_MSG.value
 EXPECTATIONS_FAILURE = Transmissions.EXPECTATIONS_FAILURE_MSG.value
 RESET_EXPECTATIONS = Transmissions.EXPECTATIONS_RESET_MSG.value
+ANY_PROMPT_UTTERED = Transmissions.ANY_PROMPT_UTTERED_MSG.value
 
 
 def get_node_data(
@@ -88,7 +90,12 @@ def define_labels_and_text(
     def process_expectation_failure():
         process_node(session, EXPECTATIONS_FAILURE, conversation_state, source=SYSTEM)
 
+    def process_any_prompt_uttered():
+        process_node(session, ANY_PROMPT_UTTERED, conversation_state, source=SYSTEM)
+
     if source == USER:
+        process_any_prompt_uttered()
+
         if not conversation_state.expectations:
             labels = ["Prompt", "Request"]
             if conversation_state.listens:
@@ -101,7 +108,7 @@ def define_labels_and_text(
         else:
             logger.info(f'"{text}" does not meet conversation expectations')
             process_expectation_failure()
-            return None  # abort processing initial target node: if it doesn't match the expectations then finding it within the database is irrelevant anyways
+            return None
     elif source == ROBEAU:
         labels = ["Response", "Question", "Action", "LogicGate"]
     elif source == SYSTEM:

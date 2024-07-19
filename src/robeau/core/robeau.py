@@ -31,7 +31,7 @@ STRING_WITH_SYNS = STRING_WITH_SYNS_FILE_PATH
 logger = helpers.setup_logger(SCRIPT_NAME)
 
 # Initialize SBERT matcher
-sbert_matcher = SBERTMatcher(file_path=STRING_WITH_SYNS, similarity_threshold=0.65)
+sbert_matcher = SBERTMatcher(file_path=STRING_WITH_SYNS, similarity_threshold=0.6)
 
 
 class RobeauHandler(socket_server.BaseHandler):
@@ -73,7 +73,7 @@ class RobeauHandler(socket_server.BaseHandler):
                 return  # You may send a response indicating waiting for greeting
         else:
             if self.conversation_state.listens:
-                labels = ["Whisper"]
+                labels = ["Prompt", "Whisper"]
             else:
                 labels = (
                     ["Answer"] if self.conversation_state.expectations else ["Prompt"]
@@ -83,20 +83,18 @@ class RobeauHandler(socket_server.BaseHandler):
                 message, self.show_details, labels=labels
             )
 
-            if matched_message:
-                if (
-                    not self.conversation_state.expectations
-                    and not self.conversation_state.listens
-                ):
-                    self.greeting_received = False
-                process_node(
-                    session=self.session,
-                    node=matched_message,
-                    conversation_state=self.conversation_state,
-                    source=USER,
-                )
-            else:
-                self.logger.info("No matching message found.")
+            process_node(
+                session=self.session,
+                node=matched_message,
+                conversation_state=self.conversation_state,
+                source=USER,
+            )
+
+            if (
+                not self.conversation_state.expectations
+                and not self.conversation_state.listens
+            ):
+                self.greeting_received = False
 
 
 def launch_google_stt(interim: bool = False, socket: str = "robeau"):

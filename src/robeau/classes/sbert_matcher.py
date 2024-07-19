@@ -77,9 +77,9 @@ class SBERTMatcher:
 
         if max_similarity < self.similarity_threshold:
             print(
-                f"Similarity {max_similarity:.4f} < {self.similarity_threshold} (threshold). No match returned.\n"
+                f"Similarity {max_similarity:.4f} < {self.similarity_threshold} (threshold). Returning original message.\n"
             )
-            return None
+            return message
         else:
             print(f"\n")
             return best_match
