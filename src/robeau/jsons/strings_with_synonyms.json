@@ -1,12 +1,54 @@
 {
     "Greeting": [
         {
-            "text": "hey robeau"
+            "text": "hey robeau",
+            "synonyms": [
+                "hey robo",
+                "hey rubble",
+
+                "yo robo",
+                "yo rubble",
+
+                "hey uh rubble",
+                "hey uh robo",
+
+                "yo um rubble",
+                "yo um robo",
+
+                "oh rubble",
+                "oh robo",
+
+                "oh uh rubble",
+                "oh uh robo",
+
+                "yeah um rubble",
+                "yeah um robo",
+
+                "oh hey rubble",
+                "oh hey robo",
+
+                "uh mr rubble",
+                "uh mr robo",
+
+                "hey mr rubble",
+                "hey mr robo",
+
+                "yo mr rubble",
+                "yo mr robo",
+
+                "hey rubble, cutie",
+                "hey robo cutie",
+
+                "my dear robo",
+                "my dear rubble"
+
+            ]
         }
     ],
     "Prompt": [
         {
-            "text": "hello","synonyms": [
+            "text": "hello",
+            "synonyms": [
                 "hi",
                 "greetings"
             ]

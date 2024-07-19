@@ -8,30 +8,21 @@ from logging import DEBUG, INFO
 
 from neo4j import GraphDatabase, Result, Session
 from prompt_toolkit import PromptSession
-from prompt_toolkit.formatted_text import FormattedText
-from prompt_toolkit.shortcuts import print_formatted_text
 
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
-from src.core.constants import AUDIO_MAPPINGS_FILE_PATH
+from src.robeau.core.constants import AUDIO_MAPPINGS_FILE_PATH
 from src.robeau.classes.audio_player import AudioPlayer
 from src.robeau.classes.conversation_state import ConversationState
 from src.utils import helpers
+from prompt_toolkit.patch_stdout import patch_stdout
+
 
 SCRIPT_NAME = helpers.construct_script_name(__file__)
 logger = helpers.setup_logger(SCRIPT_NAME, level=INFO)
 
 
-def custom_print(message):
-    formatted_message = FormattedText([("", message)])
-    print_formatted_text(formatted_message)
-
-
 """ Initialize the audio player at the module level so it can be used in the process_node function, which is super deep in the function chain, without having to pass it to every single function before just to use it at the final step. """
-audio_player = AudioPlayer(
-    AUDIO_MAPPINGS_FILE_PATH,
-    print_func=custom_print,
-    format_func=lambda message: FormattedText([("", message)]),
-)
+audio_player = AudioPlayer(AUDIO_MAPPINGS_FILE_PATH)
 
 
 class QuerySource(enum.Enum):
@@ -368,9 +359,14 @@ def process_definitions_relationships(
 def activate_node(node_dict: dict):
     """Output. Works for both activation connections (end_node) and dictionaries from the conversation state(node)."""
     output = node_dict.get("end_node") or node_dict.get("node")
-    print(output)
-    logger.info(f'>>> OUTPUT: "{output}" ')
-    audio_player.play_audio(output)
+    if isinstance(output, str):
+        print(output)
+        audio_player.play_audio(output)
+        logger.info(f'>>> OUTPUT: "{output}" ')
+    else:
+        logger.error(
+            f"Failed to activate node: {node_dict} expected string, got {type(output)}"
+        )
     return node_dict
 
 
@@ -623,17 +619,18 @@ def process_node(
 def listen_for_queries(session, conversation_state):
     prompt_session: PromptSession = PromptSession()
     while True:
-        user_query = prompt_session.prompt("Query: ").strip()
-        if user_query == "exit":
-            print("Exiting...")
-            return False
-        elif user_query:
-            process_node(
-                session=session,
-                node=user_query,
-                conversation_state=conversation_state,
-                source=USER,
-            )
+        with patch_stdout():
+            user_query = prompt_session.prompt("Query: ").strip()
+            if user_query == "exit":
+                print("Exiting...")
+                return False
+            elif user_query:
+                process_node(
+                    session=session,
+                    node=user_query,
+                    conversation_state=conversation_state,
+                    source=USER,
+                )
 
 
 def run_update_conversation_state(
@@ -689,15 +686,16 @@ def main():
 
     try:
         while True:
-            user_input = prompt_session.prompt("start or exit: ").lower()
-            if user_input == "exit":
-                print("Exiting...")
-                break
-            elif user_input == "start":
-                listen_for_queries(
-                    session,
-                    conversation_state,
-                )
+            with patch_stdout():
+                user_input = prompt_session.prompt("start or exit: ").lower()
+                if user_input == "exit":
+                    print("Exiting...")
+                    break
+                elif user_input == "start":
+                    listen_for_queries(
+                        session,
+                        conversation_state,
+                    )
     except Exception as e:
         print(f"Error occurred: {e}")
         logger.exception(e)

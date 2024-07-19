@@ -99,9 +99,6 @@ class RobeauHandler(socket_server.BaseHandler):
                 self.logger.info("No matching message found.")
 
 
-# The rest of the code remains the same...
-
-
 def launch_google_stt(interim: bool = False, socket: str = "robeau"):
     command = (
         f'start cmd /c "cd /d {PROJECT_DIR_PATH} '

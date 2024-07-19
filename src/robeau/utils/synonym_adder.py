@@ -5,6 +5,7 @@ import json
 import asyncio
 from src.core.constants import SUBPROCESSES_PORTS
 from src.robeau.core.robeau import launch_google_stt
+from src.robeau.core.constants import STRING_WITH_SYNS_FILE_PATH
 
 PORT = SUBPROCESSES_PORTS["synonym_adder"]
 
@@ -62,10 +63,8 @@ class SynonymHandler(BaseHandler):
 
 if __name__ == "__main__":
     # Path to your JSON file
-    json_file_path = (
-        "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\strings_with_syns.json"
-    )
-    predefined_text = "hello"  # Replace with the actual predefined text
+    json_file_path = STRING_WITH_SYNS_FILE_PATH
+    predefined_text = "hey robeau"  # Replace with the actual predefined text
 
     # Initialize and run the socket server with the SynonymHandler
     handler = SynonymHandler(

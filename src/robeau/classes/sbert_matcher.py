@@ -2,7 +2,7 @@ import json
 import torch
 from sentence_transformers import SentenceTransformer, util
 import time
-from src.core.constants import STRING_WITH_SYNS_FILE_PATH
+from src.robeau.core.constants import STRING_WITH_SYNS_FILE_PATH
 from typing import Optional
 
 STRING_WITH_SYNS = STRING_WITH_SYNS_FILE_PATH
