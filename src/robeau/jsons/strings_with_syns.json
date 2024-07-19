@@ -1,13 +1,12 @@
 {
-    "Whisper": [
+    "Greeting": [
         {
-            "text": "wait robeau"
+            "text": "hey robeau"
         }
     ],
     "Prompt": [
         {
-            "text": "hello",
-            "synonyms": [
+            "text": "hello","synonyms": [
                 "hi",
                 "greetings"
             ]
@@ -17,6 +16,9 @@
         },
         {
             "text": "goodbye"
+        },
+        {
+            "text": "calculate 2 + 2"
         },
         {
             "text": "i'm sorry"
@@ -32,11 +34,6 @@
         },
         {
             "text": "test gate"
-        }
-    ],
-    "Request": [
-        {
-            "text": "calculate 2 + 2"
         }
     ],
     "Answer": [
@@ -57,6 +54,11 @@
         },
         {
             "text": "nothing"
+        }
+    ],
+    "Whisper": [
+        {
+            "text": "wait robeau"
         }
     ]
 }

@@ -49,7 +49,7 @@ def write_to_json(data, filename):
 
 
 # List of labels to query
-labels = ["Whisper", "Prompt", "Request", "Answer"]
+labels = ["Greeting", "Prompt", "Answer", "Whisper"]
 
 # Get text keys from specified labels
 data = get_text_keys_from_labels(labels)
@@ -58,7 +58,7 @@ data = get_text_keys_from_labels(labels)
 print("Data to be written to JSON:", data)
 
 # Write data to JSON file
-json_filename = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\db_strings.json"
+json_filename = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\db_strings.json"
 write_to_json(data, json_filename)
 
 # Check if the file exists and print the absolute path

@@ -3,6 +3,7 @@ import torch
 from sentence_transformers import SentenceTransformer, util
 import time
 from src.core.constants import STRING_WITH_SYNS_FILE_PATH
+from typing import Optional
 
 STRING_WITH_SYNS = STRING_WITH_SYNS_FILE_PATH
 
@@ -41,7 +42,9 @@ class SBERTMatcher:
     def measure_similarity(self, embedding1, embedding2):
         return util.pytorch_cos_sim(embedding1, embedding2).item()
 
-    def check_for_best_matching_synonym(self, message: str, show_details: bool = False):
+    def check_for_best_matching_synonym(
+        self, message: str, show_details: bool = False, labels: Optional[list] = None
+    ):
         start_time = time.time()
         input_embedding = self.model.encode(message, convert_to_tensor=True)
         if torch.cuda.is_available() and isinstance(input_embedding, torch.Tensor):
@@ -50,7 +53,11 @@ class SBERTMatcher:
         max_similarity = -1
         best_match = None
         best_synonym = None
-        for category, items in self.target_embeddings.items():
+
+        categories = labels if labels else self.target_embeddings.keys()
+
+        for category in categories:
+            items = self.target_embeddings.get(category, [])
             for main_text, text, embedding in items:
                 similarity = self.measure_similarity(input_embedding, embedding)
                 if similarity > max_similarity:
@@ -72,20 +79,7 @@ class SBERTMatcher:
             print(
                 f"Similarity {max_similarity:.4f} < {self.similarity_threshold} (threshold). No match returned.\n"
             )
-            return message
+            return None
         else:
             print(f"\n")
             return best_match
-
-
-def main():
-    matcher = SBERTMatcher(file_path=STRING_WITH_SYNS)
-    while True:
-        message = input("Enter a message (or 'exit' to quit): ")
-        if message.lower() == "exit":
-            break
-        matcher.check_for_best_matching_synonym(message, show_details=True)
-
-
-if __name__ == "__main__":
-    main()

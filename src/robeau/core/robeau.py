@@ -42,6 +42,7 @@ class RobeauHandler(socket_server.BaseHandler):
         self.session = session
         self.conversation_state = conversation_state
         self.show_details = show_details
+        self.greeting_received = False
 
     async def handle_message(self, message: str):
         if message == const.STOP_SUBPROCESS_MESSAGE:
@@ -49,16 +50,50 @@ class RobeauHandler(socket_server.BaseHandler):
             self.logger.info("Received stop message")
             return
 
-        message = sbert_matcher.check_for_best_matching_synonym(
-            message, self.show_details
-        )
+        if (
+            not self.greeting_received
+            and not self.conversation_state.expectations
+            and not self.conversation_state.listens
+        ):
+            greeting = sbert_matcher.check_for_best_matching_synonym(
+                message, self.show_details, labels=["Greeting"]
+            )
+            if greeting and "hey robeau" in greeting.lower():
+                self.greeting_received = True
+                self.logger.info("Greeting received, ready to process messages.")
+                return  # You may send a response indicating readiness if needed
+            else:
+                self.logger.info("Waiting for greeting...")
+                return  # You may send a response indicating waiting for greeting
+        else:
+            if self.conversation_state.listens:
+                labels = ["Whisper"]
+            else:
+                labels = (
+                    ["Answer"] if self.conversation_state.expectations else ["Prompt"]
+                )
 
-        process_node(
-            session=self.session,
-            node=message,
-            conversation_state=self.conversation_state,
-            source=USER,
-        )
+            matched_message = sbert_matcher.check_for_best_matching_synonym(
+                message, self.show_details, labels=labels
+            )
+
+            if matched_message:
+                if (
+                    not self.conversation_state.expectations
+                    and not self.conversation_state.listens
+                ):
+                    self.greeting_received = False
+                process_node(
+                    session=self.session,
+                    node=matched_message,
+                    conversation_state=self.conversation_state,
+                    source=USER,
+                )
+            else:
+                self.logger.info("No matching message found.")
+
+
+# The rest of the code remains the same...
 
 
 def launch_google_stt(interim: bool = False, socket: str = "robeau"):
