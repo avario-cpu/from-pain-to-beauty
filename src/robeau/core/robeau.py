@@ -1,11 +1,11 @@
 import asyncio
 import logging
 import subprocess
+from src.core.constants import STRING_WITH_SYNS_FILE_PATH
 
 from neo4j import Session
-from pydub.playback import play  # type: ignore
+from sbert_matcher import SBERTMatcher  # type: ignore
 
-from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from src.connection import socket_server
 from src.core import constants as const
 from src.robeau.core import google_stt
@@ -21,24 +21,27 @@ from src.utils import helpers
 SCRIPT_NAME = helpers.construct_script_name(__file__)
 HOST = "localhost"
 PORT = const.SUBPROCESSES_PORTS[SCRIPT_NAME]
+STRING_WITH_SYNS = STRING_WITH_SYNS_FILE_PATH
 logger = helpers.setup_logger(SCRIPT_NAME)
+
+# Initialize SBERT matcher
+sbert_matcher = SBERTMatcher(file_path=STRING_WITH_SYNS, similarity_threshold=0.65)
 
 
 class RobeauHandler(socket_server.BaseHandler):
     def __init__(
         self,
         port,
-        script_logger,
+        logger,
         session: Session,
         conversation_state: ConversationState,
+        show_details=False,
     ):
-        super().__init__(
-            port,
-            script_logger,
-        )
+        super().__init__(port, logger)
         self.stop_event = asyncio.Event()
         self.session = session
         self.conversation_state = conversation_state
+        self.show_details = show_details
 
     async def handle_message(self, message: str):
         if message == const.STOP_SUBPROCESS_MESSAGE:
@@ -46,21 +49,25 @@ class RobeauHandler(socket_server.BaseHandler):
             self.logger.info("Received stop message")
             return
 
+        message = sbert_matcher.check_for_best_matching_synonym(
+            message, self.show_details
+        )
+
         process_node(
             session=self.session,
-            node=message.strip().lower(),
+            node=message,
             conversation_state=self.conversation_state,
             source=USER,
         )
 
 
-def launch_google_stt(interim: bool = False):
+def launch_google_stt(interim: bool = False, socket: str = "robeau"):
     command = (
         f'start cmd /c "cd /d {const.PROJECT_DIR_PATH} '
         f"&& set PYTHONPATH={const.PYTHONPATH} "
         f"&& .\\venv\\Scripts\\activate "
-        f"&& cd {const.ROBEAU_DIR_PATH} "
-        f'&& py {google_stt.SCRIPT_NAME}.py {interim}"'
+        f"&& cd {const.ROBEAU_DIR_PATH}\\core "
+        f'&& py {google_stt.SCRIPT_NAME}.py --interim {interim} --socket {socket}"'
     )
 
     process = subprocess.Popen(
@@ -69,12 +76,12 @@ def launch_google_stt(interim: bool = False):
     return process
 
 
-async def main():
+async def main(show_details=False):
     socket_server_task = None
     try:
         driver, session, conversation_state, stop_event, update_thread = initialize()
-        handler = RobeauHandler(PORT, logger, session, conversation_state)
-        launch_google_stt(interim=False)  # Set interim as needed
+        handler = RobeauHandler(PORT, logger, session, conversation_state, show_details)
+        launch_google_stt(interim=False, socket="robeau")  # Set interim as needed
         socket_server_task = asyncio.create_task(handler.run_socket_server())
         await socket_server_task
     except Exception as e:
@@ -89,4 +96,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main(show_details=True))

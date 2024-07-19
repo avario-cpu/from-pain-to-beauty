@@ -5,17 +5,17 @@ import time
 from collections import defaultdict
 from enum import auto
 from logging import DEBUG, INFO
-from src.robeau.core.audio_player import AudioPlayer
+
 from neo4j import GraphDatabase, Result, Session
 from prompt_toolkit import PromptSession
-from prompt_toolkit.patch_stdout import patch_stdout
 
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
+from src.robeau.core.audio_player import AudioPlayer
 from src.utils import helpers
 
 SCRIPT_NAME = helpers.construct_script_name(__file__)
 logger = helpers.setup_logger(SCRIPT_NAME, level=INFO)
-audio_player = AudioPlayer("src/robeau/audio_mappings.json")
+audio_player = AudioPlayer("src/robeau/jsons/audio_mappings.json")
 
 
 class QuerySource(enum.Enum):

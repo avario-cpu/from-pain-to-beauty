@@ -20,11 +20,19 @@ LOG_DIR_PATH = "C:\\Users\\ville\\MyMegaScript\\temp\\logs"
 LOCK_FILES_DIR_PATH = "C:\\Users\\ville\\MyMegaScript\\temp\\lock_files"
 COMMON_LOGS_FILE_PATH = "C:\\Users\\ville\\MyMegaScript\\temp\\logs\\all_logs.log"
 
+# Robeau specific paths
+STRING_WITH_SYNS_FILE_PATH = (
+    "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\strings_with_syns.json"
+)
+
+# URLS
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
 
-STOP_SUBPROCESS_MESSAGE = "stop$subprocess"  # $ character is used to avoid accidental trigger from speech to text
+# Window names
 SERVER_WINDOW_NAME = "MY SERVER"
 
+# Subprocesses
+STOP_SUBPROCESS_MESSAGE = "stop$subprocess"  # $ character is used to avoid accidental trigger from speech to text. U got a problem with that ?
 SUBPROCESSES_PORTS = {
     # list of subprocesses name and their socket server ports
     "shop_watcher": 59000,

@@ -9,7 +9,7 @@ import pyaudio
 from google.cloud import speech
 
 from src.config import settings
-from src.config.setup import setup_script
+from src.config.initialize import setup_script
 from src.core import constants as const
 from src.core.constants import SLOTS_DB_FILE_PATH
 from src.utils import helpers
@@ -125,9 +125,9 @@ async def main(interim: bool = False, socket_name: str = "robeau"):
         db_conn, slot = await setup_script(SCRIPT_NAME, SLOTS_DB_FILE_PATH)
 
         try:
-            print("Attempting to connect to the specified socket...")
+            print(f"Attempting to connect to '{socket_name}' socket...")
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            if socket_name == "syn":
+            if socket_name == "synonym_adder":
                 sock.connect((DEFAULT_SERVER_HOST, SYNONYMS_SERVER_PORT))
             else:
                 sock.connect((DEFAULT_SERVER_HOST, ROBEAU_SERVER_PORT))
@@ -148,23 +148,31 @@ async def main(interim: bool = False, socket_name: str = "robeau"):
             await db_conn.close()
 
 
-def str2bool(value):
-    """Necessary for argparse to return an actual boolean value"""
-    if value.lower() in ("true", "t"):
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ("yes", "true", "t", "y", "1"):
         return True
-    elif value.lower() in ("false", "f"):
+    elif v.lower() in ("no", "false", "f", "n", "0"):
         return False
     else:
-        raise argparse.ArgumentTypeError("Bool expected")
+        raise argparse.ArgumentTypeError("Boolean value expected.")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="STT recognition stream")
-    parser.add_argument("interim", type=str2bool, help="Interim value for stt stream")
+    parser.add_argument(
+        "--interim",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        default=False,
+        help="Interim value for stt stream",
+    )
     parser.add_argument(
         "--socket",
         type=str,
-        choices=["robeau", "syn"],
+        choices=["robeau", "synonym_adder"],
         default="robeau",
         help="Specify which socket to connect to",
     )

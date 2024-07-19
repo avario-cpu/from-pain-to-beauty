@@ -7,11 +7,9 @@ SCRIPT_NAME = construct_script_name(__file__)
 
 
 class BaseHandler:
-    def __init__(self, port: int, script_logger: Optional[Logger] = None):
+    def __init__(self, port: int, logger: Optional[Logger] = None):
         self.port = port
-        self.logger = (
-            script_logger if script_logger is not None else (assign_default_logger())
-        )
+        self.logger = logger if logger is not None else (assign_default_logger())
 
         if not (59000 <= port <= 59999):
             self.logger.warning(f"port {port} should rather be between 59000 and 59999")

@@ -13,7 +13,7 @@ from websockets import WebSocketClientProtocol
 from src.connection import socket_server, websocket
 from src.core import constants as const
 from src.core import terminal_window_manager_v4 as twm
-from src.config.setup import setup_script
+from src.config.initialize import setup_script
 from src.utils import helpers
 from src.core.terminal_window_manager_v4 import SecondaryWindow
 

@@ -2,9 +2,6 @@ types-pywin32
 types-pyaudio
 aiosqlite
 google-cloud-speech
-librosa
-matplotlib
-networkxdata
 mss
 numpy
 black
@@ -19,8 +16,10 @@ gtts
 prompt_toolkit
 pydub
 scikit-image
-sounddevice
 websockets
+sentence-transformers
+onnx
+onnxruntime
 
 --index-url https://download.pytorch.org/whl/cu121
 

@@ -1,0 +1,62 @@
+{
+    "Whisper": [
+        {
+            "text": "wait robeau"
+        }
+    ],
+    "Prompt": [
+        {
+            "text": "hello",
+            "synonyms": [
+                "hi",
+                "greetings"
+            ]
+        },
+        {
+            "text": "how are you"
+        },
+        {
+            "text": "goodbye"
+        },
+        {
+            "text": "i'm sorry"
+        },
+        {
+            "text": "you're terrible at math"
+        },
+        {
+            "text": "can you wipe your memory"
+        },
+        {
+            "text": "test lock"
+        },
+        {
+            "text": "test gate"
+        }
+    ],
+    "Request": [
+        {
+            "text": "calculate 2 + 2"
+        }
+    ],
+    "Answer": [
+        {
+            "text": "I am doing good"
+        },
+        {
+            "text": "I am not doing good"
+        },
+        {
+            "text": "saying you're terrible at math"
+        },
+        {
+            "text": "I love you"
+        },
+        {
+            "text": "have a good night"
+        },
+        {
+            "text": "nothing"
+        }
+    ]
+}
