@@ -6,9 +6,9 @@ from neo4j import Session
 
 class ConversationState:
     def __init__(self, logger: Logger):
-        self.greeted: bool = False
         self.logger = logger
         # definitions items
+        self.allows: list[dict] = []
         self.locks: list[dict] = []
         self.unlocks: list[dict] = []
         self.expectations: list[dict] = []
@@ -26,8 +26,9 @@ class ConversationState:
     def set_activate_node_func(self, activate_node_func):
         self.activate_node = activate_node_func
 
-    def set_robeau_param(self, ROBEAU_param):
+    def set_query_sources_params(self, ROBEAU_param, REVERTER_param):
         self.ROBEAU = ROBEAU_param
+        self.REVERTER = REVERTER_param
 
     def _add_item(
         self, node: str, duration: float | None, item_list: list, item_type: str
@@ -56,6 +57,9 @@ class ConversationState:
             }
         )
 
+    def add_allow(self, node: str, duration: float | None):
+        self._add_item(node, duration, self.allows, "allow")
+
     def add_unlock(self, node: str, duration: float | None):
         self._add_item(node, duration, self.unlocks, "unlock")
 
@@ -82,7 +86,7 @@ class ConversationState:
                     self._add_item(node, duration, node_list, item["type"])
 
     def disable_item(self, node: str):
-        for node_list in [self.primes, self.initiations]:
+        for node_list in [self.primes, self.initiations, self.listens]:
             for item in node_list:
                 if item["node"] == node:
                     node_list.remove(item)
@@ -99,9 +103,8 @@ class ConversationState:
             elapsed_time = current_time - start_time
             remaining_time = max(0, duration - elapsed_time)
             item["timeLeft"] = remaining_time
-            self.logger.debug(f"Updated: {item}")
 
-    def _remove_expired(self, items: list) -> list:
+    def _remove_expired(self, items: list, log_messages: list) -> list:
         valid_items = []
 
         for item in items:
@@ -109,12 +112,14 @@ class ConversationState:
             time_left = item.get("timeLeft")
             if time_left is None or time_left > 0:
                 valid_items.append(item)
+                if time_left is not None:
+                    log_messages.append(f"{item}")
             else:
                 self.logger.info(f"Item has expired: {item}")
 
         return valid_items
 
-    def _check_initiations(self, session: Session):
+    def _check_initiations(self, session: "Session", log_messages: list):
         ongoing_initiations = []
         complete_initiations = []
 
@@ -129,6 +134,7 @@ class ConversationState:
 
             if time_left > 0:
                 ongoing_initiations.append(initiation)
+                log_messages.append(f"{initiation}")
             else:
                 self.logger.info(f"Initiation complete: {initiation}")
                 complete_initiations.append(initiation)
@@ -139,11 +145,27 @@ class ConversationState:
             self.activate_node(initiation)
             self.process_node(session, initiation["node"], self, source=self.ROBEAU)
 
-    def update_timed_items(self, session: Session):
-        items_to_update = ["locks", "unlocks", "expectations", "primes", "listens"]
+    def update_timed_items(self, session: "Session"):
+        items_to_update = [
+            "allows",
+            "locks",
+            "unlocks",
+            "expectations",
+            "primes",
+            "listens",
+        ]
+        log_messages: list[str] = []
+
         for item in items_to_update:
-            setattr(self, item, self._remove_expired(getattr(self, item)))
-        self._check_initiations(session)
+            updated_items = self._remove_expired(getattr(self, item), log_messages)
+            setattr(self, item, updated_items)
+
+        self._check_initiations(session, log_messages)
+
+        if log_messages:
+            self.logger.info(
+                "Time-bound items update:\n" + "\n".join(log_messages) + "\n"
+            )
 
     def reset_attribute(self, attribute: str):
         valid_attributes = [
@@ -166,7 +188,10 @@ class ConversationState:
         """Reverts the locks and unlock which the target node had instilled on other nodes"""
         definitions_to_revert = (
             self.get_node_connections(
-                session=session, text=node, source=self.ROBEAU, conversation_state=self
+                session=session,
+                text=node,
+                source=self.REVERTER,
+                conversation_state=self,
             )
             or []
         )
@@ -181,9 +206,10 @@ class ConversationState:
 
             self._revert_individual_definition("lock", end_node, self.locks)
             self._revert_individual_definition("unlock", end_node, self.unlocks)
+            self._revert_individual_definition("allow", end_node, self.allows)
 
     def _revert_individual_definition(
-        self, definition_type: str, node: str, definitions: list
+        self, definition_type: str, node: str, definitions: list[dict]
     ):
         initial_count = len(definitions)
         definitions[:] = [
@@ -194,6 +220,7 @@ class ConversationState:
 
     def log_conversation_state(self):
         state_types = {
+            "Allow": self.allows,
             "Lock": self.locks,
             "Unlock": self.unlocks,
             "Expectation": self.expectations,
@@ -205,12 +232,11 @@ class ConversationState:
         log_message = []
 
         if any(state_types.values()):
-            log_message.append("\nConversation state:")
+            log_message.append("Conversation state:")
             for state_name, items in state_types.items():
                 for item in items:
-                    log_message.append(f"{state_name}: list{item}")
-            log_message.append(" ")
+                    log_message.append(f"{state_name}: {item}")
         else:
             log_message.append("No items in conversation state")
 
-        self.logger.info("\n".join(log_message))
+        self.logger.info("\n".join(log_message) + "\n")

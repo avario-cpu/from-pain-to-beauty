@@ -1,9 +1,7 @@
-import enum
 import random
 import threading
 import time
 from collections import defaultdict
-from enum import auto
 from logging import DEBUG, INFO
 
 from neo4j import GraphDatabase, Result, Session
@@ -15,6 +13,21 @@ from src.robeau.classes.audio_player import AudioPlayer
 from src.robeau.classes.conversation_state import ConversationState
 from src.robeau.core.constants import AUDIO_MAPPINGS_FILE_PATH
 from src.utils.helpers import construct_script_name, setup_logger
+from src.robeau.classes.graph_logic_enums import (
+    EXPECTATIONS_FAILURE,
+    EXPECTATIONS_SET,
+    EXPECTATIONS_SUCCESS,
+    NO_MATCHING_PROMPT,
+    ANY_PROMPT_UTTERED,
+    ANY_PROMPT_PROCESSED,
+    USER,
+    ROBEAU,
+    SYSTEM,
+    GREETING,
+    RESET_EXPECTATIONS,
+    REVERTER,
+    QuerySource,
+)
 
 SCRIPT_NAME = construct_script_name(__file__)
 logger = setup_logger(SCRIPT_NAME, level=DEBUG)
@@ -24,54 +37,19 @@ logger = setup_logger(SCRIPT_NAME, level=DEBUG)
 audio_player = AudioPlayer(AUDIO_MAPPINGS_FILE_PATH)
 
 
-class QuerySource(enum.Enum):
-    USER = auto()
-    ROBEAU = auto()
-    SYSTEM = auto()
-    GREETING = auto()
-
-
-class Transmissions(enum.Enum):
-    # IMPORTANT: These values must match the database text values
-    EXPECTATIONS_SET_MSG = "EXPECTATIONS SET"
-    EXPECTATIONS_SUCCESS_MSG = "EXPECTATIONS SUCCESS"
-    EXPECTATIONS_FAILURE_MSG = "EXPECTATIONS FAILURE"
-    EXPECTATIONS_RESET_MSG = "RESET EXPECTATIONS"
-
-    ANY_PROMPT_UTTERED_MSG = "ANY PROMPT UTTERED"
-    NO_MATCHING_PROMPT_MSG = "NO MATCHING PROMPT"
-
-    RESET_GREETED_STATE_MSG = "RESET GREETED STATE"
-
-
-# Query source aliases
-USER = QuerySource.USER
-ROBEAU = QuerySource.ROBEAU
-SYSTEM = QuerySource.SYSTEM
-GREETING = QuerySource.GREETING
-
-# Transmission aliases (Communication between the script and the database)
-EXPECTATIONS_SET = Transmissions.EXPECTATIONS_SET_MSG.value
-EXPECTATIONS_SUCCESS = Transmissions.EXPECTATIONS_SUCCESS_MSG.value
-EXPECTATIONS_FAILURE = Transmissions.EXPECTATIONS_FAILURE_MSG.value
-RESET_EXPECTATIONS = Transmissions.EXPECTATIONS_RESET_MSG.value
-
-ANY_PROMPT_UTTERED = Transmissions.ANY_PROMPT_UTTERED_MSG.value
-NO_MATCHING_PROMPT = Transmissions.NO_MATCHING_PROMPT_MSG.value
-
-RESET_GREETED_STATE = Transmissions.RESET_GREETED_STATE_MSG.value
-
-
 def get_node_data(
     session: Session,
     text: str,
     labels: list[str],
     conversation_state: ConversationState,
+    source: QuerySource,
 ) -> Result | None:
 
-    def process_unrecognized_prompt():
+    def process_any_prompt_processed():
+        process_node(session, ANY_PROMPT_PROCESSED, conversation_state, source=SYSTEM)
+
+    def process_no_matching_prompt():
         process_node(session, NO_MATCHING_PROMPT, conversation_state, source=SYSTEM)
-        pass
 
     labels_query = "|".join(labels)
     query = f"""
@@ -81,9 +59,12 @@ def get_node_data(
     """
     result = session.run(query, text=text)
 
-    if not result.peek() and "Prompt" in labels:
-        logger.warning(f'Prompt "{text}" not found in database')
-        process_unrecognized_prompt()
+    if result.peek() and source == USER:
+        process_any_prompt_processed()
+
+    elif not result.peek() and source == USER:
+        logger.warning(f'text "{text}" for labels {labels} not found in database')
+        process_no_matching_prompt()
         return None
 
     return result
@@ -94,11 +75,16 @@ def define_labels_and_text(
     text: str,
     conversation_state: ConversationState,
     source: QuerySource,
-) -> list[str] | None:
+) -> list[str]:
     def meets_expectations():
         return any(
-            item["node"].lower() == text.lower()
+            text.lower() == item["node"].lower()
             for item in conversation_state.expectations
+        )
+
+    def prompt_matches_allows():
+        return any(
+            text.lower() == item["node"].lower() for item in conversation_state.allows
         )
 
     def process_expectation_success():
@@ -110,11 +96,14 @@ def define_labels_and_text(
     def process_any_prompt_uttered():
         process_node(session, ANY_PROMPT_UTTERED, conversation_state, source=SYSTEM)
 
+    labels = []
     if source == USER:
 
         if not conversation_state.expectations:
-            labels = ["Prompt"]
             process_any_prompt_uttered()
+
+            if prompt_matches_allows():
+                labels.append("Prompt")
 
             if conversation_state.listens:
                 labels.append("Whisper")
@@ -122,17 +111,33 @@ def define_labels_and_text(
         elif meets_expectations():
             logger.info(f'"{text}" meets conversation expectations')
             process_expectation_success()
-            labels = ["Answer"]
+            labels.append("Answer")
         else:
             logger.info(f'"{text}" does not meet conversation expectations')
             process_expectation_failure()
-            return None
+
     elif source == GREETING:
-        labels = ["Greeting"]
+        labels.append("Greeting")
     elif source == ROBEAU:
-        labels = ["Response", "Question", "Action", "LogicGate"]
+        labels.extend(["Response", "Question", "Action", "LogicGate", "Greeting"])
     elif source == SYSTEM:
-        labels = ["Input"]
+        labels.append("Input")
+    elif (
+        source == REVERTER
+    ):  # reverter fetches all labels to be able to revert any definitions
+        labels.extend(
+            [
+                "Prompt",
+                "Whisper",
+                "Answer",
+                "Greeting",
+                "Response",
+                "Question",
+                "Action",
+                "LogicGate",
+                "Input",
+            ]
+        )
 
     return labels
 
@@ -147,9 +152,11 @@ def get_node_connections(
     labels = define_labels_and_text(session, text, conversation_state, source)
 
     if not labels:
-        return None
+        labels = [
+            "None"
+        ]  # This will return no results from the database, but it will also not throw an error. We still want to call get_node_data (instead of making an early return) in order to call relevant nested functions inside.
 
-    result = get_node_data(session, text, labels, conversation_state)
+    result = get_node_data(session, text, labels, conversation_state, source)
 
     if not result:
         return None
@@ -183,6 +190,7 @@ def process_logic_activations(
         return
 
     for connection in connections:
+        activate_node(connection["end_node"])
         process_node(session, connection["end_node"], conversation_state, ROBEAU)
 
 
@@ -361,6 +369,7 @@ def process_definitions_relationships(
     conversation_state: ConversationState,
 ):
     relationship_methods = {
+        "ALLOWS": "add_allow",
         "LOCKS": "add_lock",
         "UNLOCKS": "add_unlock",
         "EXPECTS": "add_expectation",
@@ -392,7 +401,7 @@ def activate_node(node_dict: dict):
         logger.info(f'>>> OUTPUT: "{output}" ')
     else:
         logger.error(
-            f"Failed to activate node: {node_dict} expected string, got {type(output)}"
+            f"Failed to activate node: {node_dict}. Expected string, got {type(output)}"
         )
     return node_dict
 
@@ -477,8 +486,8 @@ def execute_attempt(
     node: str,
     conversation_state: ConversationState,
 ):
-    if (any(item["node"] == node for item in conversation_state.unlocks)) or (
-        any(item["node"] == node for item in conversation_state.primes)
+    if (any(node == item["node"] for item in conversation_state.unlocks)) or (
+        any(node == item["node"] for item in conversation_state.primes)
     ):
         logger.info(
             f"Successful attempt at connection: {list(connection.values())[1:4]}"
@@ -500,7 +509,7 @@ def process_activation_connections(
 
     for connection in connections:
         node = connection["end_node"]
-        if any(item["node"] == node for item in conversation_state.locks):
+        if any(node == item["node"] for item in conversation_state.locks):
             logger.info(f"Connection is locked: {list(connection.values())[1:4]}")
             continue
 
@@ -546,10 +555,15 @@ def process_activation_relationships(
 
 
 def process_relationships(
-    session: Session, connections: list[dict], conversation_state: ConversationState
+    session: Session,
+    connections: list[dict],
+    conversation_state: ConversationState,
+    node: str,
+    source: QuerySource,
+    silent: bool = False,
 ) -> list[str]:
 
-    def print_formatted_connections(relationships_map):
+    def log_formatted_connections(relationships_map: dict[str, list[dict]]):
         all_connections = []
         for connections in relationships_map.values():
             all_connections.extend(connections)
@@ -557,7 +571,22 @@ def process_relationships(
         formatted_connections = "\n".join(
             [str(connection) for connection in all_connections]
         )
-        logger.info(f"Processing connections:\n{formatted_connections}\n")
+        formatted_silent_connections = "\n".join(
+            [
+                str(connection)
+                for connection in all_connections
+                if connection["relationship"]
+                not in ("CHECKS", "ATTEMPTS", "TRIGGERS", "DEFAULTS")
+            ]
+        )
+        if not silent:
+            logger.info(
+                f'Processing connections for node "{node}" ({source.name}):\n{formatted_connections}\n'
+            )
+        else:
+            logger.info(
+                f'Processing SILENT connections (activation relationships were not applied) for node "{node}" ({source.name}):\n{formatted_silent_connections} '
+            )
 
     # Activation connections
     checks: list[dict] = []
@@ -565,6 +594,7 @@ def process_relationships(
     triggers: list[dict] = []
     defaults: list[dict] = []
     # Definition connections
+    allows: list[dict] = []
     locks: list[dict] = []
     unlocks: list[dict] = []
     expects: list[dict] = []
@@ -585,6 +615,7 @@ def process_relationships(
         "TRIGGERS": triggers,
         "DEFAULTS": defaults,
         # Definitions
+        "ALLOWS": allows,
         "LOCKS": locks,
         "UNLOCKS": unlocks,
         "EXPECTS": expects,
@@ -604,11 +635,15 @@ def process_relationships(
         if relationship in relationships_map:
             relationships_map[relationship].append(connection)
 
-    print_formatted_connections(relationships_map)
+    log_formatted_connections(relationships_map)
+    conversation_state.log_conversation_state()
 
-    end_nodes_reached = process_activation_relationships(
-        relationships_map, conversation_state
-    )
+    if not silent:
+        end_nodes_reached = process_activation_relationships(
+            relationships_map, conversation_state
+        )
+    else:
+        end_nodes_reached = []
 
     process_definitions_relationships(session, relationships_map, conversation_state)
     process_modifications_relationships(session, relationships_map, conversation_state)
@@ -622,10 +657,10 @@ def process_node(
     node: str,
     conversation_state: ConversationState,
     source: QuerySource,
+    silent: bool = False,
 ):
 
     logger.info(f'Processing node: "{node}" ({source.name})')
-    conversation_state.log_conversation_state()
 
     connections = get_node_connections(
         session=session,
@@ -635,41 +670,27 @@ def process_node(
     )
 
     if not connections:
-        logger.info(f'End of process for node: "{node}" from source {source.name}')
+        logger.info(f'End of process for node: "{node}" from source {source.name}\n')
         return
 
     response_nodes_reached = process_relationships(
-        session, connections, conversation_state
+        session,
+        connections,
+        conversation_state,
+        node=node,
+        source=source,
+        silent=silent,
     )
 
     for response_node in response_nodes_reached:
         # check for particular "output" transmission nodes
         if response_node == RESET_EXPECTATIONS:
             conversation_state.reset_attribute("expectations")
-        elif response_node == RESET_GREETED_STATE:
-            conversation_state.greeted = False
             continue
         # Process further nodes that are activated by the current node
         process_node(session, response_node, conversation_state, ROBEAU)
 
-    logger.info(f'End of process for node: "{node}" from source {source.name}')
-
-
-def listen_for_queries(session, conversation_state):
-    prompt_session: PromptSession = PromptSession()
-    while True:
-        with patch_stdout():
-            user_query = prompt_session.prompt("Query: ").strip()
-            if user_query == "exit":
-                print("Exiting...")
-                return False
-            elif user_query:
-                process_node(
-                    session=session,
-                    node=user_query,
-                    conversation_state=conversation_state,
-                    source=USER,
-                )
+    logger.info(f'End of process for node: "{node}" from source {source.name}\n')
 
 
 def run_update_conversation_state(
@@ -706,7 +727,9 @@ def initialize():
     conversation_state.set_process_node_func(process_node)
     conversation_state.set_get_node_connections_func(get_node_connections)
     conversation_state.set_activate_node_func(activate_node)
-    conversation_state.set_robeau_param(ROBEAU)
+    conversation_state.set_query_sources_params(
+        ROBEAU_param=ROBEAU, REVERTER_param=REVERTER
+    )
     stop_event = threading.Event()
     pause_event = threading.Event()
     update_thread = threading.Thread(
@@ -732,18 +755,46 @@ def main():
     )
     prompt_session: PromptSession = PromptSession()
 
+    greeted = False
+
     try:
         while True:
             with patch_stdout():
-                user_input = prompt_session.prompt("start or exit: ").lower()
-                if user_input == "exit":
+                user_query = prompt_session.prompt("Query: ").strip().lower()
+
+                # Check if --silent is in the user query
+                if "--silent" in user_query:
+                    silent = True
+                    user_query = user_query.replace(
+                        "--silent", ""
+                    ).strip()  # Remove --silent from the query
+                else:
+                    silent = False
+
+                if user_query == "exit":
                     print("Exiting...")
-                    break
-                elif user_input == "start":
-                    listen_for_queries(
-                        session,
-                        conversation_state,
+                    return False
+                elif (
+                    conversation_state.allows
+                    or conversation_state.expectations
+                    or conversation_state.listens
+                ) and user_query:
+                    process_node(
+                        session=session,
+                        node=user_query,
+                        conversation_state=conversation_state,
+                        source=USER,
+                        silent=silent,
                     )
+                elif user_query:
+                    process_node(
+                        session=session,
+                        node=user_query,
+                        conversation_state=conversation_state,
+                        source=GREETING,
+                        silent=silent,
+                    )
+
     except Exception as e:
         print(f"Error occurred: {e}")
         logger.exception(e)

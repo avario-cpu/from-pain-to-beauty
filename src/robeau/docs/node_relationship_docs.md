@@ -2,7 +2,7 @@
 # Node Relationship and Activation Documentation
 
 ### ALLOWS
-Allows are an inactive relationship only here to signal the fact that robeau must be greeted before we utter prompts, but the logic for that is handled in the robeau module, it does not rely on the graph_logic_network. It is also simply there for the database to arrange the nodes around the "hey robeau" single centralized node, to make it pretty.
+Allows are an inactive relationship only here to signal the fact that robeau must be greeted before we utter prompts, but the logic for that is handled in the robeau module, it does not rely on the graph_logic_network. It is also simply there for the database to arrange the nodes around the "hey robeau" single centralized node, to make it pretty. >>>>>>> OUTDATED
 
 ## Activations
 

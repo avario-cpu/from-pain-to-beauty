@@ -1,0 +1,41 @@
+import enum
+from enum import auto
+
+
+class QuerySource(enum.Enum):
+    USER = auto()
+    ROBEAU = auto()
+    SYSTEM = auto()
+    GREETING = auto()
+    REVERTER = auto()
+
+
+# Query source aliases
+USER = QuerySource.USER
+ROBEAU = QuerySource.ROBEAU
+SYSTEM = QuerySource.SYSTEM
+GREETING = QuerySource.GREETING
+REVERTER = QuerySource.REVERTER
+
+
+class Transmissions(enum.Enum):
+    # IMPORTANT: These values must match the database text values
+    EXPECTATIONS_SET_MESSAGE = "EXPECTATIONS SET"
+    EXPECTATIONS_SUCCESS_MESSAGE = "EXPECTATIONS SUCCESS"
+    EXPECTATIONS_FAILURE_MESSAGE = "EXPECTATIONS FAILURE"
+    EXPECTATIONS_RESET_MESSAGE = "RESET EXPECTATIONS"
+
+    ANY_PROMPT_UTTERED_MESSAGE = "ANY PROMPT UTTERED"
+    ANY_PROMPT_PROCESSED_MESSAGE = "ANY PROMPT PROCESSED"
+    NO_MATCHING_PROMPT_MESSAGE = "NO MATCHING PROMPT"
+
+
+# Transmission aliases (Communication between the script and the database)
+EXPECTATIONS_SET = Transmissions.EXPECTATIONS_SET_MESSAGE.value
+EXPECTATIONS_SUCCESS = Transmissions.EXPECTATIONS_SUCCESS_MESSAGE.value
+EXPECTATIONS_FAILURE = Transmissions.EXPECTATIONS_FAILURE_MESSAGE.value
+RESET_EXPECTATIONS = Transmissions.EXPECTATIONS_RESET_MESSAGE.value
+
+ANY_PROMPT_UTTERED = Transmissions.ANY_PROMPT_UTTERED_MESSAGE.value
+ANY_PROMPT_PROCESSED = Transmissions.ANY_PROMPT_PROCESSED_MESSAGE.value
+NO_MATCHING_PROMPT = Transmissions.NO_MATCHING_PROMPT_MESSAGE.value

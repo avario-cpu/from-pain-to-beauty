@@ -47,7 +47,7 @@ class RobeauHandler:
 
     async def handle_message(self, message: str):
         if (
-            not self.conversation_state.greeted
+            not self.conversation_state.allows
             and not self.conversation_state.expectations
             and not self.conversation_state.listens
         ):
@@ -70,35 +70,27 @@ class RobeauHandler:
 
     def process_initial_greeting(self, message: str):
         greeting_segment = self.check_greeting_in_message(message)
-        if greeting_segment:
-            remaining_message = self.extract_remaining_message(
-                message, greeting_segment
-            )
-            if remaining_message:
-                self.handle_greeting_with_message(greeting_segment, remaining_message)
-            else:
-                self.conversation_state.greeted = True
-                logger.info(
-                    f'Greeting "{greeting_segment}" received, ready to process messages.'
-                )
-                process_node(
-                    session=self.session,
-                    node="hey robeau",
-                    conversation_state=self.conversation_state,
-                    source=GREETING,
-                )
-        else:
+        if not greeting_segment:
             print("Waiting for greeting...")
+            return
+
+        remaining_message = self.extract_remaining_message(message, greeting_segment)
+        if remaining_message:
+            logger.info(
+                f'Greeting "{greeting_segment}" and prompt "{remaining_message}" received in one message.'
+            )
+            self.greet(silent=True)
+            self.handle_remaining_message(remaining_message)
+        else:
+            logger.info(
+                f'Greeting "{greeting_segment}" received, ready to process messages.'
+            )
+            self.greet(silent=False)
 
     def extract_remaining_message(self, message: str, greeting_segment: str):
         return re.sub(re.escape(greeting_segment), "", message, count=1).strip()
 
-    def handle_greeting_with_message(
-        self, greeting_segment: str, remaining_message: str
-    ):
-        logger.info(
-            f'Greeting "{greeting_segment}" and prompt "{remaining_message}" received in one message.'
-        )
+    def handle_remaining_message(self, remaining_message: str):
         matched_message = sbert_matcher.check_for_best_matching_synonym(
             remaining_message, self.show_details, labels=["Prompt"]
         )
@@ -116,7 +108,6 @@ class RobeauHandler:
             f"Matched prompt '{message}' with node text: '{matched_message if matched_message != message else None}'"  # reason for != message check is because sbert will return the same message if no sufficient match is found
         )
         self.process_node_with_message(matched_message)
-        self.conversation_state.greeted = False
 
     def determine_labels(self):
         if self.conversation_state.listens:
@@ -126,12 +117,22 @@ class RobeauHandler:
         else:
             return ["Prompt"]
 
+    def greet(self, silent=False):
+        process_node(
+            session=self.session,
+            node="hey robeau",
+            conversation_state=self.conversation_state,
+            source=GREETING,
+            silent=silent,
+        )
+
     def process_node_with_message(self, matched_message: str):
         process_node(
             session=self.session,
             node=matched_message,
             conversation_state=self.conversation_state,
             source=USER,
+            silent=False,
         )
 
 
