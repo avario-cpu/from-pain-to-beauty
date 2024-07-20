@@ -8,17 +8,16 @@ from logging import DEBUG, INFO
 
 from neo4j import GraphDatabase, Result, Session
 from prompt_toolkit import PromptSession
-
-from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
-from src.robeau.core.constants import AUDIO_MAPPINGS_FILE_PATH
-from src.robeau.classes.audio_player import AudioPlayer
-from src.robeau.classes.conversation_state import ConversationState
-from src.utils import helpers
 from prompt_toolkit.patch_stdout import patch_stdout
 
+from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
+from src.robeau.classes.audio_player import AudioPlayer
+from src.robeau.classes.conversation_state import ConversationState
+from src.robeau.core.constants import AUDIO_MAPPINGS_FILE_PATH
+from src.utils.helpers import construct_script_name, setup_logger
 
-SCRIPT_NAME = helpers.construct_script_name(__file__)
-logger = helpers.setup_logger(SCRIPT_NAME, level=INFO)
+SCRIPT_NAME = construct_script_name(__file__)
+logger = setup_logger(SCRIPT_NAME, level=DEBUG)
 
 
 """ Initialize the audio player at the module level so it can be used in the process_node function, which is super deep in the function chain, without having to pass it to every single function before just to use it at the final step. """
@@ -38,7 +37,10 @@ class Transmissions(enum.Enum):
     EXPECTATIONS_SUCCESS_MSG = "EXPECTATIONS SUCCESS"
     EXPECTATIONS_FAILURE_MSG = "EXPECTATIONS FAILURE"
     EXPECTATIONS_RESET_MSG = "RESET EXPECTATIONS"
+
     ANY_PROMPT_UTTERED_MSG = "ANY PROMPT UTTERED"
+    NO_MATCHING_PROMPT_MSG = "NO MATCHING PROMPT"
+
     RESET_GREETED_STATE_MSG = "RESET GREETED STATE"
 
 
@@ -55,12 +57,22 @@ EXPECTATIONS_FAILURE = Transmissions.EXPECTATIONS_FAILURE_MSG.value
 RESET_EXPECTATIONS = Transmissions.EXPECTATIONS_RESET_MSG.value
 
 ANY_PROMPT_UTTERED = Transmissions.ANY_PROMPT_UTTERED_MSG.value
+NO_MATCHING_PROMPT = Transmissions.NO_MATCHING_PROMPT_MSG.value
+
 RESET_GREETED_STATE = Transmissions.RESET_GREETED_STATE_MSG.value
 
 
 def get_node_data(
-    session: Session, text: str, labels: list[str], source: QuerySource
+    session: Session,
+    text: str,
+    labels: list[str],
+    conversation_state: ConversationState,
 ) -> Result | None:
+
+    def process_unrecognized_prompt():
+        process_node(session, NO_MATCHING_PROMPT, conversation_state, source=SYSTEM)
+        pass
+
     labels_query = "|".join(labels)
     query = f"""
     MATCH (x:{labels_query})-[R]->(y)
@@ -69,9 +81,9 @@ def get_node_data(
     """
     result = session.run(query, text=text)
 
-    if not result.peek() and "Prompt" in labels and source == USER:
+    if not result.peek() and "Prompt" in labels:
         logger.warning(f'Prompt "{text}" not found in database')
-        print(f"Sorry, didn't understand that...")
+        process_unrecognized_prompt()
         return None
 
     return result
@@ -99,10 +111,11 @@ def define_labels_and_text(
         process_node(session, ANY_PROMPT_UTTERED, conversation_state, source=SYSTEM)
 
     if source == USER:
-        process_any_prompt_uttered()
 
         if not conversation_state.expectations:
-            labels = ["Prompt", "Request"]
+            labels = ["Prompt"]
+            process_any_prompt_uttered()
+
             if conversation_state.listens:
                 labels.append("Whisper")
 
@@ -136,7 +149,7 @@ def get_node_connections(
     if not labels:
         return None
 
-    result = get_node_data(session, text, labels, source)
+    result = get_node_data(session, text, labels, conversation_state)
 
     if not result:
         return None
@@ -535,9 +548,17 @@ def process_activation_relationships(
 def process_relationships(
     session: Session, connections: list[dict], conversation_state: ConversationState
 ) -> list[str]:
-    formatted_connections = "\n".join([str(connection) for connection in connections])
 
-    logger.info(f"Processing connections:\n{formatted_connections}\n")
+    def print_formatted_connections(relationships_map):
+        all_connections = []
+        for connections in relationships_map.values():
+            all_connections.extend(connections)
+
+        formatted_connections = "\n".join(
+            [str(connection) for connection in all_connections]
+        )
+        logger.info(f"Processing connections:\n{formatted_connections}\n")
+
     # Activation connections
     checks: list[dict] = []
     attempts: list[dict] = []
@@ -582,6 +603,8 @@ def process_relationships(
         relationship = connection["relationship"]
         if relationship in relationships_map:
             relationships_map[relationship].append(connection)
+
+    print_formatted_connections(relationships_map)
 
     end_nodes_reached = process_activation_relationships(
         relationships_map, conversation_state
@@ -650,11 +673,15 @@ def listen_for_queries(session, conversation_state):
 
 
 def run_update_conversation_state(
-    conversation_state: ConversationState, session, stop_event: threading.Event
+    conversation_state: ConversationState,
+    session: Session,
+    stop_event: threading.Event,
+    pause_event: threading.Event,
 ):
     while not stop_event.is_set():
-        conversation_state.update_timed_items(session)
-        time.sleep(1)  # Adjust the sleep duration as needed
+        if not pause_event.is_set():
+            conversation_state.update_timed_items(session)
+        time.sleep(1)
 
 
 def establish_connection():
@@ -673,18 +700,21 @@ def establish_connection():
 
 def initialize():
     driver, session = establish_connection()
+    if not driver or not session:
+        raise Exception("Failed to establish connection to Neo4j database")
     conversation_state = ConversationState(logger=logger)
     conversation_state.set_process_node_func(process_node)
     conversation_state.set_get_node_connections_func(get_node_connections)
     conversation_state.set_activate_node_func(activate_node)
     conversation_state.set_robeau_param(ROBEAU)
     stop_event = threading.Event()
+    pause_event = threading.Event()
     update_thread = threading.Thread(
         target=run_update_conversation_state,
-        args=(conversation_state, session, stop_event),
+        args=(conversation_state, session, stop_event, pause_event),
     )
     update_thread.start()
-    return driver, session, conversation_state, stop_event, update_thread
+    return driver, session, conversation_state, stop_event, update_thread, pause_event
 
 
 def cleanup(driver, session, stop_event, update_thread):
@@ -697,7 +727,9 @@ def cleanup(driver, session, stop_event, update_thread):
 
 
 def main():
-    driver, session, conversation_state, stop_event, update_thread = initialize()
+    driver, session, conversation_state, stop_event, update_thread, pause_event = (
+        initialize()
+    )
     prompt_session: PromptSession = PromptSession()
 
     try:

@@ -1,20 +1,14 @@
 import asyncio
 import logging
+import os
 import re
-import subprocess
+from typing import Optional
 
 from neo4j import Session
 
-from src.connection.socket_server import BaseHandler
-from src.core.constants import (
-    PROJECT_DIR_PATH,
-    PYTHONPATH,
-    ROBEAU_DIR_PATH,
-    STOP_SUBPROCESS_MESSAGE,
-    SUBPROCESSES_PORTS,
-)
+from src.config.initialize import setup_script
+from src.core.constants import SLOTS_DB_FILE_PATH
 from src.robeau.classes.sbert_matcher import SBERTMatcher  # type: ignore
-from src.robeau.core import google_stt
 from src.robeau.core.constants import STRING_WITH_SYNS_FILE_PATH
 from src.robeau.core.graph_logic_network import (
     GREETING,
@@ -24,39 +18,34 @@ from src.robeau.core.graph_logic_network import (
     initialize,
     process_node,
 )
-from src.utils import helpers
+from src.robeau.core.speech_recognition import recognize_speech
+from src.utils.helpers import construct_script_name, setup_logger
 
-SCRIPT_NAME = helpers.construct_script_name(__file__)
-HOST = "localhost"
-PORT = SUBPROCESSES_PORTS["robeau"]
+SCRIPT_NAME = construct_script_name(__file__)
+
+
+logger = setup_logger(SCRIPT_NAME)
+
 STRING_WITH_SYNS = STRING_WITH_SYNS_FILE_PATH
-logger = helpers.setup_logger(SCRIPT_NAME)
 
 # Initialize SBERT matcher
 sbert_matcher = SBERTMatcher(file_path=STRING_WITH_SYNS, similarity_threshold=0.65)
 
 
-class RobeauHandler(BaseHandler):
+class RobeauHandler:
     def __init__(
         self,
-        port,
-        logger,
         session: Session,
         conversation_state: ConversationState,
         show_details=False,
-        check_interval=0.1,  # interval in seconds to check greeted state
     ):
-        super().__init__(port, logger)
         self.stop_event = asyncio.Event()
         self.session = session
         self.conversation_state = conversation_state
         self.show_details = show_details
+        print("Waiting for greeting...")
 
     async def handle_message(self, message: str):
-        if message == STOP_SUBPROCESS_MESSAGE:
-            await self.stop_subprocess()
-            return
-
         if (
             not self.conversation_state.greeted
             and not self.conversation_state.expectations
@@ -65,10 +54,6 @@ class RobeauHandler(BaseHandler):
             self.process_initial_greeting(message)
         else:
             self.process_message(message)
-
-    async def stop_subprocess(self):
-        self.stop_event.set()
-        self.logger.info("Received stop message")
 
     def check_greeting_in_message(self, msg: str):
         words = msg.split()
@@ -93,7 +78,7 @@ class RobeauHandler(BaseHandler):
                 self.handle_greeting_with_message(greeting_segment, remaining_message)
             else:
                 self.conversation_state.greeted = True
-                self.logger.info(
+                logger.info(
                     f'Greeting "{greeting_segment}" received, ready to process messages.'
                 )
                 process_node(
@@ -111,13 +96,13 @@ class RobeauHandler(BaseHandler):
     def handle_greeting_with_message(
         self, greeting_segment: str, remaining_message: str
     ):
-        self.logger.info(
+        logger.info(
             f'Greeting "{greeting_segment}" and prompt "{remaining_message}" received in one message.'
         )
         matched_message = sbert_matcher.check_for_best_matching_synonym(
             remaining_message, self.show_details, labels=["Prompt"]
         )
-        self.logger.info(
+        logger.info(
             f'Matched prompt "{remaining_message}" with node text: "{matched_message}"'
         )
         self.process_node_with_message(matched_message)
@@ -127,7 +112,7 @@ class RobeauHandler(BaseHandler):
         matched_message = sbert_matcher.check_for_best_matching_synonym(
             message, self.show_details, labels=labels
         )
-        self.logger.info(
+        logger.info(
             f"Matched prompt '{message}' with node text: '{matched_message if matched_message != message else None}'"  # reason for != message check is because sbert will return the same message if no sufficient match is found
         )
         self.process_node_with_message(matched_message)
@@ -150,38 +135,23 @@ class RobeauHandler(BaseHandler):
         )
 
 
-def launch_google_stt(interim: bool = False, socket: str = "robeau"):
-    command = (
-        f'start cmd /c "cd /d {PROJECT_DIR_PATH} '
-        f"&& set PYTHONPATH={PYTHONPATH} "
-        f"&& .\\venv\\Scripts\\activate "
-        f"&& cd {ROBEAU_DIR_PATH}\\core "
-        f'&& py {google_stt.SCRIPT_NAME}.py --interim {interim} --socket {socket}"'
-    )
-
-    process = subprocess.Popen(
-        command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-    return process
-
-
 async def main(show_details=False):
-    socket_server_task = None
     try:
-        driver, session, conversation_state, stop_event, update_thread = initialize()
-        handler = RobeauHandler(PORT, logger, session, conversation_state, show_details)
-        launch_google_stt(interim=False, socket="robeau")  # Set interim as needed
-        socket_server_task = asyncio.create_task(handler.run_socket_server())
-        await socket_server_task
+        db_conn, slot = await setup_script(SCRIPT_NAME, SLOTS_DB_FILE_PATH)
+        driver, session, conversation_state, stop_event, update_thread, pause_event = (
+            initialize()
+        )
+        handler = RobeauHandler(session, conversation_state, show_details)
+        asyncio.create_task(recognize_speech(handler, pause_event))
+        await handler.stop_event.wait()
     except Exception as e:
         logging.exception(f"Unexpected error: {e}")
         print(f"Unexpected error: {e}")
         raise
     finally:
+        if db_conn:
+            await db_conn.close()
         cleanup(driver, session, stop_event, update_thread)
-        if socket_server_task:
-            socket_server_task.cancel()
-            await socket_server_task
 
 
 if __name__ == "__main__":

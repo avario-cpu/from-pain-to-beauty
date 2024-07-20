@@ -12,16 +12,16 @@ MatchNodeSingle() {
 }
 
 MatchNodeLabel() {
-    SendInput, MATCH(x:)-[r]->(y)
-    SendInput {Shift down}{Enter}{Shift up}RETURN x,r,y
+    SendInput, MATCH(xx:)-[rr]->(yy)
+    SendInput {Shift down}{Enter}{Shift up}RETURN xx,rr,yy
     Send, {Up}{Left 5}
     Input, Input1, L1
     SendInput, % HandleNodeInput(Input1)
 }
 
 MatchRelationshipSingle() {
-    SendInput, MATCH(x)-[r]->(y)
-    SendInput, {End}{Shift down}{Enter}{Shift up}WHERE apoc.rel.id(r)=
+    SendInput, MATCH(xx)-[rr]->(yy)
+    SendInput, {End}{Shift down}{Enter}{Shift up}WHERE apoc.rel.id(rr)=
 }
 
 MatchRelationshipAlias() {
@@ -33,8 +33,8 @@ MatchRelationshipAlias() {
 }
 
 MatchRelationshipType() {
-    SendInput, MATCH(x)-[r:]->(y)
-    SendInput, {Shift down}{Enter}{Shift up}RETURN x,r,y
+    SendInput, MATCH(xx)-[rr:]->(yy)
+    SendInput, {Shift down}{Enter}{Shift up}RETURN xx,rr,yy
     Send, {Up}
     Input, Input1, L1
     SendInput, % HandleRelationshipInput(Input1)
@@ -54,15 +54,15 @@ MatchRelationshipNodes() {
 }
 
 MatchKey() {
-    SendInput, MATCH (x)-[r]->(y)
+    SendInput, MATCH (xx)-[rr]->(yy)
     SendInput, {Shift down}{Enter}{Shift up}WHERE any(key IN keys(r) WHERE key = "")
-    SendInput, {Shift down}{Enter}{Shift up}RETURN x,r,y
+    SendInput, {Shift down}{Enter}{Shift up}RETURN xx,rr,y
     SendInput, {Up}{End}{Left 2}
 }
 
 MatchPathNode(){
-    SendInput, MATCH p=(x)-[r*]->(y)
-    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(x)=
+    SendInput, MATCH p=(xx)-[rr*]->(yy)
+    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(xx)=
 }
 
 MatchPathLabel(arg) {

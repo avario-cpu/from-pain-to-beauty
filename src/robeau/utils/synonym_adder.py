@@ -4,24 +4,25 @@ from logging import Logger
 import json
 import asyncio
 from src.core.constants import SUBPROCESSES_PORTS
-from src.robeau.core.robeau import launch_google_stt
 from src.robeau.core.constants import STRING_WITH_SYNS_FILE_PATH
+from src.robeau.core.speech_recognition import recognize_speech
+import threading
 
 PORT = SUBPROCESSES_PORTS["synonym_adder"]
 
 
-class SynonymHandler(BaseHandler):
+class SynonymHandler:
     def __init__(
         self,
-        port: int,
         json_file_path: str,
         predefined_text: str,
         script_logger: Optional[Logger] = None,
     ):
-        super().__init__(port, script_logger)
         self.json_file_path = json_file_path
         self.predefined_text = predefined_text
         self.data = self.read_json()
+        self.pause_event = threading.Event()  # Initialize pause event
+        self.logger = script_logger
 
     def read_json(self):
         with open(self.json_file_path, "r") as f:
@@ -39,10 +40,9 @@ class SynonymHandler(BaseHandler):
         if response.lower() == "y":
             self.add_synonym(self.predefined_text, synonym)
             self.write_json()
-            self.writer.write(b"Synonym added.\n")
+            print("Synonym added.")
         else:
-            self.writer.write(b"Synonym not added.\n")
-        await self.writer.drain()
+            print("Synonym not added.")
 
     def add_synonym(self, text: str, synonym: str):
         for category in self.data:
@@ -61,15 +61,16 @@ class SynonymHandler(BaseHandler):
         ]
 
 
-if __name__ == "__main__":
+async def main():
     # Path to your JSON file
     json_file_path = STRING_WITH_SYNS_FILE_PATH
-    predefined_text = "hey robeau"  # Replace with the actual predefined text
-
-    # Initialize and run the socket server with the SynonymHandler
+    predefined_text = "nothing"  # Replace with the actual predefined text
     handler = SynonymHandler(
-        port=PORT, json_file_path=json_file_path, predefined_text=predefined_text
+        json_file_path=json_file_path, predefined_text=predefined_text
     )
 
-    launch_google_stt(interim=False, socket="synonym_adder")
-    asyncio.run(handler.run_socket_server())
+    await recognize_speech(handler)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

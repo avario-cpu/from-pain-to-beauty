@@ -99,7 +99,7 @@ class ConversationState:
             elapsed_time = current_time - start_time
             remaining_time = max(0, duration - elapsed_time)
             item["timeLeft"] = remaining_time
-            self.logger.debug(f"Updated time for item: {item}")
+            self.logger.debug(f"Updated: {item}")
 
     def _remove_expired(self, items: list) -> list:
         valid_items = []
