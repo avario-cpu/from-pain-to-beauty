@@ -3,34 +3,277 @@ import threading
 import time
 from collections import defaultdict
 from logging import DEBUG, INFO
-
+from logging import Logger
 from neo4j import GraphDatabase, Result, Session
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
 
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from src.robeau.classes.audio_player import AudioPlayer
-from src.robeau.classes.conversation_state import ConversationState
 from src.robeau.core.constants import AUDIO_MAPPINGS_FILE_PATH
 from src.utils.helpers import construct_script_name, setup_logger
-from src.robeau.classes.graph_logic_enums import (
+from src.robeau.classes.graph_logic_constants import (
     EXPECTATIONS_FAILURE,
     EXPECTATIONS_SET,
     EXPECTATIONS_SUCCESS,
-    NO_MATCHING_PROMPT,
-    ANY_PROMPT_UTTERED,
-    ANY_PROMPT_PROCESSED,
+    NO_MATCHING_PROMPT_OR_WHISPER,
+    ANY_MATCHING_PROMPT_OR_WHISPER,
     USER,
     ROBEAU,
     SYSTEM,
     GREETING,
     RESET_EXPECTATIONS,
-    REVERTER,
+    MODIFIER,
     QuerySource,
+    transmissions_output_aliases,
 )
 
 SCRIPT_NAME = construct_script_name(__file__)
 logger = setup_logger(SCRIPT_NAME, level=DEBUG)
+
+
+class ConversationState:
+    def __init__(self, logger: Logger):
+        self.logger = logger
+        # definitions items
+        self.allows: list[dict] = []
+        self.locks: list[dict] = []
+        self.unlocks: list[dict] = []
+        self.expects: list[dict] = []
+        self.primes: list[dict] = []
+        self.listens: list[dict] = []
+        # activations items
+        self.initiates: list[dict] = []
+
+    def _add_item(
+        self,
+        node: str,
+        node_labels: list[str],
+        duration: float | None,
+        item_list: list,
+        item_type: str,
+    ):
+        start_time = time.time()
+
+        for existing_item in item_list:
+            if existing_item["node"] == node:
+                if duration is None:  # None means infinite duration here
+                    return
+
+                # Refresh duration if the item already exists
+                existing_item["duration"] = duration
+                existing_item["timeLeft"] = duration
+                existing_item["start_time"] = start_time
+                self.logger.info(f"Refreshed the time duration of {existing_item}")
+                return
+
+        item_list.append(
+            {
+                "type": item_type,
+                "node": node,
+                "labels": node_labels,
+                "timeLeft": duration,
+                "duration": duration,
+                "start_time": start_time,
+            }
+        )
+
+    def add_allows(self, node: str, labels: list[str], duration: float | None):
+        self._add_item(node, labels, duration, self.allows, "allows")
+
+    def add_unlocks(self, node: str, labels: list[str], duration: float | None):
+        self._add_item(node, labels, duration, self.unlocks, "unlocks")
+
+    def add_locks(self, node: str, labels: list[str], duration: float | None):
+        self._add_item(node, labels, duration, self.locks, "locks")
+
+    def add_expects(self, node: str, labels: list[str], duration: float | None):
+        self._add_item(node, labels, duration, self.expects, "expects")
+
+    def add_primes(self, node: str, labels: list[str], duration: float | None):
+        self._add_item(node, labels, duration, self.primes, "primes")
+
+    def add_listens(self, node: str, labels: list[str], duration: float | None):
+        self._add_item(node, labels, duration, self.listens, "listens")
+
+    def add_initiates(self, node: str, labels: list[str], duration: float | None):
+        self._add_item(node, labels, duration, self.initiates, "initiates")
+
+    def delay_item(self, node: str, labels: list[str], duration: float | None):
+        """Unused right now but may be used in the future, Logic wise just know that the difference between this and add_initiation is that this is for items that are already in the conversation state, which means a previously processed node wont be processed again if they are pointed to with a DELAY relationship"""
+        for node_list in [self.locks, self.unlocks, self.expects, self.primes]:
+            for item in node_list:
+                if item["node"] == node:
+                    self._add_item(node, labels, duration, node_list, item["type"])
+
+    def disable_item(self, node: str):
+        for node_list in [self.primes, self.initiates, self.listens]:
+            for item in node_list:
+                if item["node"] == node:
+                    node_list.remove(item)
+                    self.logger.info(f"Item disabled: {item}")
+                    return
+
+    def _update_time_left(self, item: dict):
+        current_time = time.time()
+        start_time = item["start_time"]
+        duration = item["duration"]
+        time_left = item.get("timeLeft")
+
+        if time_left is not None:
+            elapsed_time = current_time - start_time
+            remaining_time = max(0, duration - elapsed_time)
+            item["timeLeft"] = remaining_time
+
+    def _remove_expired(
+        self, items: list, log_messages: list, session: Session
+    ) -> list:
+        valid_items = []
+        complete_initiations = []
+
+        for item in items:
+            self._update_time_left(item)
+            time_left = item.get("timeLeft")
+            item_type = item.get("type")
+            node = item.get("node")
+            labels = item.get("labels", [])
+
+            if time_left is None or time_left > 0:
+                valid_items.append(item)
+                if time_left is not None:
+                    log_messages.append(
+                        f"{item_type}: {labels}: << {node} >> ({time_left:.2f}): {item}"
+                    )
+            else:
+                if item_type == "initiates":
+                    complete_initiations.append(item)
+                    self.logger.info(f"Initiation complete: {item}")
+                else:
+                    self.logger.info(f"Item {item_type} has expired: {item}")
+
+        if complete_initiations:
+            for initiation in complete_initiations:
+                activate_connection_or_item(initiation)
+                process_node(session, initiation["node"], self, source=ROBEAU)
+
+        return valid_items
+
+    def update_timed_items(self, session: "Session"):
+        items_to_update = [
+            "allows",
+            "locks",
+            "unlocks",
+            "expects",
+            "primes",
+            "listens",
+            "initiates",
+        ]
+        log_messages: list[str] = []
+
+        for item in items_to_update:
+            updated_items = self._remove_expired(
+                getattr(self, item), log_messages, session
+            )
+            setattr(self, item, updated_items)
+
+        if log_messages:
+            self.logger.info(
+                "Time-bound items update:\n" + "\n".join(log_messages) + "\n"
+            )
+
+    def reset_attribute(self, attribute: str):
+        valid_attributes = [
+            "locks",
+            "unlocks",
+            "primes",
+            "expects",
+            "listens",
+            "initiates",
+        ]
+
+        if attribute in valid_attributes:
+            if getattr(self, attribute, None):
+                setattr(self, attribute, [])
+                self.logger.info(f'Reset attribute: "{attribute}"')
+        else:
+            self.logger.error(f'Invalid attribute: "{attribute}"')
+
+    def apply_definitions(self, session: Session, node: str):
+        process_node(
+            session=session,
+            node=node,
+            source=MODIFIER,
+            conversation_state=self,
+            silent=True,
+        )
+
+    def revert_definitions(self, session: Session, node: str):
+        definitions_to_revert = (
+            get_node_connections(
+                session=session,
+                text=node,
+                source=MODIFIER,
+                conversation_state=self,
+            )
+            or []
+        )
+        formatted_definitions = [
+            (i["start_node"], i["relationship"], i["end_node"])
+            for i in definitions_to_revert
+        ]
+        self.logger.info(f"Obtained definitions to revert: {formatted_definitions}")
+
+        for connection in definitions_to_revert:
+            end_node = connection.get("end_node", "")
+
+            self._revert_individual_definition("lock", end_node, self.locks)
+            self._revert_individual_definition("unlock", end_node, self.unlocks)
+            self._revert_individual_definition("allow", end_node, self.allows)
+
+    def _revert_individual_definition(
+        self, definition_type: str, node: str, definitions: list[dict]
+    ):
+        initial_count = len(definitions)
+        definitions[:] = [
+            definition for definition in definitions if definition["node"] != node
+        ]
+        if len(definitions) < initial_count:
+            self.logger.info(f'Removed {definition_type}: "{node}"')
+
+    def log_conversation_state(self):
+        state_types = [
+            self.allows,
+            self.locks,
+            self.unlocks,
+            self.expects,
+            self.primes,
+            self.listens,
+            self.initiates,
+        ]
+
+        log_message = []
+
+        if any(state_types):
+            log_message.append("Conversation state:")
+            for items in state_types:
+                for item in items:
+                    node = item["node"]
+                    time_left = item.get("timeLeft")
+                    item_type = item.get("type")
+                    labels = item.get("labels", [])
+                    if time_left is not None:
+                        time_left_str = f"({time_left:.2f})"
+                    else:
+                        time_left_str = "Infinite"
+                    log_message.append(
+                        f"{item_type} {labels}: << {node} >> ({time_left_str}): {item}"
+                    )
+
+            log_message[1:] = sorted(log_message[1:])
+        else:
+            log_message.append("No items in conversation state")
+
+        self.logger.info("\n".join(log_message) + "\n")
 
 
 """ Initialize the audio player at the module level so it can be used in the process_node function, which is super deep in the function chain, without having to pass it to every single function before just to use it at the final step. """
@@ -45,11 +288,15 @@ def get_node_data(
     source: QuerySource,
 ) -> Result | None:
 
-    def process_any_prompt_processed():
-        process_node(session, ANY_PROMPT_PROCESSED, conversation_state, source=SYSTEM)
+    def process_any_matching_prompt_or_whisper():
+        process_node(
+            session, ANY_MATCHING_PROMPT_OR_WHISPER, conversation_state, source=SYSTEM
+        )
 
-    def process_no_matching_prompt():
-        process_node(session, NO_MATCHING_PROMPT, conversation_state, source=SYSTEM)
+    def process_no_matching_prompt_or_whisper():
+        process_node(
+            session, NO_MATCHING_PROMPT_OR_WHISPER, conversation_state, source=SYSTEM
+        )
 
     labels_query = "|".join(labels)
     query = f"""
@@ -59,12 +306,15 @@ def get_node_data(
     """
     result = session.run(query, text=text)
 
-    if result.peek() and source == USER:
-        process_any_prompt_processed()
+    if result.peek() and source == USER and ("Prompt" in labels or "Whisper" in labels):
+        process_any_matching_prompt_or_whisper()
 
-    elif not result.peek() and source == USER:
-        logger.warning(f'text "{text}" for labels {labels} not found in database')
-        process_no_matching_prompt()
+    elif (
+        not result.peek()
+        and source == USER
+        and ("Prompt" in labels or "Whisper" in labels)
+    ):
+        process_no_matching_prompt_or_whisper()
         return None
 
     return result
@@ -78,8 +328,7 @@ def define_labels_and_text(
 ) -> list[str]:
     def meets_expectations():
         return any(
-            text.lower() == item["node"].lower()
-            for item in conversation_state.expectations
+            text.lower() == item["node"].lower() for item in conversation_state.expects
         )
 
     def prompt_matches_allows():
@@ -93,14 +342,10 @@ def define_labels_and_text(
     def process_expectation_failure():
         process_node(session, EXPECTATIONS_FAILURE, conversation_state, source=SYSTEM)
 
-    def process_any_prompt_uttered():
-        process_node(session, ANY_PROMPT_UTTERED, conversation_state, source=SYSTEM)
-
     labels = []
     if source == USER:
 
-        if not conversation_state.expectations:
-            process_any_prompt_uttered()
+        if not conversation_state.expects:
 
             if prompt_matches_allows():
                 labels.append("Prompt")
@@ -119,12 +364,19 @@ def define_labels_and_text(
     elif source == GREETING:
         labels.append("Greeting")
     elif source == ROBEAU:
-        labels.extend(["Response", "Question", "Action", "LogicGate", "Greeting"])
+        labels.extend(
+            [
+                "Response",
+                "Question",
+                "LogicGate",
+                "Greeting",
+                "Output",
+                "TrafficGate",
+            ]
+        )
     elif source == SYSTEM:
         labels.append("Input")
-    elif (
-        source == REVERTER
-    ):  # reverter fetches all labels to be able to revert any definitions
+    elif source == MODIFIER:
         labels.extend(
             [
                 "Prompt",
@@ -133,9 +385,10 @@ def define_labels_and_text(
                 "Greeting",
                 "Response",
                 "Question",
-                "Action",
                 "LogicGate",
                 "Input",
+                "Output",
+                "TrafficGate",
             ]
         )
 
@@ -190,7 +443,7 @@ def process_logic_activations(
         return
 
     for connection in connections:
-        activate_node(connection["end_node"])
+        activate_connection_or_item(connection)
         process_node(session, connection["end_node"], conversation_state, ROBEAU)
 
 
@@ -239,8 +492,11 @@ def filter_logic_connections(connections: list[dict], logic_gate: str):
             other_conns.append(conn)
             logger.warning(f'Atypical connection for logicGate {logic_gate}: "{conn}"')
 
+        formatted_and_conns = "\n".join([str(and_conn) for and_conn in and_conns])
+        formatted_then_conns = "\n".join([str(then_conn) for then_conn in then_conns])
+
     logger.info(
-        f"LogicGate {logic_gate} connections: \nInitial: {initial_conn} \nAnd: {and_conns} \nThen: {then_conns}"
+        f"LogicGate << {logic_gate} >> connections: \nInitial: {initial_conn} \nAnd: {formatted_and_conns} \nThen: {formatted_then_conns}"
     )
     return initial_conn, and_conns, then_conns
 
@@ -249,10 +505,10 @@ def determine_attribute(conversation_state: ConversationState, relationship: dic
     attribute_map = {
         "IS_LOCKED": conversation_state.locks,
         "IS_UNLOCKED": conversation_state.unlocks,
-        "IS_EXPECTED": conversation_state.expectations,
+        "IS_EXPECTED": conversation_state.expects,
         "IS_PRIMED": conversation_state.primes,
         "IS_LISTENED": conversation_state.listens,
-        "IS_INITIATED": conversation_state.initiations,
+        "IS_INITIATED": conversation_state.initiates,
     }
     for key, value in attribute_map.items():
         if key in relationship:
@@ -318,20 +574,24 @@ def process_modifications_connections(
     method: str,
 ):
     method_map = {
-        "revert_definitions": lambda end_node, params: conversation_state.revert_definitions(
-            session, end_node
-        ),
         "delay_item": lambda end_node, params: conversation_state.delay_item(
-            end_node, params.get("duration")
+            end_node, end_node_label, params.get("duration")
         ),  # unused, might change in the future
         "disable_item": lambda end_node, params: conversation_state.disable_item(
             end_node
+        ),
+        "apply_definitions": lambda end_node, params: conversation_state.apply_definitions(
+            session, end_node
+        ),
+        "revert_definitions": lambda end_node, params: conversation_state.revert_definitions(
+            session, end_node
         ),
     }
 
     if method in method_map:
         for connection in connections:
             end_node = connection.get("end_node", "")
+            end_node_label: list[str] = connection.get("labels", {}).get("end", [])
             params = connection.get("params", {})
             method_map[method](end_node, params)
 
@@ -342,8 +602,9 @@ def process_modifications_relationships(
     conversation_state: ConversationState,
 ):
     relationship_methods = {
-        "DISABLES": "disable_item",
         "DELAYS": "delay_item",  # Unused right now but may be used in the future
+        "DISABLES": "disable_item",
+        "APPLIES": "apply_definitions",
         "REVERTS": "revert_definitions",
     }
     for relationship, method in relationship_methods.items():
@@ -360,7 +621,8 @@ def process_definitions_connections(
     for connection in connections:
         end_node = connection.get("end_node", "")
         duration = connection.get("params", {}).get("duration")
-        getattr(conversation_state, method)(end_node, duration)
+        end_node_label = connection.get("labels", {}).get("end", [])
+        getattr(conversation_state, method)(end_node, end_node_label, duration)
 
 
 def process_definitions_relationships(
@@ -369,13 +631,13 @@ def process_definitions_relationships(
     conversation_state: ConversationState,
 ):
     relationship_methods = {
-        "ALLOWS": "add_allow",
-        "LOCKS": "add_lock",
-        "UNLOCKS": "add_unlock",
-        "EXPECTS": "add_expectation",
+        "ALLOWS": "add_allows",
+        "LOCKS": "add_locks",
+        "UNLOCKS": "add_unlocks",
+        "EXPECTS": "add_expects",
         "LISTENS": "add_listens",
-        "PRIMES": "add_prime",
-        "INITIATES": "add_initiation",
+        "PRIMES": "add_primes",
+        "INITIATES": "add_initiates",
     }
 
     for relationship, method in relationship_methods.items():
@@ -392,8 +654,8 @@ def process_definitions_relationships(
         )
 
 
-def activate_node(node_dict: dict):
-    """Output. Works for both activation connections (end_node) and dictionaries from the conversation state(node)."""
+def activate_connection_or_item(node_dict: dict):
+    """Works for both activation connections (end_node) and dictionaries from the conversation state(node)."""
     output = node_dict.get("end_node") or node_dict.get("node")
     if isinstance(output, str):
         print(output)
@@ -408,7 +670,7 @@ def activate_node(node_dict: dict):
 
 def activate_connections(connections: list[dict]):
     for connection in connections:
-        activate_node(connection)
+        activate_connection_or_item(connection)
     return connections
 
 
@@ -527,7 +789,6 @@ def process_activation_connections(
     activated_connections.extend(activate_connections(regular_connections))
 
     if activated_connections:
-        # Reset primes after any successful activation that is not a Warning
         conversation_state.reset_attribute("primes")
 
     return activated_connections
@@ -605,6 +866,7 @@ def process_relationships(
     disables: list[dict] = []
     delays: list[dict] = []  # Unused right now but may be in the future
     reverts: list[dict] = []
+    applies: list[dict] = []
     # Logic connections
     ifs: list[dict] = []
 
@@ -625,6 +887,7 @@ def process_relationships(
         # Modifications
         "DISABLES": disables,
         "DELAYS": delays,  # Unused right now but may be in the future
+        "APPLIES": applies,
         "REVERTS": reverts,
         # Logics checks
         "IF": ifs,
@@ -652,6 +915,13 @@ def process_relationships(
     return end_nodes_reached
 
 
+def handle_transmission_output(
+    transmission_node: str, conversation_state: ConversationState
+):
+    if transmission_node == RESET_EXPECTATIONS:
+        conversation_state.reset_attribute("expects")
+
+
 def process_node(
     session: Session,
     node: str,
@@ -674,19 +944,17 @@ def process_node(
         return
 
     response_nodes_reached = process_relationships(
-        session,
-        connections,
-        conversation_state,
+        session=session,
+        connections=connections,
+        conversation_state=conversation_state,
         node=node,
         source=source,
         silent=silent,
     )
 
     for response_node in response_nodes_reached:
-        # check for particular "output" transmission nodes
-        if response_node == RESET_EXPECTATIONS:
-            conversation_state.reset_attribute("expectations")
-            continue
+        if response_node in transmissions_output_aliases:
+            handle_transmission_output(response_node, conversation_state)
         # Process further nodes that are activated by the current node
         process_node(session, response_node, conversation_state, ROBEAU)
 
@@ -702,7 +970,7 @@ def run_update_conversation_state(
     while not stop_event.is_set():
         if not pause_event.is_set():
             conversation_state.update_timed_items(session)
-        time.sleep(1)
+        time.sleep(0.5)
 
 
 def establish_connection():
@@ -724,12 +992,6 @@ def initialize():
     if not driver or not session:
         raise Exception("Failed to establish connection to Neo4j database")
     conversation_state = ConversationState(logger=logger)
-    conversation_state.set_process_node_func(process_node)
-    conversation_state.set_get_node_connections_func(get_node_connections)
-    conversation_state.set_activate_node_func(activate_node)
-    conversation_state.set_query_sources_params(
-        ROBEAU_param=ROBEAU, REVERTER_param=REVERTER
-    )
     stop_event = threading.Event()
     pause_event = threading.Event()
     update_thread = threading.Thread(
@@ -776,7 +1038,7 @@ def main():
                     return False
                 elif (
                     conversation_state.allows
-                    or conversation_state.expectations
+                    or conversation_state.expects
                     or conversation_state.listens
                 ) and user_query:
                     process_node(

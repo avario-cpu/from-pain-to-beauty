@@ -1,9 +1,6 @@
 
 # Node Relationship and Activation Documentation
 
-### ALLOWS
-Allows are an inactive relationship only here to signal the fact that robeau must be greeted before we utter prompts, but the logic for that is handled in the robeau module, it does not rely on the graph_logic_network. It is also simply there for the database to arrange the nodes around the "hey robeau" single centralized node, to make it pretty. >>>>>>> OUTDATED
-
 ## Activations
 
 ### CHECKS
@@ -22,6 +19,10 @@ All these relationships may have a random weight and be pooled into explicitly s
 
 ## Definitions
 
+### ALLOWS
+Allows to utter prompt after greeting Robeau. If Robeau is not greeted there will be no matching attempts with the prompts. These relationships are also stored in the `ConversationState` and will be used as to determine the greet state of Robeau at the stage of voice recognition. If no "allows" are stored, we assume Robeau is not greeted. 
+>> Presence of allows in the `ConversationState` will make Robeau listen to you. Failing to match allows with whatever you say then will trigger a "no match found" respond
+
 ### LOCKS
 Prevents a node from being triggered.
 
@@ -30,9 +31,11 @@ Allows a node to be attempted.
 
 ### EXPECTS
 Will reduce the scope of conversation to the expected nodes. If none are reached, it will warn the user, then try again. If it fails again, Robeau will give up and move on. There's a time delay on expects so that you don't leave Robeau hanging for like 10 seconds after he asked a question. The way this is communicated to the database is by using additional node processing when the condition is raised in the `ConversationState` class, only this time using SYSTEM as a source rather than USER/ROBEAU.
+>> Presence of expectations in the `ConversationState` will make Robeau listen to you. Failing to match expectations with whatever you say then will trigger a "no match found" respond
 
 ### LISTENS
 Kind of a silent expect. The scope won't be reduced, but some answers that were not accessible will now be recognized under the Whisper label. If anything other than the whisper is said, it just proceeds as normal. Listens usually have a time limitation.
+>> Presence of listens in the `ConversationState` will make Robeau listen to you. Failing to match listens with whatever you say then will NOT trigger a "no match found" respond
 
 ### PRIMES
 Like unlock, only it will get deactivated as soon as any activation relation is successful, so it's a one-time thing.
@@ -43,13 +46,13 @@ After a time countdown, will activate the node.
 ## Modifications
 
 ### DISABLES
-Will remove conditions `initiate` and `primes`. (All definitions can be implemented to be disabled very easily, but for now, we keep it like that.)
+Will remove conditions of a particular node f.ex. disable a node that is being listened to, or that is being initiated.
 
 ### DELAYS
 Unused right now, but the principle is to allow adding time to any condition, as long as it exists. We don't use it right now because simply re-applying the condition also works and will work whether the condition already exists or not.
 
 ### REVERTS
-Will undo the changes a node had applied to its target nodes with its relationships. For example, if it locked something, it de-locks it; if it had unlocked one, it de-unlocks it, etc.
+Will undo the changes a node had applied to its target nodes with its relationships. For example, if it locked something, it de-locks it; if it had unlocked one, it de-unlocks it, etc. This is really a "DISABLES" but for all of a node possibly multiple influenced targets rather than just one target one.
 
 ## Logics Checks
 

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 import re
 from typing import Optional
 
@@ -48,7 +47,7 @@ class RobeauHandler:
     async def handle_message(self, message: str):
         if (
             not self.conversation_state.allows
-            and not self.conversation_state.expectations
+            and not self.conversation_state.expects
             and not self.conversation_state.listens
         ):
             self.process_initial_greeting(message)
@@ -112,7 +111,7 @@ class RobeauHandler:
     def determine_labels(self):
         if self.conversation_state.listens:
             return ["Prompt", "Whisper"]
-        elif self.conversation_state.expectations:
+        elif self.conversation_state.expects:
             return ["Answer"]
         else:
             return ["Prompt"]

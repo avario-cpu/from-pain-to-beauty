@@ -15,7 +15,7 @@ MatchNodeLabel() {
     SendInput, MATCH(xx:)-[rr]->(yy)
     SendInput {Shift down}{Enter}{Shift up}RETURN xx,rr,yy
     Send, {Up}{Left 5}
-    Input, Input1, L1
+    Input, Input1, L2
     SendInput, % HandleNodeInput(Input1)
 }
 
@@ -35,85 +35,109 @@ MatchRelationshipAlias() {
 MatchRelationshipType() {
     SendInput, MATCH(xx)-[rr:]->(yy)
     SendInput, {Shift down}{Enter}{Shift up}RETURN xx,rr,yy
-    Send, {Up}
-    Input, Input1, L1
+    Send, {Up}{left}
+    Input, Input1, L2
     SendInput, % HandleRelationshipInput(Input1)
 }
 
 MatchRelationshipNodes() {
-    SendInput, MATCH(
+    SendInput, MATCH()-[]->()
+    Send, ^{Left}{Right}
     Input, Input1, L2
-    SendInput, %Input1%)-[]->(
+    SendInput, %Input1%
+    Send, ^{Right}{Left}
     Input, Input2, L2
-    SendInput, %Input2%)
-    Send, ^{Left}{Left 5}
+    SendInput, %Input2%
+    Send, ^{Left}^{Left}{Right 3}
     Input, Input3, L2
     SendInput, %Input3%
     Send, {Right}
     Send, {End}{Shift down}{Enter}{Shift up}WHERE apoc.rel.id(%Input3%)=
 }
 
-MatchKey() {
+MatchPropertyKey() {
     SendInput, MATCH (xx)-[rr]->(yy)
     SendInput, {Shift down}{Enter}{Shift up}WHERE any(key IN keys(r) WHERE key = "")
     SendInput, {Shift down}{Enter}{Shift up}RETURN xx,rr,y
     SendInput, {Up}{End}{Left 2}
 }
 
-MatchPathNode(){
-    SendInput, MATCH p=(xx)-[rr*]->(yy)
+MatchPathNodeOut(){
+    SendInput, MATCH pp=(xx)-[rr*1..3]->(yy)
     SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(xx)=
+    SendInput, {Shift down}{Enter}{Shift up}RETURN pp
+    SendInput, {Up}{End}
 }
 
-MatchPathLabel(arg) {
-    SendInput, MATCH p%arg%=(x%arg%)-[R%arg%*]->(y%arg%)
-    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(x%arg%)=
-    SendInput, {Shift down}{Enter}{Shift up}WITH p%arg%, [n IN nodes(p%arg%) WHERE "" IN labels(n)] AS matchNodes%arg%
+MatchPathNodeIn(){
+    SendInput, MATCH pp=(xx)-[rr*1..3]->(yy)
+    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(yy)=
+    SendInput, {Shift down}{Enter}{Shift up}RETURN pp
+    SendInput, {Up}{End}
+}
+
+MatchPathNodeAll(){
+    SendInput, MATCH pp=(xx)-[rr*1..3]-(yy)
+    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(xx)=
+    SendInput, {Shift down}{Enter}{Shift up}RETURN pp
+    SendInput, {Up}{End}
+}
+
+
+MatchPathLabel(){
+    SendInput, MATCH pp=(xx)-[rr*1..3]->(yy)
+    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(xx)=
+    SendInput, {Shift down}{Enter}{Shift up}WITH p, [n IN nodes(p) WHERE "" IN labels(n)] AS matchNodes
     Loop, 6
     {
         Send, ^{Left}
         Sleep, 10
     }
     Send, {Left 2}
-    Input, Input2, L1
+    Input, Input2, L2
     SendInput, % HandleNodeInput(Input2)
-    SendInput, {End}{Shift down}{Enter}{Shift up}UNWIND matchNodes%arg% AS x%arg%
+    SendInput, {End}{Shift down}{Enter}{Shift up}UNWIND matchNodes AS xx
     SendInput, {Up 2}{End}
 }
+
 
 CreateNode() {
     SendInput, CREATE(
     Input, Input1, L2
     SendInput, %Input1%:
-        Input, Input2, L1
+        Input, Input2, L2
         SendInput, % HandleNodeInput(Input2)
         SendRaw, {text:""}
         Send, {Left 2}
     }
 
 CreateRelationship() {
-    SendInput, CREATE(
+    SendInput, CREATE()-[:]->()
+    Send, ^{Left}{Right}
     Input, Input1, L2
-    SendInput, %Input1%)-[:]->(
+    SendInput, %Input1%
+    Send, ^{Right}{Left}
     Input, Input2, L2
-    SendInput, %Input2%)
-    Send, ^{Left}{Left 5}
+    SendInput, %Input2%
+    Send, ^{Left}^{Left}{Right 3}
     Input, Input3, L2
     SendInput, %Input3%
     Send, {Right}
-    Input, Input4, L1
+    Input, Input4, L2
     SendInput, % HandleRelationshipInput(Input4)
     Send, {End}{Shift down}{Enter}{Shift up}
 }
 
 CreateRelationshipNoLabel() {
-    SendInput, CREATE(
+    SendInput, CREATE()-[:]->()
+     Send, ^{Left}{Right}
     Input, Input1, L2
-    SendInput, %Input1%)-[:]->(
+    SendInput, %Input1%
+    Send, ^{Right}{Left}
     Input, Input2, L2
-    SendInput, %Input2%)
+    SendInput, %Input2%
     Send, ^{Left}{Left 4}
-    Input, Input3, L1
+    Input, Input3, L2
     SendInput, % HandleRelationshipInput(Input3)
     Send, {End}{Shift down}{Enter}{Shift up}
 }
@@ -126,143 +150,111 @@ SetText() {
 }
 
 HandleRelationshipInput(input) {
-    if (GetKeyState("Shift", "P")) {
-        if (input = "a") {
-            return "ALLOWS"
+    if (GetKeyState("Shift", "P") && !GetKeyState("Alt", "P")) {
+        if (input = "lo") {
+            return "IS_LOCKED"
+        } else if (input = "th") {
+            return "THEN"
+        } else if (input = "if") {
+            return "IF"
         }
-        if (input = "d") {
-            return "DISABLES"
+    } else if (GetKeyState("Shift", "P") && GetKeyState("Alt", "P")) {
+        if (input = "lo") {
+            return "AND_IS_LOCKED"
         }
-        if (input = "l") {
-            return "LISTENS"
-        }
-        if (input = "i") {
-            Input, NextKey, L1
-            if (NextKey = "l") {
-                Input, NextKey2, L1
-                if(NextKey2 = "l"){
-                    return "IS_LOCKED"
-                }
-                if (NextKey2 = "a"){
-                    return "AND_IS_LOCKED"
-                }
-                if (NextKey2 = "o") {
-                    return "OR_IS_LOCKED"
-                }
-                
-            } else if (NextKey = "u") {
-                Input, NextKey2, L1
-                if(NextKey2 = "u"){
-                    return "IS_UNLOCKED"
-                }
-                if (NextKey2 = "a"){
-                    return "AND_IS_UNLOCKED"
-                }
-                if (NextKey2 = "o") {
-                    return "OR_IS_UNLOCKED"
-                }
-                
-            } else if (NextKey = "f") {
-                 return "IF"
-            } else if (NextKey = "t") {
-             return "THEN"
-            }
-    }
-
     } else {
-        if (input = "a")
+        if (input = "al") {
+            return "ALLOWS"
+        } else if (input = "ap") {
+            return "APPLIES"
+        } else if (input = "at") {
             return "ATTEMPTS"
-        if (input = "c") 
+        } else if (input = "ch") {
             return "CHECKS"
-        if (input = "d") 
+        } else if (input = "de") {
             return "DEFAULTS"
-        if (input = "e") 
+        } else if (input = "di") {
+            return "DISABLES"
+        } else if (input = "ex") {
             return "EXPECTS"
-        if (input = "i") 
-            return "INITIATES"
-        if (input = "l") 
+        } else if (input = "in") {
+            return "INITIATES"            
+        } else if (input = "li") {
+            return "LISTENS"
+        } else if (input = "lo") {
             return "LOCKS"
-        if (input = "p") 
+        } else if (input = "pr") {
             return "PRIMES"
-        if (input = "r") 
-            return "RESETS"
-        if (input = "t") 
+        } else if (input = "re") {
+            return "REVERTS"
+        } else if (input = "tr") {
             return "TRIGGERS"
-        if (input = "u") 
+        } else if (input = "un") {
             return "UNLOCKS"
-        
+        }
+    }  
         return input
-    }
+    
 }
-
 
 HandleNodeInput(input) {
-    if (GetKeyState("Shift", "P")) {
-        if (input = "r")
-            return "Request"
+    if (input = "an") {
+        return "Answer"
+    } else if (input = "in") {
+        return "Input"
+    } else if (input = "lo") {
+        return "LogicGate"
+    } else if (input = "ou") {
+        return "Output"
+    } else if (input = "pr") {
+        return "Prompt"
+    } else if (input = "qu") {
+        return "Question"
+    } else if (input = "tr") {
+        return "TrafficGate"
+    } else if (input = "re") {
+        return "Response"
+    } else if (input = "wh") {
+        return "Whisper"
     } else {
-        if (input = "a")
-            return "Answer"
-        if (input = "p")
-            return "Prompt"
-        if (input = "q")
-            return "Question"
-        if (input = "r")
-            return "Response"
-        if (input = "i")
-            return "Input"
-        if (input = "o")
-            return "Output"
-        if (input = "w")
-            return "Whisper"
-        if (input = "l")
-            return "LogicGate"
         return input
     }
 }
 
-^+m:: ; Matches Hotkey: Ctrl+Shift+M (+G for groups) (+l for labels
+
+
+^+m:: ; Matches Hotkey: Ctrl+Shift+M
     if WinActive(targetWindowTitle) {
-        Input, NextKey, L1
-        if (NextKey = "n") {
-            Input, NextKey2, L1
-            if (NextKey2 = "s"){
-                MatchNodeSingle()
+        Input, NextKey, L2
+        if (NextKey = "ns") {
+            MatchNodeSingle()
+        } else if (NextKey = "nl") {
+            MatchNodeLabel()
+        } else if (NextKey = "rs") {
+            MatchRelationshipSingle()
+        } else if (NextKey = "ra") {
+            MatchRelationshipAlias()
+        } else if (NextKey = "rt") {
+            MatchRelationshipType()
+        } else if (NextKey = "rn") {
+            MatchRelationshipNodes()
+        } else if (NextKey = "pk") {
+            MatchPropertyKey()
+        } else if (NextKey = "pa") {
+             Input, UserInput, L2
+             if (UserInput = "no"){
+                MatchPathNodeOut()
+            } else if (UserInput = "ni"){
+                MatchPathNodeIn()
+            } else if(UserInput = "la"){
+                MatchPathLabel()
+            } else if(UserInput = "na"){
+                MatchPathNodeAll()
             }
-            if (NextKey2 = "l") {
-                MatchNodeLabel()
-            }
-            
-        } else if (NextKey = "r") {
-            Input, NextKey2, L1
-            if (NextKey2 = "s"){
-                MatchRelationshipSingle()
-            }
-            if (NextKey2 = "a"){
-                MatchRelationshipAlias()
-            } 
-            if (NextKey2 = "t"){
-                MatchRelationshipType()
-            }
-            if (NextKey2 = "n"){
-                MatchRelationshipNodes()
-            }
-            
-        } else if (NextKey = "k"){
-            MatchKey()
-        
-        } else if (NextKey = "p"){
-            Input, NextKey2, L1
-            if (NextKey2 = "l"){
-                Input, UserInput, L1
-                MatchPathLabel(UserInput)
-            }
-            if (NextKey2 = "n"){
-                MatchPathNode()
-            } 
-        } 
+        }
     }
 return
+
 
 ^+c:: ; Creations Hotkey: Ctrl+Shift+C
     if WinActive(targetWindowTitle) {
@@ -294,9 +286,15 @@ return
     }
 return
 
-^+d:: ; Write detelete : Ctrl+Shift+D
+^+d:: ; Write delete : Ctrl+Shift+D
     if WinActive(targetWindowTitle) {
         SendInput, DELETE{Space}
+    }
+return
+
++!d:: ; Write detach delete : Shift+Alt+D
+    if WinActive(targetWindowTitle) {
+        SendInput, DETACH DELETE{Space}
     }
 return
 
@@ -304,6 +302,9 @@ return
     if WinActive(targetWindowTitle) {
         SendInput,WITH *{Shift down}{Enter}{Shift up}
     }
+return
+
+^w:: ; Simply here to overwrite CltrW exit window to avoid accidents
 return
 
 ^+\:: ; Return all Hotkey: Ctrl+Shift+\
