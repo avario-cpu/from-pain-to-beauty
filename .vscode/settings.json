@@ -3,7 +3,5 @@
         "DOTA",
         "maxsplit"
     ],
-    "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter"
-    }
+    "[python]": {}
 }

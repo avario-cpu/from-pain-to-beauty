@@ -27,6 +27,7 @@ logger = setup_logger(SCRIPT_NAME)
 
 STRING_WITH_SYNS = STRING_WITH_SYNS_FILE_PATH
 
+
 # Initialize SBERT matcher
 sbert_matcher = SBERTMatcher(file_path=STRING_WITH_SYNS, similarity_threshold=0.65)
 

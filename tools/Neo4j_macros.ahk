@@ -149,172 +149,169 @@ SetText() {
     Send, {Left}
 }
 
-HandleRelationshipInput(input) {
+HandleRelationshipInput(user_input) {
     if (GetKeyState("Shift", "P") && !GetKeyState("Alt", "P")) {
-        if (input = "lo") {
+        if (user_input = "lo") {
             return "IS_LOCKED"
-        } else if (input = "th") {
+        } else if (user_input = "th") {
             return "THEN"
-        } else if (input = "if") {
+        } else if (user_input = "if") {
             return "IF"
         }
     } else if (GetKeyState("Shift", "P") && GetKeyState("Alt", "P")) {
-        if (input = "lo") {
+        if (user_input = "lo") {
             return "AND_IS_LOCKED"
         }
     } else {
-        if (input = "al") {
+        if (user_input = "al") {
             return "ALLOWS"
-        } else if (input = "ap") {
+        } else if (user_input = "ap") {
             return "APPLIES"
-        } else if (input = "at") {
+        } else if (user_input = "at") {
             return "ATTEMPTS"
-        } else if (input = "ch") {
+        } else if (user_input = "ch") {
             return "CHECKS"
-        } else if (input = "de") {
+        } else if (user_input = "de") {
             return "DEFAULTS"
-        } else if (input = "di") {
+        } else if (user_input = "di") {
             return "DISABLES"
-        } else if (input = "ex") {
+        } else if (user_input = "ex") {
             return "EXPECTS"
-        } else if (input = "in") {
+        } else if (user_input = "in") {
             return "INITIATES"            
-        } else if (input = "li") {
+        } else if (user_input = "li") {
             return "LISTENS"
-        } else if (input = "lo") {
+        } else if (user_input = "lo") {
             return "LOCKS"
-        } else if (input = "pr") {
+        } else if (user_input = "pr") {
             return "PRIMES"
-        } else if (input = "re") {
+        } else if (user_input = "re") {
             return "REVERTS"
-        } else if (input = "tr") {
+        } else if (user_input = "tr") {
             return "TRIGGERS"
-        } else if (input = "un") {
+        } else if (user_input = "un") {
             return "UNLOCKS"
+        } else if (user_input = "cu") {
+            return "CUTSOFF"
         }
-    }  
-        return input
-    
+    }
+    return user_input
 }
 
-HandleNodeInput(input) {
-    if (input = "an") {
+HandleNodeInput(user_input) {
+    if (user_input = "an") {
         return "Answer"
-    } else if (input = "in") {
+    } else if (user_input = "in") {
         return "Input"
-    } else if (input = "lo") {
+    } else if (user_input = "lo") {
         return "LogicGate"
-    } else if (input = "ou") {
+    } else if (user_input = "ou") {
         return "Output"
-    } else if (input = "pr") {
+    } else if (user_input = "pr") {
         return "Prompt"
-    } else if (input = "qu") {
+    } else if (user_input = "qu") {
         return "Question"
-    } else if (input = "tr") {
+    } else if (user_input = "tr") {
         return "TrafficGate"
-    } else if (input = "re") {
+    } else if (user_input = "re") {
         return "Response"
-    } else if (input = "wh") {
+    } else if (user_input = "wh") {
         return "Whisper"
     } else {
-        return input
+        return user_input
     }
 }
 
 
-
+#If WinActive(targetWindowTitle)
 ^+m:: ; Matches Hotkey: Ctrl+Shift+M
-    if WinActive(targetWindowTitle) {
-        Input, NextKey, L2
-        if (NextKey = "ns") {
-            MatchNodeSingle()
-        } else if (NextKey = "nl") {
-            MatchNodeLabel()
-        } else if (NextKey = "rs") {
-            MatchRelationshipSingle()
-        } else if (NextKey = "ra") {
-            MatchRelationshipAlias()
-        } else if (NextKey = "rt") {
-            MatchRelationshipType()
-        } else if (NextKey = "rn") {
-            MatchRelationshipNodes()
-        } else if (NextKey = "pk") {
-            MatchPropertyKey()
-        } else if (NextKey = "pa") {
-             Input, UserInput, L2
-             if (UserInput = "no"){
-                MatchPathNodeOut()
-            } else if (UserInput = "ni"){
-                MatchPathNodeIn()
-            } else if(UserInput = "la"){
-                MatchPathLabel()
-            } else if(UserInput = "na"){
-                MatchPathNodeAll()
-            }
+    Input, NextKey, L2
+    if (NextKey = "ns") {
+        MatchNodeSingle()
+    } else if (NextKey = "nl") {
+        MatchNodeLabel()
+    } else if (NextKey = "rs") {
+        MatchRelationshipSingle()
+    } else if (NextKey = "ra") {
+        MatchRelationshipAlias()
+    } else if (NextKey = "rt") {
+        MatchRelationshipType()
+    } else if (NextKey = "rn") {
+        MatchRelationshipNodes()
+    } else if (NextKey = "pk") {
+        MatchPropertyKey()
+    } else if (NextKey = "pa") {
+         Input, UserInput, L2
+         if (UserInput = "no"){
+            MatchPathNodeOut()
+        } else if (UserInput = "ni"){
+            MatchPathNodeIn()
+        } else if(UserInput = "la"){
+            MatchPathLabel()
+        } else if(UserInput = "na"){
+            MatchPathNodeAll()
         }
     }
+
 return
 
 
 ^+c:: ; Creations Hotkey: Ctrl+Shift+C
-    if WinActive(targetWindowTitle) {
-        Input, NextKey, L1
-        if (NextKey = "n") {
-            CreateNode()
-        } else if (NextKey = "r") {
-            if GetKeyState("Shift", "P") {
-                CreateRelationshipNoLabel()
-            } else {
-                CreateRelationship()
-            }
+    Input, NextKey, L1
+    if (NextKey = "n") {
+        CreateNode()
+    } else if (NextKey = "r") {
+        if GetKeyState("Shift", "P") {
+            CreateRelationshipNoLabel()
+        } else {
+            CreateRelationship()
         }
     }
+    
 return
 
+targetWindowTitle := "Your Window Title Here"
+
 ^+s:: ; Set Hotkey: Ctrl+Shift+S 
-    if WinActive(targetWindowTitle) {
-        Input, NextKey, L1
-        if (NextKey = "t") {
-            SetText()
-        }
-    }
+    Input, NextKey, L1
+    if (NextKey = "t") {
+        SetText()
+}
 return
 
 ^+r:: ; Write return : Ctrl+Shift+D
-    if WinActive(targetWindowTitle) {
-        SendInput, RETURN{Space}
-    }
+    SendInput, RETURN{Space}
+return
+
+^+u:: ; Write UNWIND as : Ctrl+Shift+D
+     SendInput, UNWIND  AS
+     Send, ^{Left}{Left}
+     Input, UserInput, L2
+     Send, %USerInput%
+     Send, ^{Right}{Space}
 return
 
 ^+d:: ; Write delete : Ctrl+Shift+D
-    if WinActive(targetWindowTitle) {
-        SendInput, DELETE{Space}
-    }
+    SendInput, DELETE{Space}
 return
 
 +!d:: ; Write detach delete : Shift+Alt+D
-    if WinActive(targetWindowTitle) {
-        SendInput, DETACH DELETE{Space}
-    }
+    SendInput, DETACH DELETE{Space}
 return
 
 ^+w:: ; With * Hotkey: Ctrl+Shift+*
-    if WinActive(targetWindowTitle) {
-        SendInput,WITH *{Shift down}{Enter}{Shift up}
-    }
+    SendInput,WITH *{Shift down}{Enter}{Shift up}
 return
 
 ^w:: ; Simply here to overwrite CltrW exit window to avoid accidents
 return
 
 ^+\:: ; Return all Hotkey: Ctrl+Shift+\
-    if WinActive(targetWindowTitle) {
-        SendInput,^{End}{Shift down}{Enter}{Shift up}WITH *{Shift down}{Enter}{Shift up}MATCH(all){Shift down}{Enter}{Shift up}RETURN all
-    }
+    SendInput,^{End}{Shift down}{Enter}{Shift up}WITH *{Shift down}{Enter}{Shift up}MATCH(all){Shift down}{Enter}{Shift up}RETURN all
 return
 
 ^+BackSpace:: ; Return Hotkey: Ctrl+Shift+Backspace
-    if WinActive(targetWindowTitle) {
-        SendInput,^{End}{Shift down}{Enter}{Shift up}RETURN{Space}
-    }
+    SendInput,^{End}{Shift down}{Enter}{Shift up}RETURN{Space}
 return
+
+#If
