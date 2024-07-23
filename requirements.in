@@ -15,12 +15,14 @@ pywin32
 gtts  
 prompt_toolkit
 pydub
+pydub-stubs
 scikit-image
 websockets
 sentence-transformers
 onnx
 onnxruntime
-
+simpleaudio
+pygame
 --index-url https://download.pytorch.org/whl/cu121
 
 torch

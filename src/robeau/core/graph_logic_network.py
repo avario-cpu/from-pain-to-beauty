@@ -2,31 +2,33 @@ import random
 import threading
 import time
 from collections import defaultdict
-from logging import DEBUG, INFO
-from logging import Logger
+from logging import DEBUG, INFO, Logger
+from threading import Thread
+from typing import Optional
+
 from neo4j import GraphDatabase, Result, Session
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
 
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from src.robeau.classes.audio_player import AudioPlayer
-from src.robeau.core.constants import AUDIO_MAPPINGS_FILE_PATH
-from src.utils.helpers import construct_script_name, setup_logger
 from src.robeau.classes.graph_logic_constants import (
+    ANY_MATCHING_PROMPT_OR_WHISPER,
     EXPECTATIONS_FAILURE,
     EXPECTATIONS_SET,
     EXPECTATIONS_SUCCESS,
+    GREETING,
+    MODIFIER,
     NO_MATCHING_PROMPT_OR_WHISPER,
-    ANY_MATCHING_PROMPT_OR_WHISPER,
-    USER,
+    RESET_EXPECTATIONS,
     ROBEAU,
     SYSTEM,
-    GREETING,
-    RESET_EXPECTATIONS,
-    MODIFIER,
+    USER,
     QuerySource,
     transmissions_output_aliases,
 )
+from src.robeau.core.constants import AUDIO_MAPPINGS_FILE_PATH
+from src.utils.helpers import construct_script_name, setup_logger
 
 SCRIPT_NAME = construct_script_name(__file__)
 logger = setup_logger(SCRIPT_NAME, level=DEBUG)
@@ -35,6 +37,7 @@ logger = setup_logger(SCRIPT_NAME, level=DEBUG)
 class ConversationState:
     def __init__(self, logger: Logger):
         self.logger = logger
+        self.cutoff = False
         # definitions items
         self.allows: list[dict] = []
         self.locks: list[dict] = []
@@ -153,7 +156,7 @@ class ConversationState:
 
         if complete_initiations:
             for initiation in complete_initiations:
-                activate_connection_or_item(initiation)
+                activate_connection_or_item(initiation, self)
                 process_node(session, initiation["node"], self, source=ROBEAU)
 
         return valid_items
@@ -180,6 +183,8 @@ class ConversationState:
             self.logger.info(
                 "Time-bound items update:\n" + "\n".join(log_messages) + "\n"
             )
+        else:
+            self.logger.info("No time-bound items to update")
 
     def reset_attribute(self, attribute: str):
         valid_attributes = [
@@ -194,9 +199,9 @@ class ConversationState:
         if attribute in valid_attributes:
             if getattr(self, attribute, None):
                 setattr(self, attribute, [])
-                self.logger.info(f'Reset attribute: "{attribute}"')
+                self.logger.info(f"Reset attribute: {attribute}")
         else:
-            self.logger.error(f'Invalid attribute: "{attribute}"')
+            self.logger.error(f"Invalid attribute: {attribute}")
 
     def apply_definitions(self, session: Session, node: str):
         process_node(
@@ -226,9 +231,9 @@ class ConversationState:
         for connection in definitions_to_revert:
             end_node = connection.get("end_node", "")
 
-            self._revert_individual_definition("lock", end_node, self.locks)
-            self._revert_individual_definition("unlock", end_node, self.unlocks)
-            self._revert_individual_definition("allow", end_node, self.allows)
+            self._revert_individual_definition("locks", end_node, self.locks)
+            self._revert_individual_definition("unlocks", end_node, self.unlocks)
+            self._revert_individual_definition("allows", end_node, self.allows)
 
     def _revert_individual_definition(
         self, definition_type: str, node: str, definitions: list[dict]
@@ -238,7 +243,7 @@ class ConversationState:
             definition for definition in definitions if definition["node"] != node
         ]
         if len(definitions) < initial_count:
-            self.logger.info(f'Removed {definition_type}: "{node}"')
+            self.logger.info(f"Removed {definition_type}: << {node} >>")
 
     def log_conversation_state(self):
         state_types = [
@@ -266,7 +271,7 @@ class ConversationState:
                     else:
                         time_left_str = "Infinite"
                     log_message.append(
-                        f"{item_type} {labels}: << {node} >> ({time_left_str}): {item}"
+                        f"{item_type}: {labels}: << {node} >> ({time_left_str}): {item}"
                     )
 
             log_message[1:] = sorted(log_message[1:])
@@ -277,7 +282,12 @@ class ConversationState:
 
 
 """ Initialize the audio player at the module level so it can be used in the process_node function, which is super deep in the function chain, without having to pass it to every single function before just to use it at the final step. """
-audio_player = AudioPlayer(AUDIO_MAPPINGS_FILE_PATH)
+audio_player = AudioPlayer(AUDIO_MAPPINGS_FILE_PATH, logger=logger)
+audio_finished_event = threading.Event()
+audio_started_event = threading.Event()
+first_callback_made = threading.Event()
+
+node_thread = None
 
 
 def get_node_data(
@@ -300,9 +310,9 @@ def get_node_data(
 
     labels_query = "|".join(labels)
     query = f"""
-    MATCH (x:{labels_query})-[R]->(y)
+    MATCH (x:{labels_query})-[r]->(y)
     WHERE toLower(x.text) = toLower($text)
-    RETURN x, R, y
+    RETURN x, r, y
     """
     result = session.run(query, text=text)
 
@@ -354,25 +364,18 @@ def define_labels_and_text(
                 labels.append("Whisper")
 
         elif meets_expectations():
-            logger.info(f'"{text}" meets conversation expectations')
+            logger.info(f" << {text} >> meets conversation expectations")
             process_expectation_success()
             labels.append("Answer")
         else:
-            logger.info(f'"{text}" does not meet conversation expectations')
+            logger.info(f" << {text} >> does not meet conversation expectations")
             process_expectation_failure()
 
     elif source == GREETING:
         labels.append("Greeting")
     elif source == ROBEAU:
         labels.extend(
-            [
-                "Response",
-                "Question",
-                "LogicGate",
-                "Greeting",
-                "Output",
-                "TrafficGate",
-            ]
+            ["Response", "Question", "LogicGate", "Greeting", "Output", "TrafficGate"]
         )
     elif source == SYSTEM:
         labels.append("Input")
@@ -418,9 +421,9 @@ def get_node_connections(
         {
             "id": index,
             "start_node": dict(record["x"])["text"],  # x is the start node
-            "relationship": record["R"].type,  # R is the relationship
+            "relationship": record["r"].type,  # r is the relationship
             "end_node": dict(record["y"])["text"],  # y is the end node
-            "params": dict(record["R"]),
+            "params": dict(record["r"]),
             "labels": {
                 "start": list(record["x"].labels),
                 "end": list(record["y"].labels),
@@ -432,6 +435,73 @@ def get_node_connections(
     return result_data
 
 
+def wait_for_audio_to_play(response_nodes_reached: list[str]):
+    logger.info(
+        f"Stopping to wait for audio to play for nodes: {response_nodes_reached} "
+    )
+    audio_finished_event.wait()
+    audio_started_event.clear()
+    logger.info(
+        f"Finished waiting for audio to play for nodes: {response_nodes_reached} "
+    )
+
+
+def play_audio(node: str, conversation_state: ConversationState):
+
+    def on_start():
+        audio_started_event.set()
+        first_callback_made.set()
+        conversation_state.cutoff = False
+
+    def on_stop():
+        audio_finished_event.set()
+        first_callback_made.set()
+        conversation_state.cutoff = True
+
+    def on_end():
+        audio_finished_event.set()
+        first_callback_made.set()
+
+    def on_error():
+        first_callback_made.set()
+        conversation_state.cutoff = False
+
+    audio_player.set_callbacks(
+        on_start=on_start,
+        on_stop=on_stop,
+        on_end=on_end,
+        on_error=on_error,
+    )
+    audio_player.play_audio(node)
+    logger.debug(f"Waiting for first callback")
+    first_callback_made.wait()
+    logger.debug(f"First callback received, let's go")
+    first_callback_made.clear()
+
+
+def activate_connection_or_item(node_dict: dict, conversation_state: ConversationState):
+    """Works for both activation connections (end_node) and dictionaries from the conversation state(node)."""
+    node = node_dict.get("end_node") or node_dict.get("node")
+    if not isinstance(node, str):
+        logger.error(
+            f"Failed to activate item: {node_dict}. Expected dict, got {type(node)}"
+        )
+        return
+
+    print(node)
+    node_labels = node_dict.get("labels", {}).get("end") or node_dict.get("labels")
+    vocal_labels = ["Response", "Question", "Test"]
+
+    if node_labels and any(node_label in vocal_labels for node_label in node_labels):
+        play_audio(node, conversation_state)
+    else:
+        logger.info(
+            f" << {node} >> with labels {node_labels} is not considered an audio output"
+        )
+
+    return node_dict
+
+
 def process_logic_activations(
     session: Session,
     connections: list[dict],
@@ -439,11 +509,11 @@ def process_logic_activations(
     conversation_state: ConversationState,
 ):
     if not connections:
-        logger.error(f'No "THEN" connection found for LogicGate: "{logic_gate}"')
+        logger.error(f'No "THEN" connection found for LogicGate: << {logic_gate} >>')
         return
 
     for connection in connections:
-        activate_connection_or_item(connection)
+        activate_connection_or_item(connection, conversation_state)
         process_node(session, connection["end_node"], conversation_state, ROBEAU)
 
 
@@ -490,7 +560,7 @@ def filter_logic_connections(connections: list[dict], logic_gate: str):
             then_conns.append(conn)
         else:
             other_conns.append(conn)
-            logger.warning(f'Atypical connection for logicGate {logic_gate}: "{conn}"')
+            logger.warning(f"Atypical connection for logicGate {logic_gate}: {conn}")
 
         formatted_and_conns = "\n".join([str(and_conn) for and_conn in and_conns])
         formatted_then_conns = "\n".join([str(then_conn) for then_conn in then_conns])
@@ -559,7 +629,7 @@ def process_logic_relationships(
         )
 
         if not gate_connections:
-            logger.info(f'No connections found for LogicGate: "{logic_gate}"')
+            logger.info(f"No connections found for LogicGate: {logic_gate}")
             continue
 
         process_logic_connections(
@@ -654,23 +724,19 @@ def process_definitions_relationships(
         )
 
 
-def activate_connection_or_item(node_dict: dict):
-    """Works for both activation connections (end_node) and dictionaries from the conversation state(node)."""
-    output = node_dict.get("end_node") or node_dict.get("node")
-    if isinstance(output, str):
-        print(output)
-        audio_player.play_audio(output)
-        logger.info(f'>>> OUTPUT: "{output}" ')
-    else:
-        logger.error(
-            f"Failed to activate node: {node_dict}. Expected string, got {type(output)}"
+def activate_connections(
+    connections: list[dict],
+    conversation_state: ConversationState,
+    random_source: bool = False,
+):
+    conn_names = [connection["end_node"] for connection in connections]
+    status = "random" if random_source else "non-random"
+    if len(conn_names) > 0:
+        logger.info(
+            f"Activating {len(connections)} {status} connection(s): {conn_names}"
         )
-    return node_dict
-
-
-def activate_connections(connections: list[dict]):
     for connection in connections:
-        activate_connection_or_item(connection)
+        activate_connection_or_item(connection, conversation_state)
     return connections
 
 
@@ -711,7 +777,9 @@ def select_random_connections(random_pool_groups: list[list[dict]]) -> list[dict
         connection = select_random_connection(pooled_group)
         pool_id = connection["params"].get("randomPoolId")
         end_node = connection["end_node"]
-        logger.info(f'Selected response for random pool Id {pool_id} is: "{end_node}"')
+        logger.info(
+            f"Selected response for random pool Id {pool_id} is: << {end_node} >>"
+        )
         selected_connections.append(connection)
 
     return selected_connections
@@ -736,10 +804,12 @@ def define_random_pools(connections: list[dict]) -> list[list[dict]]:
     return result
 
 
-def process_random_connections(random_connection: list[dict]) -> list[dict]:
+def process_random_connections(
+    random_connection: list[dict], conversation_state: ConversationState
+) -> list[dict]:
     random_pool_groups: list[list[dict]] = define_random_pools(random_connection)
     selected_connections: list[dict] = select_random_connections(random_pool_groups)
-    activate_connections(selected_connections)
+    activate_connections(selected_connections, conversation_state, random_source=True)
     return selected_connections
 
 
@@ -785,8 +855,14 @@ def process_activation_connections(
         else:
             regular_connections.append(connection)
 
-    activated_connections.extend(process_random_connections(random_connections))
-    activated_connections.extend(activate_connections(regular_connections))
+    activated_connections.extend(
+        process_random_connections(random_connections, conversation_state)
+    )
+    activated_connections.extend(
+        activate_connections(
+            regular_connections, conversation_state, random_source=False
+        )
+    )
 
     if activated_connections:
         conversation_state.reset_attribute("primes")
@@ -795,11 +871,15 @@ def process_activation_connections(
 
 
 def process_activation_relationships(
-    relationships_map: dict[str, list[dict]], conversation_state: ConversationState
+    relationships_map: dict[str, list[dict]],
+    conversation_state: ConversationState,
+    cutoff: Optional[bool] = False,
 ) -> list[str]:
-    """Walk down the activation relationships priority order and return the end nodes reached."""
     priority_order = ["CHECKS", "ATTEMPTS", "TRIGGERS", "DEFAULTS"]
     end_nodes_reached = []
+
+    if cutoff:
+        priority_order = ["CUTSOFF"] + priority_order
 
     for key in priority_order:
         if relationships_map[key]:
@@ -810,7 +890,7 @@ def process_activation_relationships(
             )
             if activated:
                 end_nodes_reached.extend([item["end_node"] for item in activated])
-                break  # Stop processing further as we've found the activated connections
+                break  # Stop processing further as we've found the first activated connections
 
     return end_nodes_reached
 
@@ -821,13 +901,14 @@ def process_relationships(
     conversation_state: ConversationState,
     node: str,
     source: QuerySource,
-    silent: bool = False,
+    silent: Optional[bool] = False,
+    cutoff: Optional[bool] = False,
 ) -> list[str]:
 
     def log_formatted_connections(relationships_map: dict[str, list[dict]]):
         all_connections = []
-        for connections in relationships_map.values():
-            all_connections.extend(connections)
+        for connection in relationships_map.values():
+            all_connections.extend(connection)
 
         formatted_connections = "\n".join(
             [str(connection) for connection in all_connections]
@@ -837,23 +918,26 @@ def process_relationships(
                 str(connection)
                 for connection in all_connections
                 if connection["relationship"]
-                not in ("CHECKS", "ATTEMPTS", "TRIGGERS", "DEFAULTS")
+                not in ("CHECKS", "ATTEMPTS", "TRIGGERS", "DEFAULTS", "CUTOFFS")
             ]
         )
-        if not silent:
+        if not silent and all_connections:
             logger.info(
-                f'Processing connections for node "{node}" ({source.name}):\n{formatted_connections}\n'
+                f"Processing connections for node << {node} >> ({source.name}):\n{formatted_connections}\n"
             )
-        else:
+        elif all_connections:
             logger.info(
-                f'Processing SILENT connections (activation relationships were not applied) for node "{node}" ({source.name}):\n{formatted_silent_connections} '
+                f"Processing SILENT connections (activation relationships were not applied) for node << {node} >> ({source.name}):\n{formatted_silent_connections} "
             )
+        elif not all_connections:
+            logger.warning(f"No connections found to process in {connections}")
 
     # Activation connections
     checks: list[dict] = []
     attempts: list[dict] = []
     triggers: list[dict] = []
     defaults: list[dict] = []
+    cutsoffs: list[dict] = []
     # Definition connections
     allows: list[dict] = []
     locks: list[dict] = []
@@ -876,6 +960,7 @@ def process_relationships(
         "ATTEMPTS": attempts,
         "TRIGGERS": triggers,
         "DEFAULTS": defaults,
+        "CUTSOFF": cutsoffs,
         # Definitions
         "ALLOWS": allows,
         "LOCKS": locks,
@@ -903,7 +988,7 @@ def process_relationships(
 
     if not silent:
         end_nodes_reached = process_activation_relationships(
-            relationships_map, conversation_state
+            relationships_map, conversation_state, cutoff
         )
     else:
         end_nodes_reached = []
@@ -927,10 +1012,11 @@ def process_node(
     node: str,
     conversation_state: ConversationState,
     source: QuerySource,
-    silent: bool = False,
+    silent: Optional[bool] = False,
+    cutoff: Optional[bool] = False,
 ):
 
-    logger.info(f'Processing node: "{node}" ({source.name})')
+    logger.info(f"Processing node: << {node} >> ({source.name})")
 
     connections = get_node_connections(
         session=session,
@@ -940,7 +1026,9 @@ def process_node(
     )
 
     if not connections:
-        logger.info(f'End of process for node: "{node}" from source {source.name}\n')
+        logger.info(
+            f"No connections obtain for node: << {node} >> from source {source.name}\n"
+        )
         return
 
     response_nodes_reached = process_relationships(
@@ -950,15 +1038,27 @@ def process_node(
         node=node,
         source=source,
         silent=silent,
+        cutoff=cutoff,
     )
 
     for response_node in response_nodes_reached:
         if response_node in transmissions_output_aliases:
             handle_transmission_output(response_node, conversation_state)
-        # Process further nodes that are activated by the current node
-        process_node(session, response_node, conversation_state, ROBEAU)
 
-    logger.info(f'End of process for node: "{node}" from source {source.name}\n')
+        if audio_started_event.is_set():
+            wait_for_audio_to_play(response_nodes_reached=response_nodes_reached)
+        else:
+            logger.info("No audio to play, continuing processing")
+
+        process_node(
+            session,
+            response_node,
+            conversation_state,
+            ROBEAU,
+            cutoff=conversation_state.cutoff,
+        )
+
+    logger.info(f"End of process for node: << {node} >> from source {source.name}\n")
 
 
 def run_update_conversation_state(
@@ -1017,7 +1117,7 @@ def main():
     )
     prompt_session: PromptSession = PromptSession()
 
-    greeted = False
+    global node_thread
 
     try:
         while True:
@@ -1036,26 +1136,39 @@ def main():
                 if user_query == "exit":
                     print("Exiting...")
                     return False
+
+                elif user_query == "stfu":
+                    audio_player.stop_audio()
+                    if node_thread:
+                        node_thread.join()
+
+                elif node_thread and node_thread.is_alive():
+                    print(
+                        f"Query refused, processing node: interrupt with << stfu >> if needed"
+                    )
+
                 elif (
                     conversation_state.allows
                     or conversation_state.expects
                     or conversation_state.listens
                 ) and user_query:
-                    process_node(
-                        session=session,
-                        node=user_query,
-                        conversation_state=conversation_state,
-                        source=USER,
-                        silent=silent,
+                    node_thread = Thread(
+                        target=process_node,
+                        args=(session, user_query, conversation_state, USER, silent),
                     )
+                    node_thread.start()
                 elif user_query:
-                    process_node(
-                        session=session,
-                        node=user_query,
-                        conversation_state=conversation_state,
-                        source=GREETING,
-                        silent=silent,
+                    node_thread = Thread(
+                        target=process_node,
+                        args=(
+                            session,
+                            user_query,
+                            conversation_state,
+                            GREETING,
+                            silent,
+                        ),
                     )
+                    node_thread.start()
 
     except Exception as e:
         print(f"Error occurred: {e}")
