@@ -987,6 +987,12 @@ def process_relationships(
     log_formatted_connections(relationships_map)
     conversation_state.log_conversation_state()
 
+    if (
+        cutoff and not cutsoffs
+    ):  # If robeau was cut off, but there are no particular cutsoffs defined
+        # TODO Implement a default cutoff message
+        pass
+
     if not silent:
         end_nodes_reached = process_activation_relationships(
             relationships_map, conversation_state, cutoff
@@ -1112,33 +1118,69 @@ def cleanup(driver, session, stop_event, update_thread):
     update_thread.join()
 
 
+def check_for_particular_query(user_query: str):
+    force = False
+    silent = False
+
+    if "--silent" in user_query:
+        silent = True
+        user_query = user_query.replace("--silent", "").strip()
+    elif "--force" in user_query:
+        force = True
+        user_query = user_query.replace("--force", "").strip()
+
+    return force, silent, user_query
+
+
 def main():
     driver, session, conversation_state, stop_event, update_thread, pause_event = (
         initialize()
     )
     prompt_session: PromptSession = PromptSession()
-
     global node_thread
+
+    def launch_regular_query():
+        node_thread = Thread(
+            target=process_node,
+            args=(session, user_query, conversation_state, USER, silent),
+        )
+        node_thread.start()
+
+    def launch_greeting_query():
+        node_thread = Thread(
+            target=process_node,
+            args=(
+                session,
+                user_query,
+                conversation_state,
+                GREETING,
+                silent,
+            ),
+        )
+        node_thread.start()
+
+    def launch_forced_query():
+        """Used for testing to trigger any node without any restrictions"""
+        node_thread = Thread(
+            target=process_node,
+            args=(
+                session,
+                user_query,
+                conversation_state,
+                MODIFIER,  # has access to all node labels
+                silent,
+            ),
+        )
+        node_thread.start()
 
     try:
         while True:
             with patch_stdout():
                 user_query = prompt_session.prompt("Query: ").strip().lower()
 
-                # Check if --silent is in the user query
-                if "--silent" in user_query:
-                    silent = True
-                    user_query = user_query.replace(
-                        "--silent", ""
-                    ).strip()  # Remove --silent from the query
-                else:
-                    silent = False
+                force, silent, user_query = check_for_particular_query(user_query)
 
-                if user_query == "exit":
-                    print("Exiting...")
-                    return False
-
-                elif user_query == "stfu":
+                if user_query == "stfu":
                     audio_player.stop_audio()
                     if node_thread:
                         node_thread.join()
@@ -1148,28 +1190,18 @@ def main():
                         f"Query refused, processing node: interrupt with << stfu >> if needed"
                     )
 
-                elif (
+                elif user_query and force:
+                    launch_forced_query()
+
+                elif user_query and (
                     conversation_state.allows
                     or conversation_state.expects
                     or conversation_state.listens
-                ) and user_query:
-                    node_thread = Thread(
-                        target=process_node,
-                        args=(session, user_query, conversation_state, USER, silent),
-                    )
-                    node_thread.start()
+                ):
+                    launch_regular_query()
+
                 elif user_query:
-                    node_thread = Thread(
-                        target=process_node,
-                        args=(
-                            session,
-                            user_query,
-                            conversation_state,
-                            GREETING,
-                            silent,
-                        ),
-                    )
-                    node_thread.start()
+                    launch_greeting_query()
 
     except Exception as e:
         print(f"Error occurred: {e}")

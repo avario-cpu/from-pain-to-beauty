@@ -276,7 +276,10 @@ targetWindowTitle := "Your Window Title Here"
     Input, NextKey, L1
     if (NextKey = "t") {
         SetText()
-}
+    } else if (NextKey = "t") {
+        SetRandomWeight()
+    }
+    
 return
 
 ^+r:: ; Write return : Ctrl+Shift+D

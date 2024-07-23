@@ -149,6 +149,12 @@ SetText() {
     Send, {Left}
 }
 
+SetRandomWeight(){
+    SendInput, set{space}
+    Input, Input1, L2
+    SendInput, %Input1%.randomWeight=
+}
+
 HandleRelationshipInput(user_input) {
     if (GetKeyState("Shift", "P") && !GetKeyState("Alt", "P")) {
         if (user_input = "lo") {
@@ -273,10 +279,13 @@ return
 targetWindowTitle := "Your Window Title Here"
 
 ^+s:: ; Set Hotkey: Ctrl+Shift+S 
-    Input, NextKey, L1
-    if (NextKey = "t") {
+    Input, NextKey, L2
+    if (NextKey = "te") {
         SetText()
-}
+    } else if (NextKey = "rw") {
+        SetRandomWeight()
+    }
+    
 return
 
 ^+r:: ; Write return : Ctrl+Shift+D
