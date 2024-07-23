@@ -440,6 +440,7 @@ def wait_for_audio_to_play(response_nodes_reached: list[str]):
         f"Stopping to wait for audio to play for nodes: {response_nodes_reached} "
     )
     audio_finished_event.wait()
+    audio_player.join_threads()
     audio_started_event.clear()
     logger.info(
         f"Finished waiting for audio to play for nodes: {response_nodes_reached} "
@@ -1027,7 +1028,7 @@ def process_node(
 
     if not connections:
         logger.info(
-            f"No connections obtain for node: << {node} >> from source {source.name}\n"
+            f"No connection obtained for node: << {node} >> from source {source.name}\n"
         )
         return
 

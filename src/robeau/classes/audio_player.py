@@ -16,6 +16,7 @@ class AudioPlayer:
         self.logger = logger
         self.playing_threads: list[Thread] = []
         self.stop_events: list[Event] = []
+        self.threads_to_join: list[Thread] = []
         self.lock = threading.Lock()
         self.active_threads = 0
 
@@ -107,8 +108,9 @@ class AudioPlayer:
         with self.lock:
             try:
                 index = self.stop_events.index(stop_event)
+                thread = self.playing_threads.pop(index)
                 self.stop_events.pop(index)
-                self.playing_threads.pop(index)
+                self.threads_to_join.append(thread)  # Add thread to list to join later
             except ValueError:
                 self.logger.error("Error removing thread or stop event.")
                 return
@@ -138,3 +140,10 @@ class AudioPlayer:
                 self.logger.debug("Clearing playing threads and stop events.")
                 self.playing_threads.clear()
                 self.stop_events.clear()
+
+    def join_threads(self):
+        """Join threads that have finished their work."""
+        self.logger.debug("Joining completed threads.")
+        for thread in self.threads_to_join:
+            thread.join()
+        self.threads_to_join.clear()
