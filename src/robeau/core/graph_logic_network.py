@@ -22,6 +22,7 @@ from src.robeau.classes.graph_logic_constants import (
     NO_MATCHING_PROMPT_OR_WHISPER,
     RESET_EXPECTATIONS,
     ROBEAU,
+    SET_ROBEAU_UNRESPONSIVE,
     SYSTEM,
     USER,
     QuerySource,
@@ -37,7 +38,10 @@ logger = setup_logger(SCRIPT_NAME, level=DEBUG)
 class ConversationState:
     def __init__(self, logger: Logger):
         self.logger = logger
+        # states
         self.cutoff = False
+        self.stubborn = {"state": False, "duration": 0.0}
+        self.unresponsive = {"state": False, "duration": 0.0}
         # definitions items
         self.allows: list[dict] = []
         self.locks: list[dict] = []
@@ -641,30 +645,13 @@ def process_logic_relationships(
 def process_modifications_connections(
     session: Session,
     connections: list[dict],
-    conversation_state: ConversationState,
-    method: str,
+    process_method,
 ):
-    method_map = {
-        "delay_item": lambda end_node, params: conversation_state.delay_item(
-            end_node, end_node_label, params.get("duration")
-        ),  # unused, might change in the future
-        "disable_item": lambda end_node, params: conversation_state.disable_item(
-            end_node
-        ),
-        "apply_definitions": lambda end_node, params: conversation_state.apply_definitions(
-            session, end_node
-        ),
-        "revert_definitions": lambda end_node, params: conversation_state.revert_definitions(
-            session, end_node
-        ),
-    }
-
-    if method in method_map:
-        for connection in connections:
-            end_node = connection.get("end_node", "")
-            end_node_label: list[str] = connection.get("labels", {}).get("end", [])
-            params = connection.get("params", {})
-            method_map[method](end_node, params)
+    for connection in connections:
+        end_node = connection.get("end_node", "")
+        labels = connection.get("labels", {}).get("end", [])
+        duration = connection.get("params", {}).get("duration")
+        process_method(end_node, labels, duration, session)
 
 
 def process_modifications_relationships(
@@ -673,27 +660,32 @@ def process_modifications_relationships(
     conversation_state: ConversationState,
 ):
     relationship_methods = {
-        "DELAYS": "delay_item",  # Unused right now but may be used in the future
-        "DISABLES": "disable_item",
-        "APPLIES": "apply_definitions",
-        "REVERTS": "revert_definitions",
+        "DELAYS": lambda end_node, labels, duration, session: conversation_state.delay_item(
+            end_node, labels, duration
+        ),  # Unused right now but may be used in the future
+        "DISABLES": lambda end_node, labels, duration, session: conversation_state.disable_item(
+            end_node
+        ),
+        "APPLIES": lambda end_node, labels, duration, session: conversation_state.apply_definitions(
+            session, end_node
+        ),
+        "REVERTS": lambda end_node, labels, duration, session: conversation_state.revert_definitions(
+            session, end_node
+        ),
     }
-    for relationship, method in relationship_methods.items():
+
+    for relationship, process_method in relationship_methods.items():
         connections = relationships_map.get(relationship, [])
         if connections:
-            process_modifications_connections(
-                session, connections, conversation_state, method
-            )
+            process_modifications_connections(session, connections, process_method)
 
 
-def process_definitions_connections(
-    connections: list[dict], conversation_state: ConversationState, method: str
-):
+def process_definitions_connections(connections: list[dict], method):
     for connection in connections:
         end_node = connection.get("end_node", "")
         duration = connection.get("params", {}).get("duration")
         end_node_label = connection.get("labels", {}).get("end", [])
-        getattr(conversation_state, method)(end_node, end_node_label, duration)
+        method(end_node, end_node_label, duration)
 
 
 def process_definitions_relationships(
@@ -702,19 +694,19 @@ def process_definitions_relationships(
     conversation_state: ConversationState,
 ):
     relationship_methods = {
-        "ALLOWS": "add_allows",
-        "LOCKS": "add_locks",
-        "UNLOCKS": "add_unlocks",
-        "EXPECTS": "add_expects",
-        "LISTENS": "add_listens",
-        "PRIMES": "add_primes",
-        "INITIATES": "add_initiates",
+        "ALLOWS": conversation_state.add_allows,
+        "LOCKS": conversation_state.add_locks,
+        "UNLOCKS": conversation_state.add_unlocks,
+        "EXPECTS": conversation_state.add_expects,
+        "LISTENS": conversation_state.add_listens,
+        "PRIMES": conversation_state.add_primes,
+        "INITIATES": conversation_state.add_initiates,
     }
 
     for relationship, method in relationship_methods.items():
         connections = relationships_map.get(relationship, [])
         if connections:
-            process_definitions_connections(connections, conversation_state, method)
+            process_definitions_connections(connections, method)
 
     if relationships_map["EXPECTS"]:
         process_node(
@@ -919,7 +911,7 @@ def process_relationships(
                 str(connection)
                 for connection in all_connections
                 if connection["relationship"]
-                not in ("CHECKS", "ATTEMPTS", "TRIGGERS", "DEFAULTS", "CUTOFFS")
+                not in ("CHECKS", "ATTEMPTS", "TRIGGERS", "DEFAULTS", "CUTSOFF")
             ]
         )
         if not silent and all_connections:
@@ -933,6 +925,8 @@ def process_relationships(
         elif not all_connections:
             logger.warning(f"No connections found to process in {connections}")
 
+    # Logic connections
+    ifs: list[dict] = []
     # Activation connections
     checks: list[dict] = []
     attempts: list[dict] = []
@@ -952,10 +946,10 @@ def process_relationships(
     delays: list[dict] = []  # Unused right now but may be in the future
     reverts: list[dict] = []
     applies: list[dict] = []
-    # Logic connections
-    ifs: list[dict] = []
 
     relationships_map = {
+        # Logics checks
+        "IF": ifs,
         # Activations
         "CHECKS": checks,
         "ATTEMPTS": attempts,
@@ -975,8 +969,6 @@ def process_relationships(
         "DELAYS": delays,  # Unused right now but may be in the future
         "APPLIES": applies,
         "REVERTS": reverts,
-        # Logics checks
-        "IF": ifs,
     }
 
     for connection in connections:
@@ -993,6 +985,8 @@ def process_relationships(
         # TODO Implement a default cutoff message
         pass
 
+    process_logic_relationships(session, relationships_map, conversation_state)
+
     if not silent:
         end_nodes_reached = process_activation_relationships(
             relationships_map, conversation_state, cutoff
@@ -1002,7 +996,6 @@ def process_relationships(
 
     process_definitions_relationships(session, relationships_map, conversation_state)
     process_modifications_relationships(session, relationships_map, conversation_state)
-    process_logic_relationships(session, relationships_map, conversation_state)
 
     return end_nodes_reached
 
@@ -1012,6 +1005,9 @@ def handle_transmission_output(
 ):
     if transmission_node == RESET_EXPECTATIONS:
         conversation_state.reset_attribute("expects")
+    elif transmission_node == SET_ROBEAU_UNRESPONSIVE:
+        conversation_state.unresponsive["state"] = True
+        conversation_state.unresponsive["duration"] = random.randint(20, 60)
 
 
 def process_node(
@@ -1140,6 +1136,7 @@ def main():
     global node_thread
 
     def launch_regular_query():
+        global node_thread
         node_thread = Thread(
             target=process_node,
             args=(session, user_query, conversation_state, USER, silent),
@@ -1147,6 +1144,7 @@ def main():
         node_thread.start()
 
     def launch_greeting_query():
+        global node_thread
         node_thread = Thread(
             target=process_node,
             args=(
@@ -1161,6 +1159,7 @@ def main():
 
     def launch_forced_query():
         """Used for testing to trigger any node without any restrictions"""
+        global node_thread
         node_thread = Thread(
             target=process_node,
             args=(

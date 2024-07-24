@@ -5,7 +5,7 @@ SetTitleMatchMode, 2 ; Allows for partial matching of the window title
 
 targetWindowTitle := "neo4j@bolt://localhost:7687/neo4j - Neo4j Browser"
 
-MatchNodeSingle() {
+MatchNodeAlias() {
     SendInput, MATCH(
     Input, UserInput, L2
     SendInput, %UserInput%){Shift down}{Enter}{Shift up}WHERE apoc.node.id(%UserInput%)=
@@ -19,10 +19,6 @@ MatchNodeLabel() {
     SendInput, % HandleNodeInput(Input1)
 }
 
-MatchRelationshipSingle() {
-    SendInput, MATCH(xx)-[rr]->(yy)
-    SendInput, {End}{Shift down}{Enter}{Shift up}WHERE apoc.rel.id(rr)=
-}
 
 MatchRelationshipAlias() {
     SendInput, MATCH()-[]->()
@@ -63,14 +59,14 @@ MatchPropertyKey() {
 }
 
 MatchPathNodeOut(){
-    SendInput, MATCH pp=(xx)-[rr*1..3]->(yy)
+    SendInput, MATCH pp=(xx)-[rr*1..5]->(yy)
     SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(xx)=
     SendInput, {Shift down}{Enter}{Shift up}RETURN pp
     SendInput, {Up}{End}
 }
 
 MatchPathNodeIn(){
-    SendInput, MATCH pp=(xx)-[rr*1..3]->(yy)
+    SendInput, MATCH pp=(xx)-[rr*1..5]->(yy)
     SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(yy)=
     SendInput, {Shift down}{Enter}{Shift up}RETURN pp
     SendInput, {Up}{End}
@@ -155,6 +151,12 @@ SetRandomWeight(){
     SendInput, %Input1%.randomWeight=
 }
 
+SetDuration(){
+    SendInput, set{space}
+    Input, Input1, L2
+    SendInput, %Input1%.duration=
+}
+
 HandleRelationshipInput(user_input) {
     if (GetKeyState("Shift", "P") && !GetKeyState("Alt", "P")) {
         if (user_input = "lo") {
@@ -232,12 +234,10 @@ HandleNodeInput(user_input) {
 #If WinActive(targetWindowTitle)
 ^+m:: ; Matches Hotkey: Ctrl+Shift+M
     Input, NextKey, L2
-    if (NextKey = "ns") {
-        MatchNodeSingle()
+    if (NextKey = "na") {
+        MatchNodeAlias()
     } else if (NextKey = "nl") {
         MatchNodeLabel()
-    } else if (NextKey = "rs") {
-        MatchRelationshipSingle()
     } else if (NextKey = "ra") {
         MatchRelationshipAlias()
     } else if (NextKey = "rt") {
@@ -284,6 +284,8 @@ targetWindowTitle := "Your Window Title Here"
         SetText()
     } else if (NextKey = "rw") {
         SetRandomWeight()
+    } else if (NextKey = "du") {
+        SetDuration()
     }
     
 return
