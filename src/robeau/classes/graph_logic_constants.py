@@ -18,40 +18,35 @@ GREETING = QuerySource.GREETING
 MODIFIER = QuerySource.MODIFIER
 
 
-class TransmissionsInput(enum.Enum):
-    # IMPORTANT: These values must match the database text values
-    EXPECTATIONS_SET_MESSAGE = "EXPECTATIONS SET"
-    EXPECTATIONS_SUCCESS_MESSAGE = "EXPECTATIONS SUCCESS"
-    EXPECTATIONS_FAILURE_MESSAGE = "EXPECTATIONS FAILURE"
+"""Below are a list of transmission nodes: They are nodes either triggered by code logic (input) or that will trigger particular code logic (output)"""
 
-    ANY_MATCHING_PROMPT_OR_WHISPER_MESSAGE = "ANY MATCHING PROMPT OR WHISPER"
-    NO_MATCHING_PROMPT_OR_WHISPER_MESSAGE = "NO MATCHING PROMPT OR WHISPER"
+# Inputs ------------------------------------
 
+# Expectations
+EXPECTATIONS_SET = "EXPECTATIONS SET"
+EXPECTATIONS_SUCCESS = "EXPECTATIONS SUCCESS"
+EXPECTATIONS_FAILURE = "EXPECTATIONS FAILURE"
 
-class TransmissionsOutput(enum.Enum):
-    # IMPORTANT: These values must match the database text values
-    RESET_EXPECTATIONS_MESSAGE = "RESET EXPECTATIONS"
-    SET_ROBEAU_UNRESPONSIVE_MESSAGE = "SET ROBEAU UNRESPONSIVE"
+# Greeting
+ANY_MATCHING_PROMPT_OR_WHISPER = "ANY MATCHING PROMPT OR WHISPER"
+NO_MATCHING_PROMPT_OR_WHISPER = "NO MATCHING PROMPT OR WHISPER"
 
+# Robeau mad
+ROBEAU_NO_MORE_STUBBORN = "ROBEAU NO MORE STUBBORN"
 
-# Inputs for expectations
-EXPECTATIONS_SET = TransmissionsInput.EXPECTATIONS_SET_MESSAGE.value
-EXPECTATIONS_SUCCESS = TransmissionsInput.EXPECTATIONS_SUCCESS_MESSAGE.value
-EXPECTATIONS_FAILURE = TransmissionsInput.EXPECTATIONS_FAILURE_MESSAGE.value
+# Outputs -----------------------------------
 
-# Outputs for expectations
-RESET_EXPECTATIONS = TransmissionsOutput.RESET_EXPECTATIONS_MESSAGE.value
+# Expectations
+RESET_EXPECTATIONS = "RESET EXPECTATIONS"
 
-# Inputs for greeting
-ANY_MATCHING_PROMPT_OR_WHISPER = (
-    TransmissionsInput.ANY_MATCHING_PROMPT_OR_WHISPER_MESSAGE.value
-)
-NO_MATCHING_PROMPT_OR_WHISPER = (
-    TransmissionsInput.NO_MATCHING_PROMPT_OR_WHISPER_MESSAGE.value
-)
-
-SET_ROBEAU_UNRESPONSIVE = TransmissionsOutput.SET_ROBEAU_UNRESPONSIVE_MESSAGE.value
+# Robeau mad
+SET_ROBEAU_UNRESPONSIVE = "SET ROBEAU UNRESPONSIVE"
+SET_ROBEAU_STUBBORN = "SET ROBEAU STUBBORN"
 
 
-# List used to check if a reached node is a transmission output message
-transmissions_output_aliases = [RESET_EXPECTATIONS, SET_ROBEAU_UNRESPONSIVE]
+# List used to check if a reached node is an output message we processing a node chain.
+transmission_output_nodes = [
+    RESET_EXPECTATIONS,
+    SET_ROBEAU_UNRESPONSIVE,
+    SET_ROBEAU_STUBBORN,
+]

@@ -23,10 +23,12 @@ from src.robeau.classes.graph_logic_constants import (
     RESET_EXPECTATIONS,
     ROBEAU,
     SET_ROBEAU_UNRESPONSIVE,
+    SET_ROBEAU_STUBBORN,
     SYSTEM,
     USER,
+    ROBEAU_NO_MORE_STUBBORN,
     QuerySource,
-    transmissions_output_aliases,
+    transmission_output_nodes,
 )
 from src.robeau.core.constants import AUDIO_MAPPINGS_FILE_PATH
 from src.utils.helpers import construct_script_name, setup_logger
@@ -40,8 +42,20 @@ class ConversationState:
         self.logger = logger
         # states
         self.cutoff = False
-        self.stubborn = {"state": False, "duration": 0.0}
-        self.unresponsive = {"state": False, "duration": 0.0}
+        # time-bound states
+        self.stubborn = {
+            "state": False,
+            "duration": 0.0,
+            "time_left": None,
+            "start_time": 0.0,
+        }
+        self.unresponsive = {
+            "state": False,
+            "duration": 0.0,
+            "time_left": None,
+            "start_time": 0.0,
+        }
+
         # definitions items
         self.allows: list[dict] = []
         self.locks: list[dict] = []
@@ -67,11 +81,11 @@ class ConversationState:
                 if duration is None:  # None means infinite duration here
                     return
 
-                # Refresh duration if the item already exists
+                # Reset duration if the item already exists
                 existing_item["duration"] = duration
-                existing_item["timeLeft"] = duration
+                existing_item["time_left"] = duration
                 existing_item["start_time"] = start_time
-                self.logger.info(f"Refreshed the time duration of {existing_item}")
+                self.logger.info(f"Reset the time duration of {existing_item}")
                 return
 
         item_list.append(
@@ -79,7 +93,7 @@ class ConversationState:
                 "type": item_type,
                 "node": node,
                 "labels": node_labels,
-                "timeLeft": duration,
+                "time_left": duration,
                 "duration": duration,
                 "start_time": start_time,
             }
@@ -121,26 +135,39 @@ class ConversationState:
                     self.logger.info(f"Item disabled: {item}")
                     return
 
+    def set_state(self, state_name: str, duration: float):
+        state_obj = getattr(self, state_name, None)
+        if state_obj:
+            state_obj["state"] = True
+            state_obj["duration"] = duration
+            state_obj["start_time"] = time.time()
+            state_obj["time_left"] = duration
+            self.logger.info(
+                f"State {state_name} set to {state_name} for {duration} seconds"
+            )
+        else:
+            logger.error(f"Invalid state name {state_name}")
+
     def _update_time_left(self, item: dict):
         current_time = time.time()
         start_time = item["start_time"]
         duration = item["duration"]
-        time_left = item.get("timeLeft")
+        time_left = item["time_left"]
 
         if time_left is not None:
             elapsed_time = current_time - start_time
             remaining_time = max(0, duration - elapsed_time)
-            item["timeLeft"] = remaining_time
+            item["time_left"] = remaining_time
 
     def _remove_expired(
-        self, items: list, log_messages: list, session: Session
-    ) -> list:
+        self, items: list[dict], log_messages: list[str], session: Session
+    ) -> list[dict]:
         valid_items = []
         complete_initiations = []
 
         for item in items:
             self._update_time_left(item)
-            time_left = item.get("timeLeft")
+            time_left = item.get("time_left")
             item_type = item.get("type")
             node = item.get("node")
             labels = item.get("labels", [])
@@ -165,7 +192,7 @@ class ConversationState:
 
         return valid_items
 
-    def update_timed_items(self, session: "Session"):
+    def _update_timed_items(self, session: Session, log_messages: list[str]):
         items_to_update = [
             "allows",
             "locks",
@@ -175,7 +202,6 @@ class ConversationState:
             "listens",
             "initiates",
         ]
-        log_messages: list[str] = []
 
         for item in items_to_update:
             updated_items = self._remove_expired(
@@ -183,12 +209,43 @@ class ConversationState:
             )
             setattr(self, item, updated_items)
 
+    def _update_timed_states(self, session: Session, log_messages: list[str]):
+        states_to_update = ["stubborn", "unresponsive"]
+
+        for state in states_to_update:
+            state_obj = getattr(self, state)
+            self._update_time_left(state_obj)
+            time_left = state_obj.get("time_left")
+            enabled_state = state_obj["state"]
+
+            if enabled_state:
+                if time_left > 0:
+                    log_messages.append(
+                        f"State {state}: ({time_left:.2f}): {state_obj}"
+                    )
+                else:
+                    state_obj["state"] = False
+                    logger.info(f"Robeau is no longer in state {state} ")
+                    if state == "stubborn":
+                        process_node(
+                            session=session,
+                            node=ROBEAU_NO_MORE_STUBBORN,
+                            conversation_state=self,
+                            source=SYSTEM,
+                        )
+
+            setattr(self, state, state_obj)
+
+    def update_conversation_state(self, session: Session):
+        log_messages: list[str] = []
+
+        self._update_timed_items(session, log_messages)
+        self._update_timed_states(session, log_messages)
+
         if log_messages:
-            self.logger.info(
-                "Time-bound items update:\n" + "\n".join(log_messages) + "\n"
-            )
+            self.logger.info("Time-bound updates:\n" + "\n".join(log_messages) + "\n")
         else:
-            self.logger.info("No time-bound items to update")
+            self.logger.info("No time-bound items or states to update")
 
     def reset_attribute(self, attribute: str):
         valid_attributes = [
@@ -267,7 +324,7 @@ class ConversationState:
             for items in state_types:
                 for item in items:
                     node = item["node"]
-                    time_left = item.get("timeLeft")
+                    time_left = item.get("time_left")
                     item_type = item.get("type")
                     labels = item.get("labels", [])
                     if time_left is not None:
@@ -285,7 +342,6 @@ class ConversationState:
         self.logger.info("\n".join(log_message) + "\n")
 
 
-""" Initialize the audio player at the module level so it can be used in the process_node function, which is super deep in the function chain, without having to pass it to every single function before just to use it at the final step. """
 audio_player = AudioPlayer(AUDIO_MAPPINGS_FILE_PATH, logger=logger)
 audio_finished_event = threading.Event()
 audio_started_event = threading.Event()
@@ -682,10 +738,10 @@ def process_modifications_relationships(
 
 def process_definitions_connections(connections: list[dict], method):
     for connection in connections:
-        end_node = connection.get("end_node", "")
+        node = connection.get("end_node", "")
         duration = connection.get("params", {}).get("duration")
-        end_node_label = connection.get("labels", {}).get("end", [])
-        method(end_node, end_node_label, duration)
+        labels = connection.get("labels", {}).get("end", [])
+        method(node, labels, duration)
 
 
 def process_definitions_relationships(
@@ -1006,8 +1062,9 @@ def handle_transmission_output(
     if transmission_node == RESET_EXPECTATIONS:
         conversation_state.reset_attribute("expects")
     elif transmission_node == SET_ROBEAU_UNRESPONSIVE:
-        conversation_state.unresponsive["state"] = True
-        conversation_state.unresponsive["duration"] = random.randint(20, 60)
+        conversation_state.set_state("unresponsive", random.randint(10, 20))
+    elif transmission_node == SET_ROBEAU_STUBBORN:
+        conversation_state.set_state("stubborn", random.randint(20, 30))
 
 
 def process_node(
@@ -1030,7 +1087,7 @@ def process_node(
 
     if not connections:
         logger.info(
-            f"No connection obtained for node: << {node} >> from source {source.name}\n"
+            f"No connection obtained for node: << {node} >> from source {source.name}"
         )
         return
 
@@ -1045,7 +1102,7 @@ def process_node(
     )
 
     for response_node in response_nodes_reached:
-        if response_node in transmissions_output_aliases:
+        if response_node in transmission_output_nodes:
             handle_transmission_output(response_node, conversation_state)
 
         if audio_started_event.is_set():
@@ -1072,7 +1129,7 @@ def run_update_conversation_state(
 ):
     while not stop_event.is_set():
         if not pause_event.is_set():
-            conversation_state.update_timed_items(session)
+            conversation_state.update_conversation_state(session)
         time.sleep(0.5)
 
 
@@ -1178,6 +1235,11 @@ def main():
                 user_query = prompt_session.prompt("Query: ").strip().lower()
 
                 force, silent, user_query = check_for_particular_query(user_query)
+
+                if conversation_state.unresponsive["state"] == True:
+                    time_left = conversation_state.unresponsive["time_left"]
+                    print(f"Robeau does not listen... time left: {time_left}")
+                    continue
 
                 if user_query == "stfu":
                     audio_player.stop_audio()

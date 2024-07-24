@@ -53,8 +53,8 @@ MatchRelationshipNodes() {
 
 MatchPropertyKey() {
     SendInput, MATCH (xx)-[rr]->(yy)
-    SendInput, {Shift down}{Enter}{Shift up}WHERE any(key IN keys(r) WHERE key = "")
-    SendInput, {Shift down}{Enter}{Shift up}RETURN xx,rr,y
+    SendInput, {Shift down}{Enter}{Shift up}WHERE any(key IN keys(rr) WHERE key = "")
+    SendInput, {Shift down}{Enter}{Shift up}RETURN xx,rr,yy
     SendInput, {Up}{End}{Left 2}
 }
 
