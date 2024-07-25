@@ -14,7 +14,7 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from src.robeau.classes.audio_player import AudioPlayer
 from src.robeau.classes.graph_logic_constants import (
-    ANY_MATCHING_PROMPT_OR_WHISPER,
+    ANY_MATCHING_PROMPT,
     EXPECTATIONS_FAILURE,
     EXPECTATIONS_SET,
     EXPECTATIONS_SUCCESS,
@@ -27,7 +27,9 @@ from src.robeau.classes.graph_logic_constants import (
     SET_ROBEAU_STUBBORN,
     SYSTEM,
     USER,
+    ANY_MATCHING_PLEAD,
     ROBEAU_NO_MORE_STUBBORN,
+    ANY_MATCHING_WHISPER,
     QuerySource,
     transmission_output_nodes,
 )
@@ -59,7 +61,7 @@ class ConversationState:
             "start_time": 0.0,
         }
 
-        self.attributes: dict[str, list[dict]] = {
+        self.context: dict[str, list[dict]] = {
             "allows": [],
             "locks": [],
             "unlocks": [],
@@ -74,7 +76,7 @@ class ConversationState:
         self, node: str, labels: list[str], duration: float | None, item_type: str
     ):
         start_time = time.time()
-        item_list = self.attributes[item_type]
+        item_list = self.context[item_type]
 
         for existing_item in item_list:
             if existing_item["node"] == node:
@@ -103,18 +105,18 @@ class ConversationState:
     def add_item(
         self, node: str, labels: list[str], duration: float | None, item_type: str
     ):
-        if item_type in self.attributes:
+        if item_type in self.context:
             self._add_item(node, labels, duration, item_type)
 
     def delay_item(self, node: str, labels: list[str], duration: float | None):
         """Unused right now but may be used in the future, Logic wise just know that the difference between this and add_initiation is that this is for items that are already in the conversation state, which means a previously processed node wont be processed again if they are pointed to with a DELAY relationship"""
-        for item_type, node_list in self.attributes.items():
+        for item_type, node_list in self.context.items():
             for item in node_list:
                 if item["node"] == node:
                     self._add_item(node, labels, duration, item_type)
 
     def disable_item(self, node: str):
-        for node_list in self.attributes.values():
+        for node_list in self.context.values():
             for item in node_list:
                 if item["node"] == node:
                     node_list.remove(item)
@@ -187,7 +189,7 @@ class ConversationState:
                     source=ROBEAU,
                 )
 
-        items_after_inits = self.attributes[key]
+        items_after_inits = self.context[key]
         valid_items = [item for item in items_after_inits if item not in expired_items]
 
         return valid_items
@@ -197,11 +199,11 @@ class ConversationState:
         session: Session,
         log_messages: list[str],
     ):
-        for key in self.attributes:
+        for key in self.context:
             updated_items = self._remove_expired(
-                self.attributes[key], log_messages, session, key
+                self.context[key], log_messages, session, key
             )
-            self.attributes[key] = updated_items
+            self.context[key] = updated_items
 
     def _update_timed_states(self, session: Session, log_messages: list[str]):
         states_to_update = ["stubborn", "unresponsive"]
@@ -212,34 +214,28 @@ class ConversationState:
             time_left = state_obj.get("time_left")
             enabled_state = state_obj["state"]
 
-            if enabled_state:
-                if time_left > 0:
-                    log_messages.append(
-                        f"State {state}: ({time_left:.2f}): {state_obj}"
+            if not enabled_state:
+                continue
+
+            if time_left > 0:
+                log_messages.append(f"State {state}: ({time_left:.2f}): {state_obj}")
+            else:
+                state_obj["state"] = False
+                logger.info(f"Robeau is no longer in state {state} ")
+                if state == "stubborn":
+                    process_node(
+                        session=session,
+                        node=ROBEAU_NO_MORE_STUBBORN,
+                        conversation_state=self,
+                        source=SYSTEM,
                     )
-                else:
-                    state_obj["state"] = False
-                    logger.info(f"Robeau is no longer in state {state} ")
-                    if state == "stubborn":
-                        process_node(
-                            session=session,
-                            node=ROBEAU_NO_MORE_STUBBORN,
-                            conversation_state=self,
-                            source=SYSTEM,
-                        )
 
             setattr(self, state, state_obj)
 
-    def update_conversation_state(
-        self,
-        session: Session,
-    ):
+    def update_conversation_state(self, session: Session):
         log_messages: list[str] = []
 
-        self._update_timed_items(
-            session,
-            log_messages,
-        )
+        self._update_timed_items(session, log_messages)
         self._update_timed_states(session, log_messages)
 
         if log_messages:
@@ -251,8 +247,8 @@ class ConversationState:
         reset_attributes = []
 
         for attribute in attributes:
-            if attribute in self.attributes:
-                self.attributes[attribute] = []
+            if attribute in self.context:
+                self.context[attribute] = []
                 reset_attributes.append(attribute)
             else:
                 self.logger.error(f"Invalid attribute: {attribute}")
@@ -287,7 +283,7 @@ class ConversationState:
             self._revert_individual_definition(end_node)
 
     def _revert_individual_definition(self, node: str):
-        for definition_type, definitions in self.attributes.items():
+        for definition_type, definitions in self.context.items():
             initial_count = len(definitions)
             definitions[:] = [
                 definition for definition in definitions if definition["node"] != node
@@ -298,23 +294,23 @@ class ConversationState:
     def log_conversation_state(self):
         log_message = []
 
-        if any(self.attributes.values()):
-            log_message.append("Conversation state:")
-            for item_type, items in self.attributes.items():
-                for item in items:
-                    node = item["node"]
-                    time_left = item.get("time_left")
-                    labels = item.get("labels", [])
-                    time_left_str = (
-                        f"{time_left:.2f}" if time_left is not None else "Infinite"
-                    )
-                    log_message.append(
-                        f"{item_type}: {labels}: << {node} >> ({time_left_str}): {item}"
-                    )
-
-            log_message[1:] = sorted(log_message[1:])
-        else:
+        if not any(self.context.values()):
             log_message.append("No items in conversation state")
+
+        log_message.append("Conversation state:")
+        for item_type, items in self.context.items():
+            for item in items:
+                node = item["node"]
+                time_left = item.get("time_left")
+                labels = item.get("labels", [])
+                time_left_str = (
+                    f"{time_left:.2f}" if time_left is not None else "Infinite"
+                )
+                log_message.append(
+                    f"{item_type}: {labels}: << {node} >> ({time_left_str}): {item}"
+                )
+
+        log_message[1:] = sorted(log_message[1:])
 
         self.logger.info("\n".join(log_message) + "\n")
 
@@ -327,10 +323,28 @@ first_callback_made = threading.Event()
 node_thread: Thread | None = None
 
 
-class TransmissionInputs:
-    def __init__(self, session: Session, conversation_state: ConversationState):
-        self.session = session
-        self.conversation_state = conversation_state
+def handle_query_stage_transmissions(
+    result: Result,
+    session: Session,
+    conversation_state: ConversationState,
+    source: QuerySource,
+    labels: list[str],
+):
+
+    def process_no_matching_prompt_or_whisper():
+        process_node(
+            session, NO_MATCHING_PROMPT_OR_WHISPER, conversation_state, source=SYSTEM
+        )
+
+    def process_any_matching_plead():
+        process_node(session, ANY_MATCHING_PLEAD, conversation_state, source=SYSTEM)
+
+    if source == USER:
+        if not result.peek() and ("Prompt" in labels or "Whisper" in labels):
+            process_no_matching_prompt_or_whisper()
+
+        # elif "Plead" in labels:
+        #     process_any_matching_plead()
 
 
 def get_node_data(
@@ -341,16 +355,6 @@ def get_node_data(
     source: QuerySource,
 ) -> Result | None:
 
-    def process_any_matching_prompt_or_whisper():
-        process_node(
-            session, ANY_MATCHING_PROMPT_OR_WHISPER, conversation_state, source=SYSTEM
-        )
-
-    def process_no_matching_prompt_or_whisper():
-        process_node(
-            session, NO_MATCHING_PROMPT_OR_WHISPER, conversation_state, source=SYSTEM
-        )
-
     labels_query = "|".join(labels)
     query = f"""
     MATCH (x:{labels_query})-[r]->(y)
@@ -359,18 +363,11 @@ def get_node_data(
     """
     result = session.run(query, text=text)
 
-    if result.peek() and source == USER and ("Prompt" in labels or "Whisper" in labels):
-        process_any_matching_prompt_or_whisper()
+    handle_query_stage_transmissions(
+        result, session, conversation_state, source, labels
+    )
 
-    elif (
-        not result.peek()
-        and source == USER
-        and ("Prompt" in labels or "Whisper" in labels)
-    ):
-        process_no_matching_prompt_or_whisper()
-        return None
-
-    return result
+    return result if result.peek() else None
 
 
 def define_labels_and_text(
@@ -379,51 +376,72 @@ def define_labels_and_text(
     conversation_state: ConversationState,
     source: QuerySource,
 ) -> list[str]:
-    def meets_expectations():
-        return any(
-            text.lower() == item["node"].lower()
-            for item in conversation_state.attributes["expects"]
-        )
 
     def prompt_matches_allows():
-        return any(
+        if any(
             text.lower() == item["node"].lower()
-            for item in conversation_state.attributes["allows"]
-        )
+            for item in conversation_state.context["allows"]
+        ):
+            process_node(
+                session, ANY_MATCHING_PROMPT, conversation_state, source=SYSTEM
+            )
+            return True
 
-    def process_expectation_success():
-        process_node(session, EXPECTATIONS_SUCCESS, conversation_state, source=SYSTEM)
+    def prompt_matches_whispers():
+        if any(
+            text.lower() == item["node"].lower()
+            for item in conversation_state.context["listens"]
+        ):
+            process_node(
+                session, ANY_MATCHING_WHISPER, conversation_state, source=SYSTEM
+            )
+            return True
 
-    def process_expectation_failure():
-        process_node(session, EXPECTATIONS_FAILURE, conversation_state, source=SYSTEM)
+    def prompt_meets_expectations():
+        if any(
+            text.lower() == item["node"].lower()
+            for item in conversation_state.context["expects"]
+        ):
+            logger.info(f" << {text} >> meets conversation expectations")
+            process_node(
+                session, EXPECTATIONS_SUCCESS, conversation_state, source=SYSTEM
+            )
+            return True
+        else:
+            logger.info(f" << {text} >> does not meet conversation expectations")
+            process_node(
+                session, EXPECTATIONS_FAILURE, conversation_state, source=SYSTEM
+            )
+            return False
 
     labels = []
     if source == USER:
 
-        if not conversation_state.attributes["expects"]:
-
-            if prompt_matches_allows():
-                labels.append("Prompt")
-
-            if conversation_state.attributes["listens"]:
-                labels.append("Whisper")
-
-        elif meets_expectations():
-            logger.info(f" << {text} >> meets conversation expectations")
-            process_expectation_success()
+        if conversation_state.context["expects"] and prompt_meets_expectations():
             labels.append("Answer")
-        else:
-            logger.info(f" << {text} >> does not meet conversation expectations")
-            process_expectation_failure()
+            return labels
+
+        if conversation_state.stubborn["state"]:
+            labels.append("Plead")
+            return labels
+
+        if prompt_matches_allows():
+            labels.append("Prompt")
+
+        if prompt_matches_whispers():
+            labels.append("Whisper")
 
     elif source == GREETING:
         labels.append("Greeting")
+
     elif source == ROBEAU:
         labels.extend(
             ["Response", "Question", "LogicGate", "Greeting", "Output", "TrafficGate"]
         )
+
     elif source == SYSTEM:
         labels.append("Input")
+
     elif source == MODIFIER:
         labels.extend(
             [
@@ -437,6 +455,7 @@ def define_labels_and_text(
                 "Input",
                 "Output",
                 "TrafficGate",
+                "Plead",
             ]
         )
 
@@ -451,6 +470,7 @@ def get_node_connections(
 ) -> list[dict] | None:
 
     labels = define_labels_and_text(session, text, conversation_state, source)
+    logger.info(f"Labels for {text} are {labels}")
 
     if not labels:
         labels = [
@@ -465,9 +485,9 @@ def get_node_connections(
     result_data = [
         {
             "id": index,
-            "start_node": dict(record["x"])["text"],  # x is the start node
-            "relationship": record["r"].type,  # r is the relationship
-            "end_node": dict(record["y"])["text"],  # y is the end node
+            "start_node": dict(record["x"])["text"],
+            "relationship": record["r"].type,
+            "end_node": dict(record["y"])["text"],
             "params": dict(record["r"]),
             "labels": {
                 "start": list(record["x"].labels),
@@ -627,7 +647,7 @@ def determine_attribute(conversation_state: ConversationState, relationship: dic
     }
     for key, attribute_name in attribute_map.items():
         if key in relationship:
-            return conversation_state.attributes.get(attribute_name)
+            return conversation_state.context.get(attribute_name)
     return None
 
 
@@ -735,7 +755,7 @@ def process_definitions_relationships(
 ):
     for relationship, connections in relationships_map.items():
         relationship_lower = relationship.lower()
-        if relationship_lower in conversation_state.attributes:
+        if relationship_lower in conversation_state.context:
             for connection in connections:
                 node = connection.get("end_node")
                 duration = connection.get("params", {}).get("duration")
@@ -849,8 +869,8 @@ def execute_attempt(
     conversation_state: ConversationState,
 ):
     if any(
-        node == item["node"] for item in conversation_state.attributes["unlocks"]
-    ) or any(node == item["node"] for item in conversation_state.attributes["primes"]):
+        node == item["node"] for item in conversation_state.context["unlocks"]
+    ) or any(node == item["node"] for item in conversation_state.context["primes"]):
         logger.info(
             f"Successful attempt at connection: {list(connection.values())[1:4]}"
         )
@@ -864,10 +884,10 @@ def node_is_unaccessible(
     node: str, connection: dict, conversation_state: ConversationState
 ):
     conn_locked = any(
-        node == item["node"] for item in conversation_state.attributes["locks"]
+        node == item["node"] for item in conversation_state.context["locks"]
     )
     conn_unprimed = any(
-        node == item["node"] for item in conversation_state.attributes["unprimes"]
+        node == item["node"] for item in conversation_state.context["unprimes"]
     )
 
     if conn_locked:
@@ -1129,7 +1149,6 @@ def initialize():
     if not driver or not session:
         raise Exception("Failed to establish connection to Neo4j database")
     conversation_state = ConversationState(logger=logger)
-    transmission_inputs = TransmissionInputs(session, conversation_state)
     stop_event = threading.Event()
     pause_event = threading.Event()
     update_thread = threading.Thread(
@@ -1137,15 +1156,7 @@ def initialize():
         args=(conversation_state, session, stop_event, pause_event),
     )
     update_thread.start()
-    return (
-        driver,
-        session,
-        conversation_state,
-        transmission_inputs,
-        stop_event,
-        update_thread,
-        pause_event,
-    )
+    return (driver, session, conversation_state, stop_event, update_thread, pause_event)
 
 
 def cleanup(driver, session, stop_event, update_thread):
@@ -1182,7 +1193,6 @@ def launch_specified_query(
     global node_thread
 
     if query_type == "regular":
-
         node_thread = Thread(
             target=process_node,
             args=(session, user_query, conversation_state, USER, silent),
@@ -1192,13 +1202,7 @@ def launch_specified_query(
     elif query_type == "greeting":
         node_thread = Thread(
             target=process_node,
-            args=(
-                session,
-                user_query,
-                conversation_state,
-                GREETING,
-                silent,
-            ),
+            args=(session, user_query, conversation_state, GREETING, silent),
         )
         node_thread.start()
 
@@ -1206,27 +1210,15 @@ def launch_specified_query(
         """Used for testing to trigger any node without any restrictions"""
         node_thread = Thread(
             target=process_node,
-            args=(
-                session,
-                user_query,
-                conversation_state,
-                MODIFIER,  # has access to all node labels
-                silent,
-            ),
+            args=(session, user_query, conversation_state, MODIFIER, silent),
         )
         node_thread.start()
 
 
 def main():
-    (
-        driver,
-        session,
-        conversation_state,
-        transmission_inputs,
-        stop_event,
-        update_thread,
-        pause_event,
-    ) = initialize()
+    (driver, session, conversation_state, stop_event, update_thread, pause_event) = (
+        initialize()
+    )
     prompt_session: PromptSession = PromptSession()
     global node_thread
 
@@ -1268,9 +1260,9 @@ def main():
                     launch_query(user_query, query_type="forced", silent=silent)
 
                 elif (
-                    conversation_state.attributes["allows"]
-                    or conversation_state.attributes["expects"]
-                    or conversation_state.attributes["listens"]
+                    conversation_state.context["allows"]
+                    or conversation_state.context["expects"]
+                    or conversation_state.context["listens"]
                 ):
                     launch_query(user_query, query_type="regular", silent=silent)
 
