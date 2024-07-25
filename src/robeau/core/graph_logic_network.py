@@ -88,17 +88,17 @@ class ConversationState:
                 self.logger.info(f"Reset the time duration of {existing_item}")
                 return
 
-        item_list.append(
-            {
-                "type": item_type,
-                "node": node,
-                "labels": labels,
-                "time_left": duration,
-                "duration": duration,
-                "start_time": start_time,
-            }
-        )
-        self.logger.info(f"Added item: {item_type}: {labels}: << {node} >>")
+        item = {
+            "type": item_type,
+            "node": node,
+            "labels": labels,
+            "time_left": duration,
+            "duration": duration,
+            "start_time": start_time,
+        }
+
+        item_list.append(item)
+        self.logger.info(f"Added {item_type} << {node} >> {labels}: {item}")
 
     def add_item(
         self, node: str, labels: list[str], duration: float | None, item_type: str
@@ -145,13 +145,15 @@ class ConversationState:
             remaining_time = max(0, duration - elapsed_time)
             item["time_left"] = remaining_time
 
-    def _add_test_item(self):
-        self._add_item("Test", ["Tests"], 90.0, "initiates")
-
     def _remove_expired(
-        self, items: list[dict], log_messages: list[str], session: Session
+        self,
+        items: list[dict],
+        log_messages: list[str],
+        session: Session,
+        key: str,
     ) -> list[dict]:
         valid_items = []
+        expired_items = []
         complete_initiations = []
 
         for item in items:
@@ -168,6 +170,7 @@ class ConversationState:
                         f"{item_type}: {labels}: << {node} >> ({time_left:.2f}): {item}"
                     )
             else:
+                expired_items.append(item)
                 if item_type == "initiates":
                     complete_initiations.append(item)
                     self.logger.info(f"Initiation complete: {item}")
@@ -177,16 +180,26 @@ class ConversationState:
         if complete_initiations:
             for initiation in complete_initiations:
                 activate_connection_or_item(initiation, self, "item")
-                process_node(session, initiation["node"], self, source=ROBEAU)
-                self._add_test_item()
-                logger.debug(f"New dict after initiation complete : {self.__dict__}")
+                process_node(
+                    session,
+                    initiation["node"],
+                    self,
+                    source=ROBEAU,
+                )
+
+        items_after_inits = self.attributes[key]
+        valid_items = [item for item in items_after_inits if item not in expired_items]
 
         return valid_items
 
-    def _update_timed_items(self, session: Session, log_messages: list[str]):
+    def _update_timed_items(
+        self,
+        session: Session,
+        log_messages: list[str],
+    ):
         for key in self.attributes:
             updated_items = self._remove_expired(
-                self.attributes[key], log_messages, session
+                self.attributes[key], log_messages, session, key
             )
             self.attributes[key] = updated_items
 
@@ -217,10 +230,16 @@ class ConversationState:
 
             setattr(self, state, state_obj)
 
-    def update_conversation_state(self, session: Session):
+    def update_conversation_state(
+        self,
+        session: Session,
+    ):
         log_messages: list[str] = []
 
-        self._update_timed_items(session, log_messages)
+        self._update_timed_items(
+            session,
+            log_messages,
+        )
         self._update_timed_states(session, log_messages)
 
         if log_messages:
@@ -559,24 +578,17 @@ def process_initial_logic_check(connection: dict, attribute: list[dict]):
 
 
 def filter_logic_connections(connections: list[dict], logic_gate: str):
-    initial_conditions_rel = {
-        "IS_LOCKED",
-        "IS_UNLOCKED",
-        "IS_EXPECTED",
-        "IS_PRIMED",
-        "IS_UNPRIMED",
-        "IS_LISTENED",
-        "IS_INITIATED",
+    attribute_map = {
+        "IS_LOCKED": "locks",
+        "IS_UNLOCKED": "unlocks",
+        "IS_EXPECTED": "expects",
+        "IS_PRIMED": "primes",
+        "IS_UNPRIMED": "unprimes",
+        "IS_LISTENED": "listens",
+        "IS_INITIATED": "initiates",
     }
-    and_conditions_rel = {
-        "AND_IS_LOCKED",
-        "AND_IS_UNLOCKED",
-        "AND_IS_EXPECTED",
-        "AND_IS_PRIMED",
-        "AND_IS_UNPRIMED",
-        "AND_IS_LISTENED",
-        "AND_IS_INITIATED",
-    }
+
+    and_conditions_rel = {"AND_" + key for key in attribute_map.keys()}
 
     initial_conn = None
     and_conns = []
@@ -584,7 +596,7 @@ def filter_logic_connections(connections: list[dict], logic_gate: str):
     other_conns = []
 
     for conn in connections:
-        if conn["relationship"] in initial_conditions_rel:
+        if conn["relationship"] in attribute_map:
             initial_conn = conn
         elif conn["relationship"] in and_conditions_rel:
             and_conns.append(conn)
@@ -725,9 +737,12 @@ def process_definitions_relationships(
         relationship_lower = relationship.lower()
         if relationship_lower in conversation_state.attributes:
             for connection in connections:
-                node = connection.get("end_node", "")
+                node = connection.get("end_node")
                 duration = connection.get("params", {}).get("duration")
                 labels = connection.get("labels", {}).get("end", [])
+                if not node:
+                    logger.error(f"No end node for connection {connection}")
+                    continue
                 conversation_state.add_item(node, labels, duration, relationship_lower)
 
     if relationships_map["EXPECTS"]:
@@ -1092,7 +1107,6 @@ def run_update_conversation_state(
     while not stop_event.is_set():
         if not pause_event.is_set():
             conversation_state.update_conversation_state(session)
-            logger.debug(f"Dict from thread: {conversation_state.__dict__}\n")
         time.sleep(0.5)
 
 
@@ -1250,17 +1264,17 @@ def main():
                         f"Query refused, processing node: interrupt with << stfu >> if needed"
                     )
 
-                elif user_query and force:
+                elif force:
                     launch_query(user_query, query_type="forced", silent=silent)
 
-                elif user_query and (
+                elif (
                     conversation_state.attributes["allows"]
                     or conversation_state.attributes["expects"]
                     or conversation_state.attributes["listens"]
                 ):
                     launch_query(user_query, query_type="regular", silent=silent)
 
-                elif user_query:
+                else:
                     launch_query(user_query, query_type="greeting", silent=silent)
 
     except Exception as e:
