@@ -5,6 +5,7 @@ from collections import defaultdict
 from logging import DEBUG, INFO, Logger
 from threading import Thread
 from typing import Optional
+from typing import Literal
 
 from neo4j import GraphDatabase, Result, Session
 from prompt_toolkit import PromptSession
@@ -39,7 +40,9 @@ logger = setup_logger(SCRIPT_NAME, level=DEBUG)
 
 class ConversationState:
     def __init__(self, logger: Logger):
+        self.test_value = False
         self.logger = logger
+        self.lock = threading.Lock()
         # states
         self.cutoff = False
         # time-bound states
@@ -56,25 +59,22 @@ class ConversationState:
             "start_time": 0.0,
         }
 
-        # definitions items
-        self.allows: list[dict] = []
-        self.locks: list[dict] = []
-        self.unlocks: list[dict] = []
-        self.expects: list[dict] = []
-        self.primes: list[dict] = []
-        self.listens: list[dict] = []
-        # activations items
-        self.initiates: list[dict] = []
+        self.attributes: dict[str, list[dict]] = {
+            "allows": [],
+            "locks": [],
+            "unlocks": [],
+            "expects": [],
+            "primes": [],
+            "unprimes": [],
+            "listens": [],
+            "initiates": [],
+        }
 
     def _add_item(
-        self,
-        node: str,
-        node_labels: list[str],
-        duration: float | None,
-        item_list: list,
-        item_type: str,
+        self, node: str, labels: list[str], duration: float | None, item_type: str
     ):
         start_time = time.time()
+        item_list = self.attributes[item_type]
 
         for existing_item in item_list:
             if existing_item["node"] == node:
@@ -92,43 +92,29 @@ class ConversationState:
             {
                 "type": item_type,
                 "node": node,
-                "labels": node_labels,
+                "labels": labels,
                 "time_left": duration,
                 "duration": duration,
                 "start_time": start_time,
             }
         )
+        self.logger.info(f"Added item: {item_type}: {labels}: << {node} >>")
 
-    def add_allows(self, node: str, labels: list[str], duration: float | None):
-        self._add_item(node, labels, duration, self.allows, "allows")
-
-    def add_unlocks(self, node: str, labels: list[str], duration: float | None):
-        self._add_item(node, labels, duration, self.unlocks, "unlocks")
-
-    def add_locks(self, node: str, labels: list[str], duration: float | None):
-        self._add_item(node, labels, duration, self.locks, "locks")
-
-    def add_expects(self, node: str, labels: list[str], duration: float | None):
-        self._add_item(node, labels, duration, self.expects, "expects")
-
-    def add_primes(self, node: str, labels: list[str], duration: float | None):
-        self._add_item(node, labels, duration, self.primes, "primes")
-
-    def add_listens(self, node: str, labels: list[str], duration: float | None):
-        self._add_item(node, labels, duration, self.listens, "listens")
-
-    def add_initiates(self, node: str, labels: list[str], duration: float | None):
-        self._add_item(node, labels, duration, self.initiates, "initiates")
+    def add_item(
+        self, node: str, labels: list[str], duration: float | None, item_type: str
+    ):
+        if item_type in self.attributes:
+            self._add_item(node, labels, duration, item_type)
 
     def delay_item(self, node: str, labels: list[str], duration: float | None):
         """Unused right now but may be used in the future, Logic wise just know that the difference between this and add_initiation is that this is for items that are already in the conversation state, which means a previously processed node wont be processed again if they are pointed to with a DELAY relationship"""
-        for node_list in [self.locks, self.unlocks, self.expects, self.primes]:
+        for item_type, node_list in self.attributes.items():
             for item in node_list:
                 if item["node"] == node:
-                    self._add_item(node, labels, duration, node_list, item["type"])
+                    self._add_item(node, labels, duration, item_type)
 
     def disable_item(self, node: str):
-        for node_list in [self.primes, self.initiates, self.listens]:
+        for node_list in self.attributes.values():
             for item in node_list:
                 if item["node"] == node:
                     node_list.remove(item)
@@ -159,6 +145,9 @@ class ConversationState:
             remaining_time = max(0, duration - elapsed_time)
             item["time_left"] = remaining_time
 
+    def _add_test_item(self):
+        self._add_item("Test", ["Tests"], 90.0, "initiates")
+
     def _remove_expired(
         self, items: list[dict], log_messages: list[str], session: Session
     ) -> list[dict]:
@@ -187,27 +176,19 @@ class ConversationState:
 
         if complete_initiations:
             for initiation in complete_initiations:
-                activate_connection_or_item(initiation, self)
+                activate_connection_or_item(initiation, self, "item")
                 process_node(session, initiation["node"], self, source=ROBEAU)
+                self._add_test_item()
+                logger.debug(f"New dict after initiation complete : {self.__dict__}")
 
         return valid_items
 
     def _update_timed_items(self, session: Session, log_messages: list[str]):
-        items_to_update = [
-            "allows",
-            "locks",
-            "unlocks",
-            "expects",
-            "primes",
-            "listens",
-            "initiates",
-        ]
-
-        for item in items_to_update:
+        for key in self.attributes:
             updated_items = self._remove_expired(
-                getattr(self, item), log_messages, session
+                self.attributes[key], log_messages, session
             )
-            setattr(self, item, updated_items)
+            self.attributes[key] = updated_items
 
     def _update_timed_states(self, session: Session, log_messages: list[str]):
         states_to_update = ["stubborn", "unresponsive"]
@@ -247,22 +228,18 @@ class ConversationState:
         else:
             self.logger.info("No time-bound items or states to update")
 
-    def reset_attribute(self, attribute: str):
-        valid_attributes = [
-            "locks",
-            "unlocks",
-            "primes",
-            "expects",
-            "listens",
-            "initiates",
-        ]
+    def reset_attribute(self, *attributes: str):
+        reset_attributes = []
 
-        if attribute in valid_attributes:
-            if getattr(self, attribute, None):
-                setattr(self, attribute, [])
-                self.logger.info(f"Reset attribute: {attribute}")
-        else:
-            self.logger.error(f"Invalid attribute: {attribute}")
+        for attribute in attributes:
+            if attribute in self.attributes:
+                self.attributes[attribute] = []
+                reset_attributes.append(attribute)
+            else:
+                self.logger.error(f"Invalid attribute: {attribute}")
+
+        if reset_attributes:
+            self.logger.info(f"Reset attributes: {', '.join(reset_attributes)}")
 
     def apply_definitions(self, session: Session, node: str):
         process_node(
@@ -276,10 +253,7 @@ class ConversationState:
     def revert_definitions(self, session: Session, node: str):
         definitions_to_revert = (
             get_node_connections(
-                session=session,
-                text=node,
-                source=MODIFIER,
-                conversation_state=self,
+                session, text=node, source=MODIFIER, conversation_state=self
             )
             or []
         )
@@ -291,46 +265,30 @@ class ConversationState:
 
         for connection in definitions_to_revert:
             end_node = connection.get("end_node", "")
+            self._revert_individual_definition(end_node)
 
-            self._revert_individual_definition("locks", end_node, self.locks)
-            self._revert_individual_definition("unlocks", end_node, self.unlocks)
-            self._revert_individual_definition("allows", end_node, self.allows)
-
-    def _revert_individual_definition(
-        self, definition_type: str, node: str, definitions: list[dict]
-    ):
-        initial_count = len(definitions)
-        definitions[:] = [
-            definition for definition in definitions if definition["node"] != node
-        ]
-        if len(definitions) < initial_count:
-            self.logger.info(f"Removed {definition_type}: << {node} >>")
+    def _revert_individual_definition(self, node: str):
+        for definition_type, definitions in self.attributes.items():
+            initial_count = len(definitions)
+            definitions[:] = [
+                definition for definition in definitions if definition["node"] != node
+            ]
+            if len(definitions) < initial_count:
+                self.logger.info(f"Removed {definition_type}: << {node} >>")
 
     def log_conversation_state(self):
-        state_types = [
-            self.allows,
-            self.locks,
-            self.unlocks,
-            self.expects,
-            self.primes,
-            self.listens,
-            self.initiates,
-        ]
-
         log_message = []
 
-        if any(state_types):
+        if any(self.attributes.values()):
             log_message.append("Conversation state:")
-            for items in state_types:
+            for item_type, items in self.attributes.items():
                 for item in items:
                     node = item["node"]
                     time_left = item.get("time_left")
-                    item_type = item.get("type")
                     labels = item.get("labels", [])
-                    if time_left is not None:
-                        time_left_str = f"({time_left:.2f})"
-                    else:
-                        time_left_str = "Infinite"
+                    time_left_str = (
+                        f"{time_left:.2f}" if time_left is not None else "Infinite"
+                    )
                     log_message.append(
                         f"{item_type}: {labels}: << {node} >> ({time_left_str}): {item}"
                     )
@@ -347,7 +305,13 @@ audio_finished_event = threading.Event()
 audio_started_event = threading.Event()
 first_callback_made = threading.Event()
 
-node_thread = None
+node_thread: Thread | None = None
+
+
+class TransmissionInputs:
+    def __init__(self, session: Session, conversation_state: ConversationState):
+        self.session = session
+        self.conversation_state = conversation_state
 
 
 def get_node_data(
@@ -398,12 +362,14 @@ def define_labels_and_text(
 ) -> list[str]:
     def meets_expectations():
         return any(
-            text.lower() == item["node"].lower() for item in conversation_state.expects
+            text.lower() == item["node"].lower()
+            for item in conversation_state.attributes["expects"]
         )
 
     def prompt_matches_allows():
         return any(
-            text.lower() == item["node"].lower() for item in conversation_state.allows
+            text.lower() == item["node"].lower()
+            for item in conversation_state.attributes["allows"]
         )
 
     def process_expectation_success():
@@ -415,12 +381,12 @@ def define_labels_and_text(
     labels = []
     if source == USER:
 
-        if not conversation_state.expects:
+        if not conversation_state.attributes["expects"]:
 
             if prompt_matches_allows():
                 labels.append("Prompt")
 
-            if conversation_state.listens:
+            if conversation_state.attributes["listens"]:
                 labels.append("Whisper")
 
         elif meets_expectations():
@@ -534,26 +500,29 @@ def play_audio(node: str, conversation_state: ConversationState):
         on_error=on_error,
     )
     audio_player.play_audio(node)
-    logger.debug(f"Waiting for first callback")
+    logger.info(f"Waiting for first callback")
     first_callback_made.wait()
-    logger.debug(f"First callback received, let's go")
+    logger.info(f"First callback received, let's go")
     first_callback_made.clear()
 
 
-def activate_connection_or_item(node_dict: dict, conversation_state: ConversationState):
+def activate_connection_or_item(
+    node_dict: dict,
+    conversation_state: ConversationState,
+    dict_type: Literal["connection", "item"],
+):
     """Works for both activation connections (end_node) and dictionaries from the conversation state(node)."""
-    node = node_dict.get("end_node") or node_dict.get("node")
-    if not isinstance(node, str):
-        logger.error(
-            f"Failed to activate item: {node_dict}. Expected dict, got {type(node)}"
-        )
-        return
+    node = node_dict.get("end_node", "") or node_dict.get("node", "")
+    print(node if node else "ERROR: No node found in connection or item")
 
-    print(node)
-    node_labels = node_dict.get("labels", {}).get("end") or node_dict.get("labels")
+    node_labels = (
+        node_dict.get("labels", {}).get("end", "")
+        if dict_type == "connection"
+        else node_dict.get("labels", "")
+    )
     vocal_labels = ["Response", "Question", "Test"]
 
-    if node_labels and any(node_label in vocal_labels for node_label in node_labels):
+    if any(label in vocal_labels for label in node_labels):
         play_audio(node, conversation_state)
     else:
         logger.info(
@@ -574,7 +543,7 @@ def process_logic_activations(
         return
 
     for connection in connections:
-        activate_connection_or_item(connection, conversation_state)
+        activate_connection_or_item(connection, conversation_state, "item")
         process_node(session, connection["end_node"], conversation_state, ROBEAU)
 
 
@@ -595,6 +564,7 @@ def filter_logic_connections(connections: list[dict], logic_gate: str):
         "IS_UNLOCKED",
         "IS_EXPECTED",
         "IS_PRIMED",
+        "IS_UNPRIMED",
         "IS_LISTENED",
         "IS_INITIATED",
     }
@@ -603,6 +573,7 @@ def filter_logic_connections(connections: list[dict], logic_gate: str):
         "AND_IS_UNLOCKED",
         "AND_IS_EXPECTED",
         "AND_IS_PRIMED",
+        "AND_IS_UNPRIMED",
         "AND_IS_LISTENED",
         "AND_IS_INITIATED",
     }
@@ -634,16 +605,17 @@ def filter_logic_connections(connections: list[dict], logic_gate: str):
 
 def determine_attribute(conversation_state: ConversationState, relationship: dict):
     attribute_map = {
-        "IS_LOCKED": conversation_state.locks,
-        "IS_UNLOCKED": conversation_state.unlocks,
-        "IS_EXPECTED": conversation_state.expects,
-        "IS_PRIMED": conversation_state.primes,
-        "IS_LISTENED": conversation_state.listens,
-        "IS_INITIATED": conversation_state.initiates,
+        "IS_LOCKED": "locks",
+        "IS_UNLOCKED": "unlocks",
+        "IS_EXPECTED": "expects",
+        "IS_PRIMED": "primes",
+        "IS_UNPRIMED": "unprimes",
+        "IS_LISTENED": "listens",
+        "IS_INITIATED": "initiates",
     }
-    for key, value in attribute_map.items():
+    for key, attribute_name in attribute_map.items():
         if key in relationship:
-            return value
+            return conversation_state.attributes.get(attribute_name)
     return None
 
 
@@ -749,20 +721,14 @@ def process_definitions_relationships(
     relationships_map: dict[str, list[dict]],
     conversation_state: ConversationState,
 ):
-    relationship_methods = {
-        "ALLOWS": conversation_state.add_allows,
-        "LOCKS": conversation_state.add_locks,
-        "UNLOCKS": conversation_state.add_unlocks,
-        "EXPECTS": conversation_state.add_expects,
-        "LISTENS": conversation_state.add_listens,
-        "PRIMES": conversation_state.add_primes,
-        "INITIATES": conversation_state.add_initiates,
-    }
-
-    for relationship, method in relationship_methods.items():
-        connections = relationships_map.get(relationship, [])
-        if connections:
-            process_definitions_connections(connections, method)
+    for relationship, connections in relationships_map.items():
+        relationship_lower = relationship.lower()
+        if relationship_lower in conversation_state.attributes:
+            for connection in connections:
+                node = connection.get("end_node", "")
+                duration = connection.get("params", {}).get("duration")
+                labels = connection.get("labels", {}).get("end", [])
+                conversation_state.add_item(node, labels, duration, relationship_lower)
 
     if relationships_map["EXPECTS"]:
         process_node(
@@ -785,7 +751,7 @@ def activate_connections(
             f"Activating {len(connections)} {status} connection(s): {conn_names}"
         )
     for connection in connections:
-        activate_connection_or_item(connection, conversation_state)
+        activate_connection_or_item(connection, conversation_state, "connection")
     return connections
 
 
@@ -867,9 +833,9 @@ def execute_attempt(
     node: str,
     conversation_state: ConversationState,
 ):
-    if (any(node == item["node"] for item in conversation_state.unlocks)) or (
-        any(node == item["node"] for item in conversation_state.primes)
-    ):
+    if any(
+        node == item["node"] for item in conversation_state.attributes["unlocks"]
+    ) or any(node == item["node"] for item in conversation_state.attributes["primes"]):
         logger.info(
             f"Successful attempt at connection: {list(connection.values())[1:4]}"
         )
@@ -877,6 +843,24 @@ def execute_attempt(
     else:
         logger.info(f"Failed attempt at connection: {list(connection.values())[1:4]}")
     return False
+
+
+def node_is_unaccessible(
+    node: str, connection: dict, conversation_state: ConversationState
+):
+    conn_locked = any(
+        node == item["node"] for item in conversation_state.attributes["locks"]
+    )
+    conn_unprimed = any(
+        node == item["node"] for item in conversation_state.attributes["unprimes"]
+    )
+
+    if conn_locked:
+        logger.info(f"Connection is locked: {list(connection.values())[1:4]}")
+    if conn_unprimed:
+        logger.info(f"Connection is unprimed: {list(connection.values())[1:4]}")
+
+    return any([conn_locked, conn_unprimed])
 
 
 def process_activation_connections(
@@ -890,8 +874,7 @@ def process_activation_connections(
 
     for connection in connections:
         node = connection["end_node"]
-        if any(node == item["node"] for item in conversation_state.locks):
-            logger.info(f"Connection is locked: {list(connection.values())[1:4]}")
+        if node_is_unaccessible(node, connection, conversation_state):
             continue
 
         if connection_type == "ATTEMPTS" and not execute_attempt(
@@ -914,7 +897,7 @@ def process_activation_connections(
     )
 
     if activated_connections:
-        conversation_state.reset_attribute("primes")
+        conversation_state.reset_attribute("primes", "unprimes")
 
     return activated_connections
 
@@ -981,50 +964,29 @@ def process_relationships(
         elif not all_connections:
             logger.warning(f"No connections found to process in {connections}")
 
-    # Logic connections
-    ifs: list[dict] = []
-    # Activation connections
-    checks: list[dict] = []
-    attempts: list[dict] = []
-    triggers: list[dict] = []
-    defaults: list[dict] = []
-    cutsoffs: list[dict] = []
-    # Definition connections
-    allows: list[dict] = []
-    locks: list[dict] = []
-    unlocks: list[dict] = []
-    expects: list[dict] = []
-    listens: list[dict] = []
-    primes: list[dict] = []
-    initiates: list[dict] = []
-    # Modification connections
-    disables: list[dict] = []
-    delays: list[dict] = []  # Unused right now but may be in the future
-    reverts: list[dict] = []
-    applies: list[dict] = []
-
-    relationships_map = {
-        # Logics checks
-        "IF": ifs,
+    relationships_map: dict[str, list[dict]] = {
+        # Logic checks
+        "IF": [],
         # Activations
-        "CHECKS": checks,
-        "ATTEMPTS": attempts,
-        "TRIGGERS": triggers,
-        "DEFAULTS": defaults,
-        "CUTSOFF": cutsoffs,
+        "CHECKS": [],
+        "ATTEMPTS": [],
+        "TRIGGERS": [],
+        "DEFAULTS": [],
+        "CUTSOFF": [],
         # Definitions
-        "ALLOWS": allows,
-        "LOCKS": locks,
-        "UNLOCKS": unlocks,
-        "EXPECTS": expects,
-        "LISTENS": listens,
-        "PRIMES": primes,
-        "INITIATES": initiates,
+        "ALLOWS": [],
+        "LOCKS": [],
+        "UNLOCKS": [],
+        "EXPECTS": [],
+        "LISTENS": [],
+        "PRIMES": [],
+        "UNPRIMES": [],
+        "INITIATES": [],
         # Modifications
-        "DISABLES": disables,
-        "DELAYS": delays,  # Unused right now but may be in the future
-        "APPLIES": applies,
-        "REVERTS": reverts,
+        "DISABLES": [],
+        "DELAYS": [],  # Unused right now but may be in the future
+        "APPLIES": [],
+        "REVERTS": [],
     }
 
     for connection in connections:
@@ -1035,8 +997,8 @@ def process_relationships(
     log_formatted_connections(relationships_map)
     conversation_state.log_conversation_state()
 
-    if (
-        cutoff and not cutsoffs
+    if cutoff and not relationships_map.get(
+        "CUTSOFF"
     ):  # If robeau was cut off, but there are no particular cutsoffs defined
         # TODO Implement a default cutoff message
         pass
@@ -1130,6 +1092,7 @@ def run_update_conversation_state(
     while not stop_event.is_set():
         if not pause_event.is_set():
             conversation_state.update_conversation_state(session)
+            logger.debug(f"Dict from thread: {conversation_state.__dict__}\n")
         time.sleep(0.5)
 
 
@@ -1152,6 +1115,7 @@ def initialize():
     if not driver or not session:
         raise Exception("Failed to establish connection to Neo4j database")
     conversation_state = ConversationState(logger=logger)
+    transmission_inputs = TransmissionInputs(session, conversation_state)
     stop_event = threading.Event()
     pause_event = threading.Event()
     update_thread = threading.Thread(
@@ -1159,7 +1123,15 @@ def initialize():
         args=(conversation_state, session, stop_event, pause_event),
     )
     update_thread.start()
-    return driver, session, conversation_state, stop_event, update_thread, pause_event
+    return (
+        driver,
+        session,
+        conversation_state,
+        transmission_inputs,
+        stop_event,
+        update_thread,
+        pause_event,
+    )
 
 
 def cleanup(driver, session, stop_event, update_thread):
@@ -1185,23 +1157,25 @@ def check_for_particular_query(user_query: str):
     return force, silent, user_query
 
 
-def main():
-    driver, session, conversation_state, stop_event, update_thread, pause_event = (
-        initialize()
-    )
-    prompt_session: PromptSession = PromptSession()
+def launch_specified_query(
+    user_query: str,
+    query_type: str,
+    session: Session,
+    conversation_state: ConversationState,
+    silent: bool,
+):
+
     global node_thread
 
-    def launch_regular_query():
-        global node_thread
+    if query_type == "regular":
+
         node_thread = Thread(
             target=process_node,
             args=(session, user_query, conversation_state, USER, silent),
         )
         node_thread.start()
 
-    def launch_greeting_query():
-        global node_thread
+    elif query_type == "greeting":
         node_thread = Thread(
             target=process_node,
             args=(
@@ -1214,9 +1188,8 @@ def main():
         )
         node_thread.start()
 
-    def launch_forced_query():
+    elif query_type == "forced":
         """Used for testing to trigger any node without any restrictions"""
-        global node_thread
         node_thread = Thread(
             target=process_node,
             args=(
@@ -1229,10 +1202,36 @@ def main():
         )
         node_thread.start()
 
+
+def main():
+    (
+        driver,
+        session,
+        conversation_state,
+        transmission_inputs,
+        stop_event,
+        update_thread,
+        pause_event,
+    ) = initialize()
+    prompt_session: PromptSession = PromptSession()
+    global node_thread
+
+    def launch_query(user_query, query_type, silent):
+        launch_specified_query(
+            user_query=user_query,
+            query_type=query_type,
+            session=session,
+            conversation_state=conversation_state,
+            silent=silent,
+        )
+
     try:
         while True:
             with patch_stdout():
                 user_query = prompt_session.prompt("Query: ").strip().lower()
+
+                if user_query == "dict":
+                    print(conversation_state.__dict__)
 
                 force, silent, user_query = check_for_particular_query(user_query)
 
@@ -1252,17 +1251,17 @@ def main():
                     )
 
                 elif user_query and force:
-                    launch_forced_query()
+                    launch_query(user_query, query_type="forced", silent=silent)
 
                 elif user_query and (
-                    conversation_state.allows
-                    or conversation_state.expects
-                    or conversation_state.listens
+                    conversation_state.attributes["allows"]
+                    or conversation_state.attributes["expects"]
+                    or conversation_state.attributes["listens"]
                 ):
-                    launch_regular_query()
+                    launch_query(user_query, query_type="regular", silent=silent)
 
                 elif user_query:
-                    launch_greeting_query()
+                    launch_query(user_query, query_type="greeting", silent=silent)
 
     except Exception as e:
         print(f"Error occurred: {e}")

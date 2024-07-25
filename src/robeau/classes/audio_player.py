@@ -46,7 +46,7 @@ class AudioPlayer:
             self.stop_events.append(stop_event)
             self.active_threads += 1
         thread.start()
-        self.logger.debug(f"Started thread {thread_name}")
+        self.logger.info(f"Started thread {thread_name}")
 
     def _play_audio(self, output_string: str, stop_event):
         try:
@@ -62,16 +62,16 @@ class AudioPlayer:
                 self._thread_done(stop_event, termination_reason="error")
                 return
 
-            self.logger.debug(f"Starting to play audio for: << {output_string} >>")
+            self.logger.info(f"Starting to play audio for: << {output_string} >>")
 
             if self.on_start:
-                self.logger.debug(f"Calling on_start() callback.")
+                self.logger.info(f"Calling on_start() callback.")
                 self.on_start()
 
             sound = pygame.mixer.Sound(audio_file)
             channel = sound.play()
 
-            self.logger.debug(f"Playing audio file: {audio_file}")
+            self.logger.info(f"Playing audio file: {audio_file}")
             while channel.get_busy():
                 if stop_event.is_set():
                     channel.stop()
@@ -79,7 +79,7 @@ class AudioPlayer:
                     return
                 pygame.time.wait(5)  # Reduce the wait time to check more frequently
 
-            self.logger.debug(
+            self.logger.info(
                 f"Thread for << {output_string} >> finished playing naturally."
             )
             self._thread_done(stop_event, termination_reason="end")
@@ -89,7 +89,7 @@ class AudioPlayer:
             self._thread_done(stop_event, termination_reason="exception")
 
     def stop_audio(self):
-        self.logger.debug("Stopping all audio.")
+        self.logger.info("Stopping all audio.")
         with self.lock:
             for stop_event in self.stop_events:
                 stop_event.set()  # Signal all threads to stop
@@ -116,20 +116,20 @@ class AudioPlayer:
                 return
 
             self.active_threads -= 1
-            self.logger.debug(
+            self.logger.info(
                 f"Thread done by: {termination_reason}. Active threads remaining: {self.active_threads}"
             )
             if self.active_threads == 0:
                 if termination_reason == "stop":
-                    self.logger.debug(f"Calling on_stop() callback.")
+                    self.logger.info(f"Calling on_stop() callback.")
                     if self.on_stop:
                         self.on_stop()
                 elif termination_reason == "end":
-                    self.logger.debug(f"Calling on_end() callback.")
+                    self.logger.info(f"Calling on_end() callback.")
                     if self.on_end:
                         self.on_end()
                 elif termination_reason == "error":
-                    self.logger.debug(f"Calling on_error() callback.")
+                    self.logger.info(f"Calling on_error() callback.")
                     if self.on_error:
                         self.on_error()
                 else:
@@ -137,13 +137,12 @@ class AudioPlayer:
                         f"Unexpected termination reason: {termination_reason}"
                     )
 
-                self.logger.debug("Clearing playing threads and stop events.")
                 self.playing_threads.clear()
                 self.stop_events.clear()
 
     def join_threads(self):
         """Join threads that have finished their work."""
-        self.logger.debug("Joining completed threads.")
+        self.logger.info("Joining completed threads.")
         for thread in self.threads_to_join:
             thread.join()
         self.threads_to_join.clear()
