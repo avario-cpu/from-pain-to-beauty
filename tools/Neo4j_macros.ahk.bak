@@ -139,6 +139,18 @@ CreateRelationshipNoLabel() {
     Send, {End}{Shift down}{Enter}{Shift up}
 }
 
+CreateRelationshipReplace(){
+    SendInput, MATCH(xxx)-[rrr]->(yyy)
+    SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.rel.id(rrr)=
+    SendInput, {Shift down}{Enter}{Shift up}DELETE rrr
+    SendInput, {Shift down}{Enter}{Shift up}WITH *
+    SendInput, {Shift down}{Enter}{Shift up}CREATE(xxx)-[:]->(yyy)
+    SendInput, ^{Left}{Left 4}
+    Input, Input1, L3
+    SendInput, % HandleRelationshipInput(Input1)
+    SendInput, {End}{Up 3}
+}
+
 SetText() {
     SendInput, set{space}
     Input, Input1, L3
@@ -172,6 +184,8 @@ HandleRelationshipInput(user_input) {
             return "ALLOWS"
         } else if (user_input = "the") {
             return "THEN"
+        } else if (user_input = "act") {
+            return "ACTIVATES"
         } else if (user_input = "iff") {
             return "IF"
         } else if (user_input = "app") {
@@ -296,7 +310,7 @@ return
 ^+u:: ; Write UNWIND as : Ctrl+Shift+D
      SendInput, UNWIND  AS
      Send, ^{Left}{Left}
-     Input, UserInput, L2
+     Input, UserInput, L3
      Send, %USerInput%
      Send, ^{Right}{Space}
 return

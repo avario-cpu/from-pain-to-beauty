@@ -283,16 +283,21 @@ class ConversationState:
         self.logger.info(f"Obtained definitions to revert: {formatted_definitions}")
 
         for connection in definitions_to_revert:
-            end_node = connection.get("end_node", "")
-            self._revert_individual_definition(end_node)
+            relationship = connection.get("relationship", "").lower()
+            node = connection.get("end_node", "")
+            self._revert_individual_definition(relationship, node)
 
-    def _revert_individual_definition(self, node: str):
-        for definition_type, definitions in self.context.items():
-            initial_count = len(definitions)
-            definitions[:] = [
-                definition for definition in definitions if definition["node"] != node
+    def _revert_individual_definition(self, relationship: str, node: str):
+        for definition_type, definitions_list in self.context.items():
+            initial_count = len(definitions_list)
+            definitions_list[:] = [
+                definition
+                for definition in definitions_list
+                if not (
+                    definition["type"] == relationship and definition["node"] == node
+                )
             ]
-            if len(definitions) < initial_count:
+            if len(definitions_list) < initial_count:
                 self.logger.info(f"Removed {definition_type}: << {node} >>")
 
     def log_conversation_state(self):
@@ -940,19 +945,19 @@ def execute_attempt(
 def node_is_unaccessible(
     node: str, connection: dict, conversation_state: ConversationState
 ):
-    conn_locked = any(
+    connection_locked = any(
         node == item["node"] for item in conversation_state.context["locks"]
     )
-    conn_unprimed = any(
+    connection_unprimed = any(
         node == item["node"] for item in conversation_state.context["unprimes"]
     )
 
-    if conn_locked:
+    if connection_locked:
         logger.info(f"Connection is locked: {list(connection.values())[1:4]}")
-    if conn_unprimed:
+    if connection_unprimed:
         logger.info(f"Connection is unprimed: {list(connection.values())[1:4]}")
 
-    return any([conn_locked, conn_unprimed])
+    return connection_locked or connection_unprimed
 
 
 def process_activation_connections(
@@ -1001,6 +1006,16 @@ def process_activation_relationships(
 ) -> list[str]:
     priority_order = ["CHECKS", "ATTEMPTS", "TRIGGERS", "DEFAULTS"]
     end_nodes_reached = []
+
+    # Always process all ACTIVATES
+    if relationships_map["ACTIVATES"]:
+        activated = process_activation_connections(
+            relationships_map["ACTIVATES"],
+            conversation_state,
+            connection_type="ACTIVATES",
+        )
+        if activated:
+            end_nodes_reached.extend([item["end_node"] for item in activated])
 
     if cutoff:
         priority_order = ["CUTSOFF"] + priority_order
@@ -1060,6 +1075,7 @@ def process_relationships(
         # Logic checks
         "IF": [],
         # Activations
+        "ACTIVATES": [],
         "CHECKS": [],
         "ATTEMPTS": [],
         "TRIGGERS": [],
@@ -1122,13 +1138,13 @@ def handle_transmission_output(
     elif transmission_node == SET_ROBEAU_STUBBORN:
         conversation_state.set_state("stubborn", random.randint(15, 20))
     elif transmission_node == PROLONG_STUBBORN:
-        if (
-            conversation_state.stubborn["duration"]
-            and conversation_state.stubborn["duration"] < 10
-        ):
+        stub_time_left = conversation_state.stubborn["time_left"]
+        if stub_time_left and stub_time_left < 10:
             conversation_state.set_state("stubborn", random.randint(10, 15))
         else:
-            logger.info(f"Did not prolong stubborn (duration was long enough)")
+            logger.info(
+                f"Did not prolong stubborn (time_left {stub_time_left:.2f} was long enough)"
+            )
 
 
 def process_node(
