@@ -37,7 +37,7 @@ MatchRelationshipType() {
 }
 
 MatchRelationshipNodes() {
-    SendInput, MATCH(xxx)-[rrr]->(yyy)
+    SendInput, MATCH()-[]->()
     Send, ^{Left}{Right}
     Input, Input1, L3
     SendInput, %Input1%
@@ -107,7 +107,7 @@ CreateNode() {
         Send, {Left 2}
     }
 
-CreateRelationship() {
+CreateRelationshipAlias() {
     SendInput, CREATE()-[:]->()
     Send, ^{Left}{Right}
     Input, Input1, L3
@@ -123,6 +123,7 @@ CreateRelationship() {
     SendInput, % HandleRelationshipInput(Input4)
     Send, {End}{Shift down}{Enter}{Shift up}
 }
+
 
 CreateRelationshipNoLabel() {
     SendInput, CREATE()-[:]->()
@@ -197,10 +198,12 @@ HandleRelationshipInput(user_input) {
             return "REVERTS"
         } else if (user_input = "tri") {
             return "TRIGGERS"
-        } else if (user_input = "uni") {
+        } else if (user_input = "unl") {
             return "UNLOCKS"
         } else if (user_input = "cut") {
             return "CUTSOFF"
+        } else if (user_input = "per") {
+            return "PERMITS"
         }
     }
     return user_input
@@ -259,28 +262,24 @@ HandleNodeInput(user_input) {
             MatchPathNodeAll()
         }
     }
-
 return
 
 
 ^+c:: ; Creations Hotkey: Ctrl+Shift+C
-    Input, NextKey, L1
-    if (NextKey = "n") {
+    Input, NextKey, L3
+    if (NextKey = "nal") {
         CreateNode()
-    } else if (NextKey = "r") {
-        if GetKeyState("Shift", "P") {
+    } else if (NextKey = "rnl") {
             CreateRelationshipNoLabel()
-        } else {
-            CreateRelationship()
-        }
-    }
-    
+    } else if (NextKey = "ral") {
+            CreateRelationshipAlias()
+    } 
 return
 
 targetWindowTitle := "Your Window Title Here"
 
 ^+s:: ; Set Hotkey: Ctrl+Shift+S 
-    Input, NextKey, L2
+    Input, NextKey, L3
     if (NextKey = "tex") {
         SetText()
     } else if (NextKey = "rwe") {
@@ -288,7 +287,6 @@ targetWindowTitle := "Your Window Title Here"
     } else if (NextKey = "dur") {
         SetDuration()
     }
-    
 return
 
 ^+r:: ; Write return : Ctrl+Shift+D
@@ -319,7 +317,7 @@ return
 return
 
 ^+\:: ; Return all Hotkey: Ctrl+Shift+\
-    SendInput,^{End}{Shift down}{Enter}{Shift up}WITH *{Shift down}{Enter}{Shift up}MATCH(all){Shift down}{Enter}{Shift up}RETURN all
+    SendInput,^{End}{Shift down}{Enter}{Shift up}WITH *{Shift down}{Enter}{Shift up}MATCH(everything){Shift down}{Enter}{Shift up}RETURN everything
 return
 
 ^+BackSpace:: ; Return Hotkey: Ctrl+Shift+Backspace

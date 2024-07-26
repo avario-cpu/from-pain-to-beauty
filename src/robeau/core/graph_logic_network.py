@@ -27,7 +27,9 @@ from src.robeau.classes.graph_logic_constants import (
     SET_ROBEAU_STUBBORN,
     SYSTEM,
     USER,
-    ANY_MATCHING_PLEAD,
+    PROLONG_STUBBORN,
+    ANY_RELEVANT_USER_INPUT,
+    ANY_MATCHING_PLEA,
     ROBEAU_NO_MORE_STUBBORN,
     ANY_MATCHING_WHISPER,
     QuerySource,
@@ -63,6 +65,7 @@ class ConversationState:
 
         self.context: dict[str, list[dict]] = {
             "allows": [],
+            "permits": [],
             "locks": [],
             "unlocks": [],
             "expects": [],
@@ -136,7 +139,7 @@ class ConversationState:
             state_obj["duration"] = duration
             state_obj["start_time"] = time.time()
             state_obj["time_left"] = duration
-            self.logger.info(f"State {state_name} set for {duration} seconds")
+            self.logger.info(f"Set state {state_name} for {duration} seconds")
         else:
             logger.error(f"Invalid state name {state_name}")
 
@@ -295,7 +298,11 @@ class ConversationState:
     def log_conversation_state(self):
         log_message = []
 
-        if not any(self.context.values()):
+        states = {"stubborn": self.stubborn, "unresponsive": self.unresponsive}
+
+        if not any(self.context.values()) and not (
+            any([state["state"] for state in states.values()])
+        ):
             log_message.append("No items in conversation state")
 
         log_message.append("Conversation state:")
@@ -311,6 +318,13 @@ class ConversationState:
                     f"{item_type}: {labels}: << {node} >> ({time_left_str}): {item}"
                 )
 
+        for state_name, state in states.items():
+            time_left = state.get("time_left")
+            time_left_str = f"{time_left:.2f}" if time_left is not None else "Infinite"
+            state_str = f"State {state_name} ({time_left_str}) : {state} "
+            if state["state"]:
+                log_message.append(state_str)
+
         log_message[1:] = sorted(log_message[1:])
 
         self.logger.info("\n".join(log_message) + "\n")
@@ -324,30 +338,6 @@ first_callback_made = threading.Event()
 node_thread: Thread | None = None
 
 
-def handle_query_stage_transmissions(
-    result: Result,
-    session: Session,
-    conversation_state: ConversationState,
-    source: QuerySource,
-    labels: list[str],
-):
-
-    def process_no_matching_prompt_or_whisper():
-        process_node(
-            session, NO_MATCHING_PROMPT_OR_WHISPER, conversation_state, source=SYSTEM
-        )
-
-    def process_any_matching_plead():
-        process_node(session, ANY_MATCHING_PLEAD, conversation_state, source=SYSTEM)
-
-    if source == USER:
-        if not result.peek() and ("Prompt" in labels or "Whisper" in labels):
-            process_no_matching_prompt_or_whisper()
-
-        # elif "Plead" in labels:
-        #     process_any_matching_plead()
-
-
 def get_node_data(
     session: Session,
     text: str,
@@ -355,6 +345,11 @@ def get_node_data(
     conversation_state: ConversationState,
     source: QuerySource,
 ) -> Result | None:
+
+    def process_no_matching_prompt_or_whisper():
+        process_node(
+            session, NO_MATCHING_PROMPT_OR_WHISPER, conversation_state, source=SYSTEM
+        )
 
     labels_query = "|".join(labels)
     query = f"""
@@ -364,9 +359,9 @@ def get_node_data(
     """
     result = session.run(query, text=text)
 
-    handle_query_stage_transmissions(
-        result, session, conversation_state, source, labels
-    )
+    if source == USER:
+        if not result.peek() and ("Prompt" in labels or "Whisper" in labels):
+            process_no_matching_prompt_or_whisper()
 
     return result if result.peek() else None
 
@@ -376,27 +371,36 @@ def define_labels_and_text(
     text: str,
     conversation_state: ConversationState,
     source: QuerySource,
-) -> list[str]:
+) -> tuple[list[str], str]:
 
-    def prompt_matches_allows():
-        if any(
-            text.lower() == item["node"].lower()
-            for item in conversation_state.context["allows"]
-        ):
-            process_node(
-                session, ANY_MATCHING_PROMPT, conversation_state, source=SYSTEM
-            )
-            return True
+    context_specifications = ["[stub]", "[example]"]
 
-    def prompt_matches_whispers():
-        if any(
-            text.lower() == item["node"].lower()
-            for item in conversation_state.context["listens"]
-        ):
-            process_node(
-                session, ANY_MATCHING_WHISPER, conversation_state, source=SYSTEM
+    def check_for_any_relevant_user_input():
+        def text_in_conversation_context() -> bool:
+            lower_text = text.lower()
+            first_check = any(
+                lower_text == dictionary["node"].lower()
+                for list_of_dicts in conversation_state.context.values()
+                for dictionary in list_of_dicts
             )
-            return True
+            if first_check:
+                return True
+
+            for spec in context_specifications:
+                combined_text = lower_text + " " + spec
+                second_check = any(
+                    combined_text == dictionary["node"].lower()
+                    for dictionary in conversation_state.context.get("listens", [])
+                )
+                if second_check:
+                    return True
+
+            return False
+
+        if text_in_conversation_context():
+            process_node(
+                session, ANY_RELEVANT_USER_INPUT, conversation_state, source=SYSTEM
+            )
 
     def prompt_meets_expectations():
         if any(
@@ -415,17 +419,65 @@ def define_labels_and_text(
             )
             return False
 
+    def prompt_matches_allows():
+        if any(
+            text.lower() == item["node"].lower()
+            for item in conversation_state.context["allows"]
+        ):
+            process_node(
+                session, ANY_MATCHING_PROMPT, conversation_state, source=SYSTEM
+            )
+            return True
+
+    def prompt_matches_whispers(context: Optional[str] = None):
+        if any(
+            text.lower() + (" " + context) if context else "" == item["node"].lower()
+            for item in conversation_state.context["listens"]
+        ):
+            process_node(
+                session, ANY_MATCHING_WHISPER, conversation_state, source=SYSTEM
+            )
+            return True
+
+    def prompt_matches_pleas():
+        if any(
+            text.lower() == item["node"].lower()
+            for item in conversation_state.context["permits"]
+        ):
+            process_node(session, ANY_MATCHING_PLEA, conversation_state, source=SYSTEM)
+            return True
+
     labels = []
+    modified_text = ""
     if source == USER:
 
+        check_for_any_relevant_user_input()
+
+        # When answering a question, only check for expects
         if conversation_state.context["expects"] and prompt_meets_expectations():
             labels.append("Answer")
-            return labels
+            return labels, modified_text
 
+        # When in a stubborn context:
         if conversation_state.stubborn["state"]:
-            labels.append("Plead")
-            return labels
+            # Check for pleas before allows (it's required for a few connections proper priority)
+            if prompt_matches_pleas():
+                labels.append("Plea")
+                return labels, modified_text
 
+            # Check for attempt to prompt without pleading
+            if prompt_matches_allows() and not prompt_matches_pleas():
+                # TODO, in the future. Implement a way to still accept some prompts when stubborn, but reluctantly
+                return labels, modified_text
+
+            # Check for whispers and modify the text to match the DB value in the stubborn context
+            if prompt_matches_whispers(context="[stub]"):
+                labels.append("Whisper")
+                modified_text = text + " " + "[stub]"
+
+            return labels, modified_text
+
+        # If in no particular context, match for regular prompts and whispers.
         if prompt_matches_allows():
             labels.append("Prompt")
 
@@ -456,11 +508,11 @@ def define_labels_and_text(
                 "Input",
                 "Output",
                 "TrafficGate",
-                "Plead",
+                "Plea",
             ]
         )
 
-    return labels
+    return labels, modified_text
 
 
 def get_node_connections(
@@ -470,13 +522,19 @@ def get_node_connections(
     source: QuerySource,
 ) -> list[dict] | None:
 
-    labels = define_labels_and_text(session, text, conversation_state, source)
-    logger.info(f"Labels for fetching {text} connection are {labels}")
+    labels, modified_text = define_labels_and_text(
+        session, text, conversation_state, source
+    )
 
     if not labels:
         labels = [
             "None"
         ]  # This will return no results from the database, but it will also not throw an error. We still want to call get_node_data (instead of making an early return) in order to call relevant nested functions inside.
+
+    if modified_text:  # Used only for [context] tags in case of duplicate nodes
+        text = modified_text
+
+    logger.info(f"Labels for fetching {text} connection are {labels}")
 
     result = get_node_data(session, text, labels, conversation_state, source)
 
@@ -600,6 +658,8 @@ def process_initial_logic_check(connection: dict, attribute: list[dict]):
 
 def filter_logic_connections(connections: list[dict], logic_gate: str):
     attribute_map = {
+        "IS_ALLOWED": "allows",
+        "IS_PERMITTED": "permits",
         "IS_LOCKED": "locks",
         "IS_UNLOCKED": "unlocks",
         "IS_EXPECTED": "expects",
@@ -638,6 +698,8 @@ def filter_logic_connections(connections: list[dict], logic_gate: str):
 
 def determine_attribute(conversation_state: ConversationState, relationship: dict):
     attribute_map = {
+        "IS_ALLOWED": "allows",
+        "IS_PERMITTED": "permits",
         "IS_LOCKED": "locks",
         "IS_UNLOCKED": "unlocks",
         "IS_EXPECTED": "expects",
@@ -1011,6 +1073,7 @@ def process_relationships(
         "CUTSOFF": [],
         # Definitions
         "ALLOWS": [],
+        "PERMITS": [],
         "LOCKS": [],
         "UNLOCKS": [],
         "EXPECTS": [],
@@ -1060,9 +1123,17 @@ def handle_transmission_output(
     if transmission_node == RESET_EXPECTATIONS:
         conversation_state.reset_attribute("expects")
     elif transmission_node == SET_ROBEAU_UNRESPONSIVE:
-        conversation_state.set_state("unresponsive", random.randint(10, 20))
+        conversation_state.set_state("unresponsive", random.randint(5, 10))
     elif transmission_node == SET_ROBEAU_STUBBORN:
-        conversation_state.set_state("stubborn", random.randint(20, 30))
+        conversation_state.set_state("stubborn", random.randint(15, 20))
+    elif transmission_node == PROLONG_STUBBORN:
+        if (
+            conversation_state.stubborn["duration"]
+            and conversation_state.stubborn["duration"] < 15
+        ):
+            conversation_state.set_state("stubborn", random.randint(15, 25))
+        else:
+            logger.info(f"Did not prolong stubborn (duration was long enough)")
 
 
 def process_node(
