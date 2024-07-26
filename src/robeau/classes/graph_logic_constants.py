@@ -56,4 +56,5 @@ transmission_output_nodes = [
     RESET_EXPECTATIONS,
     SET_ROBEAU_UNRESPONSIVE,
     SET_ROBEAU_STUBBORN,
+    PROLONG_STUBBORN,
 ]
