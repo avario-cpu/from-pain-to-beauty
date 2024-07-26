@@ -105,8 +105,12 @@ class ConversationState:
     def add_item(
         self, node: str, labels: list[str], duration: float | None, item_type: str
     ):
-        if item_type in self.context:
+        if item_type in self.context.keys():
             self._add_item(node, labels, duration, item_type)
+        else:
+            raise ValueError(
+                f"Key from {node} = {item_type} does not match context keys: {self.context.keys()} "
+            )
 
     def delay_item(self, node: str, labels: list[str], duration: float | None):
         """Unused right now but may be used in the future, Logic wise just know that the difference between this and add_initiation is that this is for items that are already in the conversation state, which means a previously processed node wont be processed again if they are pointed to with a DELAY relationship"""
@@ -123,16 +127,16 @@ class ConversationState:
                     self.logger.info(f"Item disabled: {item}")
                     return
 
-    def set_state(self, state_name: str, duration: float):
+    def set_state(
+        self, state_name: Literal["stubborn", "unresponsive"], duration: float
+    ):
         state_obj = getattr(self, state_name, None)
         if state_obj:
             state_obj["state"] = True
             state_obj["duration"] = duration
             state_obj["start_time"] = time.time()
             state_obj["time_left"] = duration
-            self.logger.info(
-                f"State {state_name} set to {state_name} for {duration} seconds"
-            )
+            self.logger.info(f"State {state_name} set for {duration} seconds")
         else:
             logger.error(f"Invalid state name {state_name}")
 
@@ -183,10 +187,7 @@ class ConversationState:
             for initiation in complete_initiations:
                 activate_connection_or_item(initiation, self, "item")
                 process_node(
-                    session,
-                    initiation["node"],
-                    self,
-                    source=ROBEAU,
+                    session, initiation["node"], self, source=ROBEAU, main_call=True
                 )
 
         items_after_inits = self.context[key]
@@ -470,7 +471,7 @@ def get_node_connections(
 ) -> list[dict] | None:
 
     labels = define_labels_and_text(session, text, conversation_state, source)
-    logger.info(f"Labels for {text} are {labels}")
+    logger.info(f"Labels for fetching {text} connection are {labels}")
 
     if not labels:
         labels = [
@@ -990,7 +991,7 @@ def process_relationships(
         )
         if not silent and all_connections:
             logger.info(
-                f"Processing connections for node << {node} >> ({source.name}):\n{formatted_connections}\n"
+                f"Processing connections for node << {node} >> from source {source.name}:\n{formatted_connections}\n"
             )
         elif all_connections:
             logger.info(
@@ -1071,9 +1072,13 @@ def process_node(
     source: QuerySource,
     silent: Optional[bool] = False,
     cutoff: Optional[bool] = False,
+    main_call: Optional[bool] = False,
 ):
 
-    logger.info(f"Processing node: << {node} >> ({source.name})")
+    logger.info(
+        f"Processing node: << {node} >> from source {source.name}"
+        + (" (OG NODE)" if main_call else "")
+    )
 
     connections = get_node_connections(
         session=session,
@@ -1115,7 +1120,11 @@ def process_node(
             cutoff=conversation_state.cutoff,
         )
 
-    logger.info(f"End of process for node: << {node} >> from source {source.name}\n")
+    logger.info(
+        f"End of process for node: << {node} >> from source {source.name}"
+        + (" (OG NODE)" if main_call else "")
+        + "\n"
+    )
 
 
 def run_update_conversation_state(
@@ -1192,25 +1201,30 @@ def launch_specified_query(
 
     global node_thread
 
+    thread_args = {
+        "session": session,
+        "node": user_query,
+        "conversation_state": conversation_state,
+        "silent": silent,
+        "main_call": True,
+    }
+
     if query_type == "regular":
         node_thread = Thread(
-            target=process_node,
-            args=(session, user_query, conversation_state, USER, silent),
+            target=process_node, kwargs={**thread_args, "source": USER}
         )
         node_thread.start()
 
     elif query_type == "greeting":
         node_thread = Thread(
-            target=process_node,
-            args=(session, user_query, conversation_state, GREETING, silent),
+            target=process_node, kwargs={**thread_args, "source": GREETING}
         )
         node_thread.start()
 
     elif query_type == "forced":
         """Used for testing to trigger any node without any restrictions"""
         node_thread = Thread(
-            target=process_node,
-            args=(session, user_query, conversation_state, MODIFIER, silent),
+            target=process_node, kwargs={**thread_args, "source": MODIFIER}
         )
         node_thread.start()
 
