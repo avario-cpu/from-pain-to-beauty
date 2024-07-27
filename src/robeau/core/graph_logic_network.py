@@ -67,7 +67,7 @@ class ConversationState:
         }
 
         # Attitude levels
-        self.rudeness_level = 0
+        self.attitude_levels = {"rudeness": 0}
 
         # Context relationships
         self.context: dict[str, list[dict]] = {
@@ -116,7 +116,7 @@ class ConversationState:
         }
 
         item_list.append(item)
-        self.logger.info(f"Added {item_type} << {node} >> {labels}: {item}")
+        self.logger.info(f"Added {item_type} <<{node}>> {labels}: {item}")
 
     def add_item(
         self,
@@ -196,7 +196,7 @@ class ConversationState:
                 valid_items.append(item)
                 if time_left is not None:
                     log_messages.append(
-                        f"{item_type}: {labels}: << {node} >> ({time_left:.2f}): {item}"
+                        f"{item_type}: {labels}: <<{node}>> ({time_left:.2f}): {item}"
                     )
             else:
                 expired_items.append(item)
@@ -257,12 +257,11 @@ class ConversationState:
             setattr(self, state, state_obj)
 
     def _update_attitude_levels(self, log_messages: list[str]):
-        if self.rudeness_level > 0:
-            if random.randint(0, 9) == 0:
-                self.rudeness_level -= 1
-                log_messages.append(
-                    f"Rudeness level decreased to {self.rudeness_level}"
-                )
+        for attitude, level in self.attitude_levels.items():
+            if level > 0:
+                if random.randint(0, 9) == 0:
+                    level -= 1
+                    log_messages.append(f"{attitude} level decreased to {level}")
 
     def update_conversation_state(self, session: Session):
         log_messages: list[str] = []
@@ -327,20 +326,23 @@ class ConversationState:
                 )
             ]
             if len(definitions_list) < initial_count:
-                self.logger.info(f"Removed {definition_type}: << {node} >>")
+                self.logger.info(f"Removed {definition_type}: <<{node}>>")
 
     def log_conversation_state(self):
         log_message = []
 
         states = {"stubborn": self.stubborn, "unresponsive": self.unresponsive}
 
-        if not any(self.context.values()) and not (
-            any([state["state"] for state in states.values()])
+        if (
+            not any(self.context.values())
+            and not any(state["state"] for state in states.values())
+            and not any(value for value in self.attitude_levels.values())
         ):
             log_message.append("No items in conversation state")
         else:
             log_message.append("Conversation state:")
 
+        context_messages = []
         for item_type, items in self.context.items():
             for item in items:
                 node = item["node"]
@@ -349,18 +351,25 @@ class ConversationState:
                 time_left_str = (
                     f"{time_left:.2f}" if time_left is not None else "Infinite"
                 )
-                log_message.append(
-                    f"{item_type}: {labels}: << {node} >> ({time_left_str}): {item}"
+                context_messages.append(
+                    f"{item_type}: {labels}: <<{node}>> ({time_left_str}): {item}"
                 )
 
+        state_messages = []
         for state_name, state in states.items():
             time_left = state.get("time_left")
             time_left_str = f"{time_left:.2f}" if time_left is not None else "Infinite"
-            state_str = f"State {state_name} ({time_left_str}) : {state} "
             if state["state"]:
-                log_message.append(state_str)
+                state_messages.append(f"State {state_name} ({time_left_str}) : {state}")
 
-        log_message[1:] = sorted(log_message[1:])
+        attitude_messages = []
+        for attitude, level in self.attitude_levels.items():
+            if level > 0:
+                attitude_messages.append(f"{attitude} level: {level}")
+
+        log_message.extend(sorted(context_messages))
+        log_message.extend(sorted(state_messages))
+        log_message.extend(sorted(attitude_messages))
 
         self.logger.info("\n".join(log_message) + "\n")
 
@@ -430,13 +439,13 @@ def define_labels(
             text.lower() == item["node"].lower()
             for item in conversation_state.context["expects"]
         ):
-            logger.info(f" << {text} >> meets conversation expectations")
+            logger.info(f" <<{text}>> meets conversation expectations")
             process_node(
                 session, EXPECTATIONS_SUCCESS, conversation_state, source=SYSTEM
             )
             return True
         else:
-            logger.info(f" << {text} >> does not meet conversation expectations")
+            logger.info(f" <<{text}>> does not meet conversation expectations")
             process_node(
                 session, EXPECTATIONS_FAILURE, conversation_state, source=SYSTEM
             )
@@ -647,11 +656,17 @@ def play_audio(node: str, conversation_state: ConversationState):
 
 
 def process_node_data(data: dict, conversation_state: ConversationState):
+    for attitude, level in conversation_state.attitude_levels.items():
+        if data.get(attitude + "LevelIncrease"):
+            new_level = level + data[attitude + "LevelIncrease"]
+            if new_level > 100:
+                new_level = 100
 
-    if data.get("rudenessLevelIncrease"):
-        conversation_state.rudeness_level += data["rudenessLevelIncrease"]
-        logger.info(f"Rudeness level increased to {conversation_state.rudeness_level}")
-    pass
+            conversation_state.attitude_levels[attitude] = new_level
+
+            logger.info(
+                f"{attitude} level increased to {conversation_state.attitude_levels[attitude]}"
+            )
 
 
 def activate_connection_or_item(
@@ -680,7 +695,7 @@ def activate_connection_or_item(
         print(node)
     else:
         logger.info(
-            f" << {node} >> with labels {labels} is not considered an audio output"
+            f" <<{node}>> with labels {labels} is not considered an audio output"
         )
         print(f"-{node}")
 
@@ -694,7 +709,7 @@ def process_logic_activations(
     conversation_state: ConversationState,
 ):
     if not connections:
-        logger.error(f'No "THEN" connection found for LogicGate: << {logic_gate} >>')
+        logger.error(f'No "THEN" connection found for LogicGate: <<{logic_gate}>>')
         return
 
     for connection in connections:
@@ -748,7 +763,7 @@ def filter_logic_connections(connections: list[dict], logic_gate: str):
         formatted_then_conns = "\n".join([str(then_conn) for then_conn in then_conns])
 
     logger.info(
-        f"LogicGate << {logic_gate} >> connections: \nInitial: {initial_conn} \nAnd: {formatted_and_conns} \nThen: {formatted_then_conns}"
+        f"LogicGate <<{logic_gate}>> connections: \nInitial: {initial_conn} \nAnd: {formatted_and_conns} \nThen: {formatted_then_conns}"
     )
     return initial_conn, and_conns, then_conns
 
@@ -956,7 +971,7 @@ def select_random_connections(random_pool_groups: list[list[dict]]) -> list[dict
         pool_id = connection["params"].get("randomPoolId")
         end_node = connection["end_node"]
         logger.info(
-            f"Selected end_node for random pool Id {pool_id} is: << {end_node} >>"
+            f"Selected end_node for random pool Id {pool_id} is: <<{end_node}>>"
         )
         selected_connections.append(connection)
 
@@ -1000,11 +1015,11 @@ def execute_attempt(
         node == item["node"] for item in conversation_state.context["unlocks"]
     ) or any(node == item["node"] for item in conversation_state.context["primes"]):
         logger.info(
-            f"Successful attempt at connection: {list(connection.values())[1:4]}"
+            f"Successful attempt at connection: {list(connection.values())[0:3]}"
         )
         return True
     else:
-        logger.info(f"Failed attempt at connection: {list(connection.values())[1:4]}")
+        logger.info(f"Failed attempt at connection: {list(connection.values())[0:3]}")
     return False
 
 
@@ -1019,11 +1034,30 @@ def node_is_unaccessible(
     )
 
     if connection_locked:
-        logger.info(f"Connection is locked: {list(connection.values())[1:4]}")
+        logger.info(f"Connection is locked: {list(connection.values())[0:3]}")
     if connection_unprimed:
-        logger.info(f"Connection is unprimed: {list(connection.values())[1:4]}")
+        logger.info(f"Connection is unprimed: {list(connection.values())[0:3]}")
 
     return connection_locked or connection_unprimed
+
+
+def evaluation_meets_criteria(connection: dict, conversation_state: ConversationState):
+    for attitude, level in conversation_state.attitude_levels.items():
+        eval_min = connection.get("params", {}).get(attitude + "LevelMin")
+        eval_max = connection.get("params", {}).get(attitude + "LevelMax")
+
+        if eval_min < level <= eval_max:
+            logger.info(
+                f"Connection meets criteria: {list(connection.values())[0:3]} "
+                f"(min {eval_min} < {attitude}: {level} < max {eval_max})"
+            )
+            return True
+        else:
+            logger.info(
+                f"Connection does not meet criteria: {list(connection.values())[0:3]} "
+                f"(min {eval_min} < {attitude}: {level} < max {eval_max})"
+            )
+            return False
 
 
 def process_activation_connections(
@@ -1038,6 +1072,11 @@ def process_activation_connections(
     for connection in connections:
         node = connection["end_node"]
         if node_is_unaccessible(node, connection, conversation_state):
+            continue
+
+        if connection_type == "EVALUATES" and not evaluation_meets_criteria(
+            connection, conversation_state
+        ):
             continue
 
         if connection_type == "ATTEMPTS" and not execute_attempt(
@@ -1070,7 +1109,7 @@ def process_activation_relationships(
     conversation_state: ConversationState,
     cutoff: Optional[bool] = False,
 ) -> list[str]:
-    priority_order = ["CHECKS", "ATTEMPTS", "TRIGGERS", "DEFAULTS"]
+    priority_order = ["CHECKS", "EVALUATES", "ATTEMPTS", "TRIGGERS", "DEFAULTS"]
     end_nodes_reached = []
 
     # Always process all ACTIVATES
@@ -1128,11 +1167,11 @@ def process_relationships(
         )
         if not silent and all_connections:
             logger.info(
-                f"Processing connections for node << {node} >> from source {source.name}:\n{formatted_connections}\n"
+                f"Processing connections for node <<{node}>> from source {source.name}:\n{formatted_connections}\n"
             )
         elif all_connections:
             logger.info(
-                f"Processing SILENT connections (activation relationships were not applied) for node << {node} >> ({source.name}):\n{formatted_silent_connections} "
+                f"Processing SILENT connections (activation relationships were not applied) for node <<{node}>> ({source.name}):\n{formatted_silent_connections}"
             )
         elif not all_connections:
             logger.warning(f"No connections found to process in {connections}")
@@ -1143,6 +1182,7 @@ def process_relationships(
         # Activations
         "ACTIVATES": [],
         "CHECKS": [],
+        "EVALUATES": [],
         "ATTEMPTS": [],
         "TRIGGERS": [],
         "DEFAULTS": [],
@@ -1224,7 +1264,7 @@ def process_node(
 ):
 
     logger.info(
-        f"Processing node: << {node} >> from source {source.name}"
+        f"Processing node: <<{node}>> from source {source.name}"
         + (" (OG NODE)" if main_call else "")
     )
 
@@ -1237,7 +1277,7 @@ def process_node(
 
     if not connections:
         logger.info(
-            f"No connection obtained for node: << {node} >> from source {source.name}"
+            f"No connection obtained for node: <<{node}>> from source {source.name}"
         )
         return
 
@@ -1269,7 +1309,7 @@ def process_node(
         )
 
     logger.info(
-        f"End of process for node: << {node} >> from source {source.name}"
+        f"End of process for node: <<{node}>> from source {source.name}"
         + (" (OG NODE)" if main_call else "")
         + "\n"
     )
@@ -1447,7 +1487,7 @@ def main():
 
                 elif node_thread and node_thread.is_alive():
                     print(
-                        f"Query refused, processing node: interrupt with << stfu >> if needed"
+                        f"Query refused, processing node: interrupt with <<stfu>> if needed"
                     )
 
                 elif force:

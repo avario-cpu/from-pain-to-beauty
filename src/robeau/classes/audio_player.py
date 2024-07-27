@@ -53,7 +53,7 @@ class AudioPlayer:
         try:
             audio_files = self.audio_mappings.get(output_string)
             if not audio_files:
-                self.logger.warning(f'No audio files found for "{output_string}".')
+                self.logger.warning(f"No audio files found for <<{output_string}>>.")
                 self._thread_done(stop_event, termination_reason="error")
                 return
 
@@ -63,7 +63,7 @@ class AudioPlayer:
                 self._thread_done(stop_event, termination_reason="error")
                 return
 
-            self.logger.info(f"Starting to play audio for: << {output_string} >>")
+            self.logger.info(f"Starting to play audio for: <<{output_string}>>")
 
             if self.on_start:
                 self.logger.info(f"Calling on_start() callback.")
@@ -81,7 +81,7 @@ class AudioPlayer:
                 pygame.time.wait(5)  # Reduce the wait time to check more frequently
 
             self.logger.info(
-                f"Thread for << {output_string} >> finished playing naturally."
+                f"Thread for <<{output_string}>> finished playing naturally."
             )
             self._thread_done(stop_event, termination_reason="end")
 
