@@ -498,7 +498,15 @@ def define_labels(
 
     elif source == ROBEAU:
         labels.extend(
-            ["Response", "Question", "LogicGate", "Greeting", "Output", "TrafficGate"]
+            [
+                "Response",
+                "Question",
+                "LogicGate",
+                "Greeting",
+                "Output",
+                "TrafficGate",
+                "Input",
+            ]
         )
 
     elif source == SYSTEM:
@@ -547,7 +555,6 @@ def get_node_connections(
 
     result_data = [
         {
-            "id": index,
             "start_node": dict(record["x"])["text"],
             "relationship": record["r"].type,
             "end_node": dict(record["y"])["text"],
@@ -556,8 +563,12 @@ def get_node_connections(
                 "start": list(record["x"].labels),
                 "end": list(record["y"].labels),
             },
+            "data": {
+                "start": {k: v for k, v in dict(record["x"]).items() if k != "text"},
+                "end": {k: v for k, v in dict(record["y"]).items() if k != "text"},
+            },
         }
-        for index, record in enumerate(result)
+        for record in result
     ]
 
     return result_data
@@ -895,7 +906,7 @@ def select_random_connections(random_pool_groups: list[list[dict]]) -> list[dict
         pool_id = connection["params"].get("randomPoolId")
         end_node = connection["end_node"]
         logger.info(
-            f"Selected response for random pool Id {pool_id} is: << {end_node} >>"
+            f"Selected end_node for random pool Id {pool_id} is: << {end_node} >>"
         )
         selected_connections.append(connection)
 
@@ -1280,7 +1291,7 @@ def check_for_particular_query(user_query: str):
 
 def launch_specified_query(
     user_query: str,
-    query_type: str,
+    query_type: Literal["regular", "greeting", "forced"],
     session: Session,
     conversation_state: ConversationState,
     silent: bool,

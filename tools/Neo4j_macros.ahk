@@ -151,22 +151,27 @@ CreateRelationshipReplace(){
 }
 
 SetText() {
-    SendInput, set{space}
+    SendInput, set{space}.text=""
+    Send, ^{Left}^{Left}^{Left}
     Input, Input1, L3
-    SendInput, %Input1%.text=""
-    Send, {Left}
+    SendInput, %Input1%
+    Send, {End}{Left}
 }
 
 SetRandomWeight(){
-    SendInput, set{space}
+    SendInput, set{space}.randomWeight=
+    Send, ^{Left}^{Left}
     Input, Input1, L3
-    SendInput, %Input1%.randomWeight=
+    SendInput, %Input1%
+    Send, {End}
 }
 
 SetDuration(){
-    SendInput, set{space}
+    SendInput, set{space}.duration=
+    Send, ^{Left}^{Left}
     Input, Input1, L3
-    SendInput, %Input1%.duration=
+    SendInput, %Input1%
+    Send, {End}
 }
 
 HandleRelationshipInput(user_input) {
