@@ -240,6 +240,8 @@ HandleNodeInput(user_input) {
         return "TrafficGate"
     } else if (user_input = "res") {
         return "Response"
+    } else if (user_input = "ple") {
+        return "Plea"
     } else if (user_input = "whi") {
         return "Whisper"
     } else {

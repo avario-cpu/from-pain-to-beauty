@@ -21,7 +21,7 @@ from src.robeau.classes.graph_logic_constants import (
     EXPECTATIONS_SUCCESS,
     GREETING,
     MODIFIER,
-    NO_MATCHING_PROMPT_OR_WHISPER,
+    NO_MATCHING_PROMPT,
     RESET_EXPECTATIONS,
     ROBEAU,
     SET_ROBEAU_UNRESPONSIVE,
@@ -350,13 +350,7 @@ def get_node_data(
     text: str,
     labels: list[str],
     context_label: Optional[str],
-    conversation_state: ConversationState,
-    source: QuerySource,
 ) -> Result | None:
-    def process_no_matching_prompt_or_whisper():
-        process_node(
-            session, NO_MATCHING_PROMPT_OR_WHISPER, conversation_state, source=SYSTEM
-        )
 
     queries = []
     for label in labels:
@@ -379,10 +373,6 @@ def get_node_data(
 
     full_query = "\nUNION\n".join(queries)
     result = session.run(full_query, text=text)
-
-    if source == USER:
-        if not result.peek() and ("Prompt" in labels or "Whisper" in labels):
-            process_no_matching_prompt_or_whisper()
 
     return result if result.peek() else None
 
@@ -463,15 +453,13 @@ def define_labels(
             labels.append("Answer")
             return labels, context_label
 
-        if conversation_state.stubborn["state"]:
-            # Check for pleas before allows (it's required for a few connections proper priority)
+        elif conversation_state.stubborn["state"]:
+            # Check for pleas before allows (required for some connections priority order)
             if prompt_matches_pleas():
                 labels.append("Plea")
-                return labels, context_label
 
-            if prompt_matches_allows() and not prompt_matches_pleas():
-                # TODO Implement way to accept prompts when stubborn, reluctantly
-                return labels, context_label
+            if prompt_matches_allows():
+                pass
 
             if prompt_matches_whispers():
                 labels.append("Whisper")
@@ -479,12 +467,25 @@ def define_labels(
 
             return labels, context_label
 
-        if prompt_matches_allows():
-            labels.append("Prompt")
+        else:  # In regular context
 
-        if prompt_matches_whispers():
-            labels.append("Whisper")
-            context_label = "Normal_context"
+            if prompt_matches_whispers():
+                labels.append("Whisper")
+                context_label = "Normal_context"
+
+            if prompt_matches_allows():
+                labels.append("Prompt")
+
+            elif conversation_state.context["allows"]:
+                # Only output a "Did not understand" message if a prompt is expected
+                process_node(
+                    session,
+                    NO_MATCHING_PROMPT,
+                    conversation_state,
+                    source=SYSTEM,
+                )
+
+            return labels, context_label
 
     elif source == GREETING:
         labels.append("Greeting")
@@ -533,9 +534,7 @@ def get_node_connections(
 
     logger.info(f"Labels for fetching {text} connection are {labels}")
 
-    result = get_node_data(
-        session, text, labels, context_label, conversation_state, source
-    )
+    result = get_node_data(session, text, labels, context_label)
 
     if not result:
         return None
@@ -1389,6 +1388,7 @@ def main():
 
                 elif (
                     conversation_state.context["allows"]
+                    or conversation_state.context["permits"]
                     or conversation_state.context["expects"]
                     or conversation_state.context["listens"]
                 ):
