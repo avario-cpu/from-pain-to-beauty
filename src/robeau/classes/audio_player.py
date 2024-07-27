@@ -5,6 +5,7 @@ import threading
 import pygame
 from logging import Logger
 from threading import Event, Thread
+from typing import Literal
 
 
 class AudioPlayer:
@@ -86,7 +87,7 @@ class AudioPlayer:
 
         except Exception as e:
             self.logger.exception(f"Exception in _play_audio: {str(e)}")
-            self._thread_done(stop_event, termination_reason="exception")
+            self._thread_done(stop_event, termination_reason="error")
 
     def stop_audio(self):
         self.logger.info("Stopping all audio.")
@@ -104,7 +105,9 @@ class AudioPlayer:
             if current_weight >= random_choice:
                 return file["file"]
 
-    def _thread_done(self, stop_event, termination_reason: str):
+    def _thread_done(
+        self, stop_event, termination_reason: Literal["stop", "end", "error"]
+    ):
         with self.lock:
             try:
                 index = self.stop_events.index(stop_event)
@@ -132,10 +135,6 @@ class AudioPlayer:
                     self.logger.info(f"Calling on_error() callback.")
                     if self.on_error:
                         self.on_error()
-                else:
-                    self.logger.warning(
-                        f"Unexpected termination reason: {termination_reason}"
-                    )
 
                 self.playing_threads.clear()
                 self.stop_events.clear()

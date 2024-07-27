@@ -287,6 +287,8 @@ return
             CreateRelationshipNoLabel()
     } else if (NextKey = "ral") {
             CreateRelationshipAlias()
+    } else if (NextKey = "rrp") {
+            CreateRelationshipReplace()
     } 
 return
 

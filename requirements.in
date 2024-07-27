@@ -23,6 +23,8 @@ onnx
 onnxruntime
 simpleaudio
 pygame
+keyboard
+types-keyboard
 --index-url https://download.pytorch.org/whl/cu121
 
 torch

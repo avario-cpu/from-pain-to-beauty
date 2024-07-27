@@ -1,3 +1,4 @@
+import keyboard
 import random
 import threading
 import time
@@ -562,7 +563,6 @@ def wait_for_audio_to_play(response_nodes_reached: list[str]):
         f"Stopping to wait for audio to play for nodes: {response_nodes_reached} "
     )
     audio_finished_event.wait()
-    audio_player.join_threads()
     audio_started_event.clear()
     logger.info(
         f"Finished waiting for audio to play for nodes: {response_nodes_reached} "
@@ -1318,6 +1318,28 @@ def launch_specified_query(
         node_thread.start()
 
 
+class TypingDetector:
+    def __init__(self, pause_event):
+        self.pause_event = pause_event
+        self.timer = None
+
+    def on_typing_event(self, event):
+        self._set_pause_event()
+        if self.timer:
+            self.timer.cancel()
+        self.timer = threading.Timer(0.7, self._clear_pause_event)
+        self.timer.start()
+
+    def _clear_pause_event(self):
+        self.pause_event.clear()
+        logger.info(f"Resumed thread updating because user is not typing anymore")
+
+    def _set_pause_event(self):
+        if not self.pause_event.is_set():
+            logger.info(f"Paused thread updating because user is typing")
+        self.pause_event.set()
+
+
 def main():
     (driver, session, conversation_state, stop_event, update_thread, pause_event) = (
         initialize()
@@ -1333,6 +1355,9 @@ def main():
             conversation_state=conversation_state,
             silent=silent,
         )
+
+    typing_detector = TypingDetector(pause_event)
+    keyboard.on_press(typing_detector.on_typing_event)
 
     try:
         while True:
@@ -1377,6 +1402,7 @@ def main():
         logger.exception(e)
     finally:
         cleanup(driver, session, stop_event, update_thread)
+        keyboard.unhook_all()
 
 
 if __name__ == "__main__":
