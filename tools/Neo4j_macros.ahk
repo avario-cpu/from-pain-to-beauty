@@ -2,8 +2,7 @@
 #NoEnv
 #SingleInstance force
 SetTitleMatchMode, 2 ; Allows for partial matching of the window title
-
-targetWindowTitle := "neo4j@bolt://localhost:7687/neo4j - Neo4j Browser"
+targetWindowTitle := "neo4j@bolt://localhost:7687/"
 
 MatchNodeAlias() {
     SendInput, MATCH(
@@ -218,7 +217,13 @@ HandleRelationshipInput(user_input) {
             return "CUTSOFF"
         } else if (user_input = "per") {
             return "PERMITS"
+        } else if (user_input = "eva") {
+            return "EVALUATES"
+        } else if (user_input = "swi") {
+            return "SWITCHES"
         }
+        
+        
     }
     return user_input
 }
@@ -242,6 +247,8 @@ HandleNodeInput(user_input) {
         return "Response"
     } else if (user_input = "ple") {
         return "Plea"
+    } else if (user_input = "ppp") {
+        return "Plea:Prompt"
     } else if (user_input = "whi") {
         return "Whisper"
     } else {
@@ -322,6 +329,11 @@ return
 ^+d:: ; Write delete : Ctrl+Shift+D
     SendInput, DELETE{Space}
 return
+
+^+v:: ; Write remove : Ctrl+Shift+V
+    SendInput, REMOVE{Space}
+return
+
 
 +!d:: ; Write detach delete : Shift+Alt+D
     SendInput, DETACH DELETE{Space}

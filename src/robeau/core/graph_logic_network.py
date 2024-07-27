@@ -424,7 +424,7 @@ def define_labels(
             )
             return True
 
-    def prompt_matches_whispers():
+    def prompt_matches_listens():
         if any(
             text.lower() == item["node"].lower()
             for item in conversation_state.context["listens"]
@@ -434,13 +434,16 @@ def define_labels(
             )
             return True
 
-    def prompt_matches_pleas():
+    def prompt_matches_permits():
         if any(
             text.lower() == item["node"].lower()
             for item in conversation_state.context["permits"]
         ):
             process_node(session, ANY_MATCHING_PLEA, conversation_state, source=SYSTEM)
             return True
+
+    def prompt_is_not_understood():
+        process_node(session, NO_MATCHING_PROMPT, conversation_state, source=SYSTEM)
 
     labels = []
     context_label = ""
@@ -449,41 +452,44 @@ def define_labels(
 
         check_for_any_relevant_user_input()
 
+        # In answering context
         if conversation_state.context["expects"] and prompt_meets_expectations():
             labels.append("Answer")
             return labels, context_label
 
+        # In stubborn context
         elif conversation_state.stubborn["state"]:
-            # Check for pleas before allows (required for some connections priority order)
-            if prompt_matches_pleas():
+
+            if prompt_matches_listens():
+                labels.append("Whisper")
+                context_label = "Stubborn_context"
+
+            if prompt_matches_permits():  # Pleas before allows
                 labels.append("Plea")
 
             if prompt_matches_allows():
                 pass
 
-            if prompt_matches_whispers():
-                labels.append("Whisper")
-                context_label = "Stubborn_context"
+            else:
+                prompt_is_not_understood()
 
             return labels, context_label
 
         else:  # In regular context
 
-            if prompt_matches_whispers():
+            if prompt_matches_listens():
                 labels.append("Whisper")
                 context_label = "Normal_context"
+
+            if prompt_matches_permits():
+                labels.append("Plea")
 
             if prompt_matches_allows():
                 labels.append("Prompt")
 
             elif conversation_state.context["allows"]:
                 # Only output a "Did not understand" message if a prompt is expected
-                process_node(
-                    session,
-                    NO_MATCHING_PROMPT,
-                    conversation_state,
-                    source=SYSTEM,
-                )
+                prompt_is_not_understood()
 
             return labels, context_label
 
