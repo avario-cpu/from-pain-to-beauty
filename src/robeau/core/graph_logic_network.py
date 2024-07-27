@@ -48,8 +48,10 @@ class ConversationState:
         self.test_value = False
         self.logger = logger
         self.lock = threading.Lock()
+
         # states
         self.cutoff = False
+
         # time-bound states
         self.stubborn = {
             "state": False,
@@ -64,6 +66,10 @@ class ConversationState:
             "start_time": 0.0,
         }
 
+        # Attitude levels
+        self.rudeness_level = 0
+
+        # Context relationships
         self.context: dict[str, list[dict]] = {
             "allows": [],
             "permits": [],
@@ -77,7 +83,12 @@ class ConversationState:
         }
 
     def _add_item(
-        self, node: str, labels: list[str], duration: float | None, item_type: str
+        self,
+        node: str,
+        labels: list[str],
+        data: dict,
+        duration: float | None,
+        item_type: str,
     ):
         start_time = time.time()
         item_list = self.context[item_type]
@@ -98,6 +109,7 @@ class ConversationState:
             "type": item_type,
             "node": node,
             "labels": labels,
+            "data": data,
             "time_left": duration,
             "duration": duration,
             "start_time": start_time,
@@ -107,21 +119,28 @@ class ConversationState:
         self.logger.info(f"Added {item_type} << {node} >> {labels}: {item}")
 
     def add_item(
-        self, node: str, labels: list[str], duration: float | None, item_type: str
+        self,
+        node: str,
+        labels: list[str],
+        data: dict,
+        duration: float | None,
+        item_type: str,
     ):
         if item_type in self.context.keys():
-            self._add_item(node, labels, duration, item_type)
+            self._add_item(node, labels, data, duration, item_type)
         else:
             raise ValueError(
                 f"Key from {node} = {item_type} does not match context keys: {self.context.keys()} "
             )
 
-    def delay_item(self, node: str, labels: list[str], duration: float | None):
+    def delay_item(
+        self, node: str, labels: list[str], data: dict, duration: float | None
+    ):
         """Unused right now but may be used in the future, Logic wise just know that the difference between this and add_initiation is that this is for items that are already in the conversation state, which means a previously processed node wont be processed again if they are pointed to with a DELAY relationship"""
         for item_type, node_list in self.context.items():
             for item in node_list:
                 if item["node"] == node:
-                    self._add_item(node, labels, duration, item_type)
+                    self._add_item(node, labels, data, duration, item_type)
 
     def disable_item(self, node: str):
         for node_list in self.context.values():
@@ -237,11 +256,20 @@ class ConversationState:
 
             setattr(self, state, state_obj)
 
+    def _update_attitude_levels(self, log_messages: list[str]):
+        if self.rudeness_level > 0:
+            if random.randint(0, 9) == 0:
+                self.rudeness_level -= 1
+                log_messages.append(
+                    f"Rudeness level decreased to {self.rudeness_level}"
+                )
+
     def update_conversation_state(self, session: Session):
         log_messages: list[str] = []
 
         self._update_timed_items(session, log_messages)
         self._update_timed_states(session, log_messages)
+        self._update_attitude_levels(log_messages)
 
         if log_messages:
             self.logger.info("Time-bound updates:\n" + "\n".join(log_messages) + "\n")
@@ -345,7 +373,7 @@ first_callback_made = threading.Event()
 node_thread: Thread | None = None
 
 
-def get_node_data(
+def query_database(
     session: Session,
     text: str,
     labels: list[str],
@@ -548,7 +576,7 @@ def get_node_connections(
 
     logger.info(f"Labels for fetching {text} connection are {labels}")
 
-    result = get_node_data(session, text, labels, context_label)
+    result = query_database(session, text, labels, context_label)
 
     if not result:
         return None
@@ -618,27 +646,41 @@ def play_audio(node: str, conversation_state: ConversationState):
     first_callback_made.clear()
 
 
+def process_node_data(data: dict, conversation_state: ConversationState):
+
+    if data.get("rudenessLevelIncrease"):
+        conversation_state.rudeness_level += data["rudenessLevelIncrease"]
+        logger.info(f"Rudeness level increased to {conversation_state.rudeness_level}")
+    pass
+
+
 def activate_connection_or_item(
     node_dict: dict,
     conversation_state: ConversationState,
     dict_type: Literal["connection", "item"],
 ):
     """Works for both activation connections (end_node) and dictionaries from the conversation state(node)."""
-    node = node_dict.get("end_node", "") or node_dict.get("node", "")
+    if dict_type == "connection":
+        node = node_dict.get("end_node", "")
+        labels = node_dict.get("labels", {}).get("end", "")
+        data = node_dict.get("data", {}).get("end", {})
 
-    node_labels = (
-        node_dict.get("labels", {}).get("end", "")
-        if dict_type == "connection"
-        else node_dict.get("labels", "")
-    )
+    elif dict_type == "item":
+        node = node_dict.get("node", "")
+        labels = node_dict.get("labels", "")
+        data = node_dict.get("data", {})
+
+    if data:
+        process_node_data(data, conversation_state)
+
     vocal_labels = ["Response", "Question", "Test"]
 
-    if any(label in vocal_labels for label in node_labels):
+    if any(label in vocal_labels for label in labels):
         play_audio(node, conversation_state)
         print(node)
     else:
         logger.info(
-            f" << {node} >> with labels {node_labels} is not considered an audio output"
+            f" << {node} >> with labels {labels} is not considered an audio output"
         )
         print(f"-{node}")
 
@@ -788,6 +830,7 @@ def process_modifications_connections(
     for connection in connections:
         end_node = connection.get("end_node", "")
         labels = connection.get("labels", {}).get("end", [])
+        data = connection.get("data", {}).get("end", {})
         duration = connection.get("params", {}).get("duration")
         process_method(end_node, labels, duration, session)
 
@@ -798,16 +841,16 @@ def process_modifications_relationships(
     conversation_state: ConversationState,
 ):
     relationship_methods = {
-        "DELAYS": lambda end_node, labels, duration, session: conversation_state.delay_item(
-            end_node, labels, duration
+        "DELAYS": lambda end_node, labels, data, duration, session: conversation_state.delay_item(
+            end_node, labels, data, duration
         ),  # Unused right now but may be used in the future
-        "DISABLES": lambda end_node, labels, duration, session: conversation_state.disable_item(
+        "DISABLES": lambda end_node, labels, data, duration, session: conversation_state.disable_item(
             end_node
         ),
-        "APPLIES": lambda end_node, labels, duration, session: conversation_state.apply_definitions(
+        "APPLIES": lambda end_node, labels, data, duration, session: conversation_state.apply_definitions(
             session, end_node
         ),
-        "REVERTS": lambda end_node, labels, duration, session: conversation_state.revert_definitions(
+        "REVERTS": lambda end_node, labels, data, duration, session: conversation_state.revert_definitions(
             session, end_node
         ),
     }
@@ -838,10 +881,17 @@ def process_definitions_relationships(
                 node = connection.get("end_node")
                 duration = connection.get("params", {}).get("duration")
                 labels = connection.get("labels", {}).get("end", [])
+                data = connection.get("data", {}).get("end", {})
                 if not node:
                     logger.error(f"No end node for connection {connection}")
                     continue
-                conversation_state.add_item(node, labels, duration, relationship_lower)
+                conversation_state.add_item(
+                    node=node,
+                    labels=labels,
+                    data=data,
+                    duration=duration,
+                    item_type=relationship_lower,
+                )
 
     if relationships_map["EXPECTS"]:
         process_node(
