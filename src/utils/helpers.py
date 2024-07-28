@@ -47,6 +47,13 @@ def setup_logger(script_name: str, level: int = logging.DEBUG, log_dir: str = LO
     return logger
 
 
+def log_empty_lines(logger, lines: int = 1):
+    for handler in logger.handlers:
+        if isinstance(handler, logging.FileHandler):
+            handler.stream.write(lines * "\n")
+            handler.flush()
+
+
 def print_countdown(duration: int = 3):
     for seconds in reversed(range(1, duration)):
         print("\r" + f"Courting down from {seconds} seconds...", end="\r")

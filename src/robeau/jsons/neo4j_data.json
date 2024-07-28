@@ -529,7 +529,7 @@
                 "LogicGate"
             ],
             "properties": {
-                "text": "Test1"
+                "text": "TestLogic"
             }
         },
         {
@@ -679,15 +679,6 @@
             }
         },
         {
-            "id": 75,
-            "labels": [
-                "Response"
-            ],
-            "properties": {
-                "text": "Ok ok sorry"
-            }
-        },
-        {
             "id": 76,
             "labels": [
                 "Input"
@@ -702,7 +693,6 @@
                 "Response"
             ],
             "properties": {
-                "duration": 2.5,
                 "text": "Ok sorry for talking"
             }
         },
@@ -712,7 +702,8 @@
                 "Response"
             ],
             "properties": {
-                "text": "I talk whenever I please"
+                "text": "I talk whenever I please",
+                "rudenessLevelIncrease": 25
             }
         },
         {
@@ -915,6 +906,42 @@
             }
         },
         {
+            "id": 101,
+            "labels": [
+                "Prompt"
+            ],
+            "properties": {
+                "text": "test unlock"
+            }
+        },
+        {
+            "id": 102,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "unlocked the test"
+            }
+        },
+        {
+            "id": 103,
+            "labels": [
+                "Prompt"
+            ],
+            "properties": {
+                "text": "test init"
+            }
+        },
+        {
+            "id": 104,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "initiation for test"
+            }
+        },
+        {
             "id": 106,
             "labels": [
                 "TrafficGate"
@@ -1084,6 +1111,13 @@
             "properties": {},
             "startNodeId": 69,
             "endNodeId": 91
+        },
+        {
+            "id": 11,
+            "type": "UNLOCKS",
+            "properties": {},
+            "startNodeId": 101,
+            "endNodeId": 102
         },
         {
             "id": 12,
@@ -1519,6 +1553,13 @@
             "endNodeId": 21
         },
         {
+            "id": 71,
+            "type": "TRIGGERS",
+            "properties": {},
+            "startNodeId": 101,
+            "endNodeId": 102
+        },
+        {
             "id": 72,
             "type": "IF",
             "properties": {},
@@ -1574,15 +1615,6 @@
             "endNodeId": 70
         },
         {
-            "id": 79,
-            "type": "CUTSOFF",
-            "properties": {
-                "randomWeight": 1.0
-            },
-            "startNodeId": 73,
-            "endNodeId": 75
-        },
-        {
             "id": 80,
             "type": "REVERTS",
             "properties": {},
@@ -1602,7 +1634,7 @@
             "id": 82,
             "type": "TRIGGERS",
             "properties": {
-                "randomWeight": 1.0
+                "randomWeight": 100
             },
             "startNodeId": 76,
             "endNodeId": 78
@@ -1913,6 +1945,13 @@
             "endNodeId": 14
         },
         {
+            "id": 124,
+            "type": "AND_IS_UNLOCKED",
+            "properties": {},
+            "startNodeId": 58,
+            "endNodeId": 102
+        },
+        {
             "id": 125,
             "type": "TRIGGERS",
             "properties": {
@@ -1920,15 +1959,6 @@
             },
             "startNodeId": 76,
             "endNodeId": 81
-        },
-        {
-            "id": 126,
-            "type": "CUTSOFF",
-            "properties": {
-                "randomWeight": 0.3
-            },
-            "startNodeId": 73,
-            "endNodeId": 76
         },
         {
             "id": 127,
@@ -1947,14 +1977,20 @@
         {
             "id": 129,
             "type": "EVALUATES",
-            "properties": {},
+            "properties": {
+                "rudenessLevelMin": 10,
+                "rudenessLevelMax": 40
+            },
             "startNodeId": 86,
             "endNodeId": 98
         },
         {
             "id": 130,
             "type": "EVALUATES",
-            "properties": {},
+            "properties": {
+                "rudenessLevelMin": 40,
+                "rudenessLevelMax": 70
+            },
             "startNodeId": 86,
             "endNodeId": 99
         },
@@ -1964,6 +2000,20 @@
             "properties": {},
             "startNodeId": 100,
             "endNodeId": 86
+        },
+        {
+            "id": 132,
+            "type": "AND_IS_NOT_INITIATED",
+            "properties": {},
+            "startNodeId": 58,
+            "endNodeId": 104
+        },
+        {
+            "id": 133,
+            "type": "INITIATES",
+            "properties": {},
+            "startNodeId": 103,
+            "endNodeId": 104
         },
         {
             "id": 135,

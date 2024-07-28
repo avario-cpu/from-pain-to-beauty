@@ -4,7 +4,7 @@ import time
 from collections import defaultdict
 from logging import DEBUG, INFO, Logger
 from threading import Thread
-from typing import Literal, Optional
+from typing import Any, Literal, Optional, Union
 
 import keyboard
 from neo4j import GraphDatabase, Result, Session
@@ -37,7 +37,7 @@ from src.robeau.classes.graph_logic_constants import (
     transmission_output_nodes,
 )
 from src.robeau.core.constants import AUDIO_MAPPINGS_FILE_PATH
-from src.utils.helpers import construct_script_name, setup_logger
+from src.utils.helpers import construct_script_name, setup_logger, log_empty_lines
 
 SCRIPT_NAME = construct_script_name(__file__)
 logger = setup_logger(SCRIPT_NAME, level=DEBUG)
@@ -369,7 +369,7 @@ class ConversationState:
         log_message.extend(sorted(state_messages))
         log_message.extend(sorted(attitude_messages))
 
-        self.logger.info("\n".join(log_message) + "\n")
+        self.logger.info("\n".join(log_message))
 
 
 audio_player = AudioPlayer(AUDIO_MAPPINGS_FILE_PATH, logger=logger)
@@ -607,7 +607,7 @@ def wait_for_audio_to_play(response_nodes_reached: list[str]):
     audio_finished_event.wait()
     audio_started_event.clear()
     logger.info(
-        f"Finished waiting for audio to play for nodes: {response_nodes_reached} "
+        f"Finished waiting for audio to play for nodes: {response_nodes_reached}"
     )
 
 
@@ -691,65 +691,79 @@ def activate_connection_or_item(
     return node_dict
 
 
-def process_logic_activations(
-    session: Session,
-    connections: list[dict],
-    logic_gate: str,
-    conversation_state: ConversationState,
+def additional_conditions_are_true(
+    connections: list[tuple[dict, bool, str]], conversation_state: ConversationState
 ):
-    if not connections:
-        logger.error(f'No "THEN" connection found for LogicGate: <<{logic_gate}>>')
-        return
-
     for connection in connections:
-        activate_connection_or_item(connection, conversation_state, "item")
-        process_node(session, connection["end_node"], conversation_state, ROBEAU)
+        conn, is_true, attribute = connection
+        context = conversation_state.context[attribute]
+
+        if is_true:
+            if not any(conn["end_node"] == item["node"] for item in context):
+                return False
+        else:
+            if any(conn["end_node"] == item["node"] for item in context):
+                return False
+    return True
 
 
-def process_and_logic_checks(connections: list[dict], attribute: list[dict]):
-    return all(
-        any(connection["end_node"] == item["node"] for item in attribute)
-        for connection in connections
-    )
+def initial_condition_is_true(
+    connection: tuple[dict, bool, str], conversation_state: ConversationState
+):
+    conn, is_true, attribute = connection
+    context = conversation_state.context[attribute]
+    if is_true:
+        return any(conn["end_node"] == item["node"] for item in context)
+    else:
+        return not any(conn["end_node"] == item["node"] for item in context)
 
 
-def process_initial_logic_check(connection: dict, attribute: list[dict]):
-    return any(connection["end_node"] == item["node"] for item in attribute)
+def filter_logic_connections(
+    attribute_map: dict, connections: list[dict], logic_gate: str
+) -> tuple[tuple[dict, bool, str] | None, list[tuple[dict, bool, str]], list[dict]]:
 
+    is_conditions = {"IS_" + key: attr for key, attr in attribute_map.items()}
+    and_is_conditions = {"AND_IS_" + key: attr for key, attr in attribute_map.items()}
 
-def filter_logic_connections(connections: list[dict], logic_gate: str):
-    attribute_map = {
-        "IS_ALLOWED": "allows",
-        "IS_PERMITTED": "permits",
-        "IS_LOCKED": "locks",
-        "IS_UNLOCKED": "unlocks",
-        "IS_EXPECTED": "expects",
-        "IS_PRIMED": "primes",
-        "IS_UNPRIMED": "unprimes",
-        "IS_LISTENED": "listens",
-        "IS_INITIATED": "initiates",
+    is_not_conditions = {"IS_NOT_" + key: attr for key, attr in attribute_map.items()}
+    and_is_not_conditions = {
+        "AND_IS_NOT_" + key: attr for key, attr in attribute_map.items()
     }
 
-    and_conditions_rel = {"AND_" + key for key in attribute_map.keys()}
-
-    initial_conn = None
-    and_conns = []
-    then_conns = []
-    other_conns = []
+    initial_conn: tuple[dict, bool, str] | None = None
+    and_conns: list[tuple[dict, bool, str]] = []
+    then_conns: list[dict] = []
 
     for conn in connections:
-        if conn["relationship"] in attribute_map:
-            initial_conn = conn
-        elif conn["relationship"] in and_conditions_rel:
-            and_conns.append(conn)
-        elif conn["relationship"] == "THEN":
+        relationship = conn["relationship"]
+
+        if relationship in is_conditions:
+            initial_conn = (conn, True, is_conditions[relationship])
+
+        elif relationship in is_not_conditions:
+            initial_conn = (conn, False, is_not_conditions[relationship])
+
+        elif relationship in and_is_conditions:
+            and_conns.append((conn, True, and_is_conditions[relationship]))
+
+        elif relationship in and_is_not_conditions:
+            and_conns.append((conn, False, and_is_not_conditions[relationship]))
+
+        elif relationship == "THEN":
             then_conns.append(conn)
         else:
-            other_conns.append(conn)
-            logger.warning(f"Atypical connection for logicGate {logic_gate}: {conn}")
+            logger.warning(
+                f"Atypical connection for logicGate <<{logic_gate}>>: {conn}"
+            )
 
-        formatted_and_conns = "\n".join([str(and_conn) for and_conn in and_conns])
-        formatted_then_conns = "\n".join([str(then_conn) for then_conn in then_conns])
+    if not initial_conn:
+        logger.error(f"No initial connection found for LogicGate: <<{logic_gate}>>")
+
+    if not then_conns:
+        logger.error(f'No "THEN" connection found for LogicGate: <<{logic_gate}>>')
+
+    formatted_and_conns = "\nAnd: ".join([str(and_conn) for and_conn in and_conns])
+    formatted_then_conns = "\nThen: ".join([str(then_conn) for then_conn in then_conns])
 
     logger.info(
         f"LogicGate <<{logic_gate}>> connections: \nInitial: {initial_conn} \nAnd: {formatted_and_conns} \nThen: {formatted_then_conns}"
@@ -757,59 +771,48 @@ def filter_logic_connections(connections: list[dict], logic_gate: str):
     return initial_conn, and_conns, then_conns
 
 
-def determine_attribute(conversation_state: ConversationState, relationship: dict):
-    attribute_map = {
-        "IS_ALLOWED": "allows",
-        "IS_PERMITTED": "permits",
-        "IS_LOCKED": "locks",
-        "IS_UNLOCKED": "unlocks",
-        "IS_EXPECTED": "expects",
-        "IS_PRIMED": "primes",
-        "IS_UNPRIMED": "unprimes",
-        "IS_LISTENED": "listens",
-        "IS_INITIATED": "initiates",
-    }
-    for key, attribute_name in attribute_map.items():
-        if key in relationship:
-            return conversation_state.context.get(attribute_name)
-    return None
-
-
 def process_logic_connections(
-    session: Session,
     connections: list[dict],
     logic_gate: str,
     conversation_state: ConversationState,
-):
+) -> list[dict]:
+    attribute_map = {
+        "ALLOWED": "allows",
+        "PERMITTED": "permits",
+        "LOCKED": "locks",
+        "UNLOCKED": "unlocks",
+        "EXPECTED": "expects",
+        "PRIMED": "primes",
+        "UNPRIMED": "unprimes",
+        "LISTENED": "listens",
+        "INITIATED": "initiates",
+    }
+
     initial_conn, and_conns, then_conns = filter_logic_connections(
-        connections, logic_gate
+        attribute_map, connections, logic_gate
     )
 
-    if not initial_conn:
-        logger.error(f"No initial connection found for LogicGate: {logic_gate}")
-        return
+    if not initial_conn or not then_conns:
+        return []
 
-    attribute = determine_attribute(conversation_state, initial_conn["relationship"])
-    if not attribute:
-        logger.error(
-            f"Could not determine attribute for relationship: {initial_conn['relationship']}. (attribute was: '{attribute}')"
-        )
-        return
+    if not initial_condition_is_true(initial_conn, conversation_state):
+        return []
 
-    if not process_initial_logic_check(initial_conn, attribute):
-        return
+    if and_conns and not additional_conditions_are_true(and_conns, conversation_state):
+        return []
 
-    if and_conns and not process_and_logic_checks(and_conns, attribute):
-        return
+    activated_connections = activate_connections(
+        then_conns, conversation_state, "logic_gate"
+    )
 
-    process_logic_activations(session, then_conns, logic_gate, conversation_state)
+    return activated_connections
 
 
 def process_logic_relationships(
     session: Session, relations_map: dict, conversation_state: ConversationState
-):
+) -> list[str]:
     if not relations_map.get("IF"):
-        return
+        return []
 
     for if_connection in relations_map["IF"]:
         logic_gate = if_connection["end_node"]
@@ -821,9 +824,19 @@ def process_logic_relationships(
             logger.info(f"No connections found for LogicGate: {logic_gate}")
             continue
 
-        process_logic_connections(
-            session, gate_connections, logic_gate, conversation_state
+        activated_connections = process_logic_connections(
+            gate_connections, logic_gate, conversation_state
         )
+
+        if not activated_connections:
+            logger.info(f"No connections activated for LogicGate: {logic_gate}")
+
+        end_nodes_reached = (
+            [connection["end_node"] for connection in activated_connections]
+            if activated_connections
+            else []
+        )
+    return end_nodes_reached
 
 
 def process_modifications_connections(
@@ -904,13 +917,13 @@ def process_definitions_relationships(
 def activate_connections(
     connections: list[dict],
     conversation_state: ConversationState,
-    random_source: bool = False,
+    connection_type: Literal["regular", "random", "logic_gate"],
 ):
     conn_names = [connection["end_node"] for connection in connections]
-    status = "random" if random_source else "non-random"
+
     if len(conn_names) > 0:
         logger.info(
-            f"Activating {len(connections)} {status} connection(s): {conn_names}"
+            f"Activating {len(connections)} {connection_type} connection(s): {conn_names}"
         )
     for connection in connections:
         activate_connection_or_item(connection, conversation_state, "connection")
@@ -986,7 +999,9 @@ def process_random_connections(
 ) -> list[dict]:
     random_pool_groups: list[list[dict]] = define_random_pools(random_connection)
     selected_connections: list[dict] = select_random_connections(random_pool_groups)
-    activate_connections(selected_connections, conversation_state, random_source=True)
+    activate_connections(
+        selected_connections, conversation_state, connection_type="random"
+    )
     return selected_connections
 
 
@@ -994,7 +1009,7 @@ def execute_attempt(
     connection: dict,
     node: str,
     conversation_state: ConversationState,
-):
+) -> bool:
     if any(
         node == item["node"] for item in conversation_state.context["unlocks"]
     ) or any(node == item["node"] for item in conversation_state.context["primes"]):
@@ -1009,7 +1024,7 @@ def execute_attempt(
 
 def node_is_unaccessible(
     node: str, connection: dict, conversation_state: ConversationState
-):
+) -> bool:
     connection_locked = any(
         node == item["node"] for item in conversation_state.context["locks"]
     )
@@ -1025,7 +1040,9 @@ def node_is_unaccessible(
     return connection_locked or connection_unprimed
 
 
-def evaluation_meets_criteria(connection: dict, conversation_state: ConversationState):
+def evaluation_meets_criteria(
+    connection: dict, conversation_state: ConversationState
+) -> bool:
     for attitude, level in conversation_state.attitude_levels.items():
         eval_min = connection.get("params", {}).get(attitude + "LevelMin")
         eval_max = connection.get("params", {}).get(attitude + "LevelMax")
@@ -1042,6 +1059,8 @@ def evaluation_meets_criteria(connection: dict, conversation_state: Conversation
                 f"(min {eval_min} < {attitude}: {level} < max {eval_max})"
             )
             return False
+
+    return False
 
 
 def process_activation_connections(
@@ -1078,7 +1097,7 @@ def process_activation_connections(
     )
     activated_connections.extend(
         activate_connections(
-            regular_connections, conversation_state, random_source=False
+            regular_connections, conversation_state, connection_type="regular"
         )
     )
 
@@ -1098,26 +1117,30 @@ def process_activation_relationships(
 
     # Always process all ACTIVATES
     if relationships_map["ACTIVATES"]:
-        activated = process_activation_connections(
+        activated_connections = process_activation_connections(
             relationships_map["ACTIVATES"],
             conversation_state,
             connection_type="ACTIVATES",
         )
-        if activated:
-            end_nodes_reached.extend([item["end_node"] for item in activated])
+        if activated_connections:
+            end_nodes_reached.extend(
+                [item["end_node"] for item in activated_connections]
+            )
 
     if cutoff:
         priority_order = ["CUTSOFF"] + priority_order
 
     for key in priority_order:
         if relationships_map[key]:
-            activated = process_activation_connections(
+            activated_connections = process_activation_connections(
                 relationships_map[key],
                 conversation_state,
                 connection_type=key,
             )
-            if activated:
-                end_nodes_reached.extend([item["end_node"] for item in activated])
+            if activated_connections:
+                end_nodes_reached.extend(
+                    [item["end_node"] for item in activated_connections]
+                )
                 break  # Stop processing further as we've found the first activated connections
 
     return end_nodes_reached
@@ -1134,32 +1157,34 @@ def process_relationships(
 ) -> list[str]:
 
     def log_formatted_connections(relationships_map: dict[str, list[dict]]):
-        all_connections = []
+        conns_from_map = []
         cutoff_status = "(cutoff)" if cutoff else ""
         for connection in relationships_map.values():
-            all_connections.extend(connection)
+            conns_from_map.extend(connection)
 
         formatted_connections = "\n".join(
-            [str(connection) for connection in all_connections]
+            [str(connection) for connection in connections]
         )
         formatted_silent_connections = "\n".join(
             [
                 str(connection)
-                for connection in all_connections
+                for connection in connections
                 if connection["relationship"]
                 not in ("CHECKS", "ATTEMPTS", "TRIGGERS", "DEFAULTS", "CUTSOFF")
             ]
         )
-        if not silent and all_connections:
-            logger.info(
-                f"Processing connections for node <<{node}>> from source {source.name} {cutoff_status}:\n{formatted_connections}\n"
-            )
-        elif all_connections:
+        if silent and conns_from_map:
             logger.info(
                 f"Processing SILENT connections {cutoff_status} (activation relationships were not applied) for node <<{node}>> ({source.name}):\n{formatted_silent_connections}"
             )
-        elif not all_connections:
-            logger.warning(f"No connections found to process in {connections}")
+        elif conns_from_map:
+            logger.info(
+                f"Processing connections for node <<{node}>> from source {source.name} {cutoff_status}:\n{formatted_connections}"
+            )
+        elif not conns_from_map:
+            logger.warning(
+                f"No connections found to process in: \n{formatted_connections}\n Must not be bound to a valid key in the relationships_map"
+            )
 
     relationships_map: dict[str, list[dict]] = {
         # Logic checks
@@ -1197,18 +1222,20 @@ def process_relationships(
     conversation_state.log_conversation_state()
 
     log_formatted_connections(relationships_map)
+    end_nodes_reached = []
 
     if cutoff and not relationships_map["CUTSOFF"]:
         handle_transmission_input(session, ANY_NON_SPECIFIC_CUTOFF, conversation_state)
 
-    process_logic_relationships(session, relationships_map, conversation_state)
-
     if not silent:
-        end_nodes_reached = process_activation_relationships(
-            relationships_map, conversation_state, cutoff
+        end_nodes_reached.extend(
+            process_logic_relationships(session, relationships_map, conversation_state)
         )
-    else:
-        end_nodes_reached = []
+        end_nodes_reached.extend(
+            process_activation_relationships(
+                relationships_map, conversation_state, cutoff
+            )
+        )
 
     process_definitions_relationships(session, relationships_map, conversation_state)
     process_modifications_relationships(session, relationships_map, conversation_state)
@@ -1255,12 +1282,15 @@ def process_node(
     silent: Optional[bool] = False,
     cutoff: Optional[bool] = False,
     main_call: Optional[bool] = False,
+    initiated: Optional[bool] = False,
 ):
 
+    log_empty_lines(logger=logger, lines=3 if main_call else 0)
     logger.info(
         f"Processing node: <<{node}>> from source {source.name}"
-        + (" (OG NODE)" if main_call else "")
+        + (" (OG)" if main_call else "")
         + (" (cutoff)" if cutoff else "")
+        + ("(initiation)" if initiated else "")
     )
 
     connections = get_node_connections(
@@ -1295,6 +1325,9 @@ def process_node(
         else:
             logger.info("No audio to play, continuing processing")
 
+        log_empty_lines(logger=logger, lines=1)
+        logger.info(f"Next node in the chain...")
+
         process_node(
             session,
             response_node,
@@ -1305,9 +1338,9 @@ def process_node(
 
     logger.info(
         f"End of process for node: <<{node}>> from source {source.name}"
-        + (" (OG NODE)" if main_call else "")
-        + "\n"
+        + (" (OG)" if main_call else "")
     )
+    log_empty_lines(logger=logger, lines=3 if main_call else 0)
 
 
 def run_update_conversation_state(

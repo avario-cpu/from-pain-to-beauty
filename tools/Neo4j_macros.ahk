@@ -176,11 +176,11 @@ SetDuration(){
 
 HandleRelationshipInput(user_input) {
     if (GetKeyState("Shift", "P") && !GetKeyState("Alt", "P")) {
-        if (user_input = "loc") {
+        if (user_input = "---") {
             return "IS_LOCKED"
         }
     } else if (GetKeyState("Shift", "P") && GetKeyState("Alt", "P")) {
-        if (user_input = "loc") {
+        if (user_input = "---") {
             return "AND_IS_LOCKED"
         }
     } else {
