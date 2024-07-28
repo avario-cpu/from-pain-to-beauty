@@ -7,7 +7,7 @@ class QuerySource(enum.Enum):
     ROBEAU = auto()
     SYSTEM = auto()
     GREETING = auto()
-    MODIFIER = auto()
+    ADMIN = auto()
 
 
 # Query source aliases
@@ -15,7 +15,7 @@ USER = QuerySource.USER
 ROBEAU = QuerySource.ROBEAU
 SYSTEM = QuerySource.SYSTEM
 GREETING = QuerySource.GREETING
-MODIFIER = QuerySource.MODIFIER
+ADMIN = QuerySource.ADMIN
 
 
 """Below are a list of transmission nodes: They are nodes either triggered by code logic (input) or that will trigger particular code logic (output)"""
