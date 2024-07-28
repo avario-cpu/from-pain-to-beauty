@@ -1,13 +1,12 @@
-import keyboard
 import random
 import threading
 import time
 from collections import defaultdict
 from logging import DEBUG, INFO, Logger
 from threading import Thread
-from typing import Optional
-from typing import Literal
+from typing import Literal, Optional
 
+import keyboard
 from neo4j import GraphDatabase, Result, Session
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
@@ -15,24 +14,25 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from src.robeau.classes.audio_player import AudioPlayer
 from src.robeau.classes.graph_logic_constants import (
+    ANY_MATCHING_PLEA,
     ANY_MATCHING_PROMPT,
+    ANY_MATCHING_WHISPER,
+    ANY_NON_SPECIFIC_CUTOFF,
+    ANY_RELEVANT_USER_INPUT,
     EXPECTATIONS_FAILURE,
     EXPECTATIONS_SET,
     EXPECTATIONS_SUCCESS,
     GREETING,
     MODIFIER,
     NO_MATCHING_PROMPT,
+    PROLONG_STUBBORN,
     RESET_EXPECTATIONS,
     ROBEAU,
-    SET_ROBEAU_UNRESPONSIVE,
+    ROBEAU_NO_MORE_STUBBORN,
     SET_ROBEAU_STUBBORN,
+    SET_ROBEAU_UNRESPONSIVE,
     SYSTEM,
     USER,
-    PROLONG_STUBBORN,
-    ANY_RELEVANT_USER_INPUT,
-    ANY_MATCHING_PLEA,
-    ROBEAU_NO_MORE_STUBBORN,
-    ANY_MATCHING_WHISPER,
     QuerySource,
     transmission_output_nodes,
 )
@@ -116,7 +116,10 @@ class ConversationState:
         }
 
         item_list.append(item)
-        self.logger.info(f"Added {item_type} <<{node}>> {labels}: {item}")
+        duration_str = f"{duration:.2f}" if duration is not None else "Infinite"
+        self.logger.info(
+            f"Added {item_type} <<{node}>> {labels} {duration_str}: {item}"
+        )
 
     def add_item(
         self,
@@ -247,12 +250,7 @@ class ConversationState:
                 state_obj["state"] = False
                 logger.info(f"Robeau is no longer in state {state} ")
                 if state == "stubborn":
-                    process_node(
-                        session=session,
-                        node=ROBEAU_NO_MORE_STUBBORN,
-                        conversation_state=self,
-                        source=SYSTEM,
-                    )
+                    handle_transmission_input(session, ROBEAU_NO_MORE_STUBBORN, self)
 
             setattr(self, state, state_obj)
 
@@ -261,7 +259,7 @@ class ConversationState:
             if level > 0:
                 if random.randint(0, 9) == 0:
                     level -= 1
-                    log_messages.append(f"{attitude} level decreased to {level}")
+                    log_messages.append(f"{attitude}: level decreased to {level}")
 
     def update_conversation_state(self, session: Session):
         log_messages: list[str] = []
@@ -352,7 +350,7 @@ class ConversationState:
                     f"{time_left:.2f}" if time_left is not None else "Infinite"
                 )
                 context_messages.append(
-                    f"{item_type}: {labels}: <<{node}>> ({time_left_str}): {item}"
+                    f"Context {item_type}: {labels}: <<{node}>> ({time_left_str}): {item}"
                 )
 
         state_messages = []
@@ -365,7 +363,7 @@ class ConversationState:
         attitude_messages = []
         for attitude, level in self.attitude_levels.items():
             if level > 0:
-                attitude_messages.append(f"{attitude} level: {level}")
+                attitude_messages.append(f"Attitude {attitude} level: {level}")
 
         log_message.extend(sorted(context_messages))
         log_message.extend(sorted(state_messages))
@@ -430,8 +428,8 @@ def define_labels(
             )
 
         if text_in_conversation_context():
-            process_node(
-                session, ANY_RELEVANT_USER_INPUT, conversation_state, source=SYSTEM
+            handle_transmission_input(
+                session, ANY_RELEVANT_USER_INPUT, conversation_state
             )
 
     def prompt_meets_expectations():
@@ -440,15 +438,11 @@ def define_labels(
             for item in conversation_state.context["expects"]
         ):
             logger.info(f" <<{text}>> meets conversation expectations")
-            process_node(
-                session, EXPECTATIONS_SUCCESS, conversation_state, source=SYSTEM
-            )
+            handle_transmission_input(session, EXPECTATIONS_SUCCESS, conversation_state)
             return True
         else:
             logger.info(f" <<{text}>> does not meet conversation expectations")
-            process_node(
-                session, EXPECTATIONS_FAILURE, conversation_state, source=SYSTEM
-            )
+            handle_transmission_input(session, EXPECTATIONS_FAILURE, conversation_state)
             return False
 
     def prompt_matches_allows():
@@ -456,9 +450,7 @@ def define_labels(
             text.lower() == item["node"].lower()
             for item in conversation_state.context["allows"]
         ):
-            process_node(
-                session, ANY_MATCHING_PROMPT, conversation_state, source=SYSTEM
-            )
+            handle_transmission_input(session, ANY_MATCHING_PROMPT, conversation_state)
             return True
 
     def prompt_matches_listens():
@@ -466,9 +458,7 @@ def define_labels(
             text.lower() == item["node"].lower()
             for item in conversation_state.context["listens"]
         ):
-            process_node(
-                session, ANY_MATCHING_WHISPER, conversation_state, source=SYSTEM
-            )
+            handle_transmission_input(session, ANY_MATCHING_WHISPER, conversation_state)
             return True
 
     def prompt_matches_permits():
@@ -476,11 +466,10 @@ def define_labels(
             text.lower() == item["node"].lower()
             for item in conversation_state.context["permits"]
         ):
-            process_node(session, ANY_MATCHING_PLEA, conversation_state, source=SYSTEM)
-            return True
+            handle_transmission_input(session, ANY_MATCHING_PLEA, conversation_state)
 
     def prompt_is_not_understood():
-        process_node(session, NO_MATCHING_PROMPT, conversation_state, source=SYSTEM)
+        handle_transmission_input(session, NO_MATCHING_PROMPT, conversation_state)
 
     labels = []
     context_label = ""
@@ -847,7 +836,7 @@ def process_modifications_connections(
         labels = connection.get("labels", {}).get("end", [])
         data = connection.get("data", {}).get("end", {})
         duration = connection.get("params", {}).get("duration")
-        process_method(end_node, labels, duration, session)
+        process_method(end_node, labels, data, duration, session)
 
 
 def process_modifications_relationships(
@@ -909,12 +898,7 @@ def process_definitions_relationships(
                 )
 
     if relationships_map["EXPECTS"]:
-        process_node(
-            session=session,
-            node=EXPECTATIONS_SET,
-            conversation_state=conversation_state,
-            source=SYSTEM,
-        )
+        handle_transmission_input(session, EXPECTATIONS_SET, conversation_state)
 
 
 def activate_connections(
@@ -1151,6 +1135,7 @@ def process_relationships(
 
     def log_formatted_connections(relationships_map: dict[str, list[dict]]):
         all_connections = []
+        cutoff_status = "(cutoff)" if cutoff else ""
         for connection in relationships_map.values():
             all_connections.extend(connection)
 
@@ -1167,11 +1152,11 @@ def process_relationships(
         )
         if not silent and all_connections:
             logger.info(
-                f"Processing connections for node <<{node}>> from source {source.name}:\n{formatted_connections}\n"
+                f"Processing connections for node <<{node}>> from source {source.name} {cutoff_status}:\n{formatted_connections}\n"
             )
         elif all_connections:
             logger.info(
-                f"Processing SILENT connections (activation relationships were not applied) for node <<{node}>> ({source.name}):\n{formatted_silent_connections}"
+                f"Processing SILENT connections {cutoff_status} (activation relationships were not applied) for node <<{node}>> ({source.name}):\n{formatted_silent_connections}"
             )
         elif not all_connections:
             logger.warning(f"No connections found to process in {connections}")
@@ -1213,11 +1198,8 @@ def process_relationships(
 
     log_formatted_connections(relationships_map)
 
-    if cutoff and not relationships_map.get(
-        "CUTSOFF"
-    ):  # If robeau was cut off, but there are no particular cutsoffs defined
-        # TODO Implement a default cutoff message
-        pass
+    if cutoff and not relationships_map["CUTSOFF"]:
+        handle_transmission_input(session, ANY_NON_SPECIFIC_CUTOFF, conversation_state)
 
     process_logic_relationships(session, relationships_map, conversation_state)
 
@@ -1234,15 +1216,27 @@ def process_relationships(
     return end_nodes_reached
 
 
+def handle_transmission_input(
+    session: Session,
+    transmission_node: str,
+    conversation_state: ConversationState,
+):
+    process_node(session, transmission_node, conversation_state, SYSTEM)
+    pass
+
+
 def handle_transmission_output(
     transmission_node: str, conversation_state: ConversationState
 ):
     if transmission_node == RESET_EXPECTATIONS:
         conversation_state.reset_attribute("expects")
+
     elif transmission_node == SET_ROBEAU_UNRESPONSIVE:
         conversation_state.set_state("unresponsive", random.randint(5, 10))
+
     elif transmission_node == SET_ROBEAU_STUBBORN:
         conversation_state.set_state("stubborn", random.randint(15, 20))
+
     elif transmission_node == PROLONG_STUBBORN:
         stub_time_left = conversation_state.stubborn["time_left"]
         if stub_time_left and stub_time_left < 10:
@@ -1266,6 +1260,7 @@ def process_node(
     logger.info(
         f"Processing node: <<{node}>> from source {source.name}"
         + (" (OG NODE)" if main_call else "")
+        + (" (cutoff)" if cutoff else "")
     )
 
     connections = get_node_connections(
