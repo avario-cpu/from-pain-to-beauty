@@ -82,7 +82,7 @@ MatchPathNodeAll(){
 MatchPathLabel(){
     SendInput, MATCH ppp=(xxx)-[rrr*1..3]->(yyy)
     SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(xxx)=
-    SendInput, {Shift down}{Enter}{Shift up}WITH p, [n IN nodes(p) WHERE "" IN labels(n)] AS matchNodes
+    SendInput, {Shift down}{Enter}{Shift up}WITH ppp, [n IN nodes(ppp) WHERE "" IN labels(n)] AS matchNodes
     Loop, 6
     {
         Send, ^{Left}

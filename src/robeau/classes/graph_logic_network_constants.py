@@ -43,6 +43,9 @@ ANY_MATCHING_PLEA = "ANY MATCHING PLEA"
 
 # Outputs -----------------------------------
 
+# General
+STOP_LISTENING_FOR_WHISPERS = "STOP LISTENING FOR WHISPERS"
+
 # Expectations
 RESET_EXPECTATIONS = "RESET EXPECTATIONS"
 
@@ -58,4 +61,5 @@ transmission_output_nodes = [
     SET_ROBEAU_UNRESPONSIVE,
     SET_ROBEAU_STUBBORN,
     PROLONG_STUBBORN,
+    STOP_LISTENING_FOR_WHISPERS,
 ]

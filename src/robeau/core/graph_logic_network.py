@@ -13,7 +13,7 @@ from prompt_toolkit.patch_stdout import patch_stdout
 
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from src.robeau.classes.audio_player import AudioPlayer
-from src.robeau.classes.graph_logic_constants import (
+from src.robeau.classes.graph_logic_network_constants import (
     ANY_MATCHING_PLEA,
     ANY_MATCHING_PROMPT,
     ANY_MATCHING_WHISPER,
@@ -31,6 +31,7 @@ from src.robeau.classes.graph_logic_constants import (
     ROBEAU_NO_MORE_STUBBORN,
     SET_ROBEAU_STUBBORN,
     SET_ROBEAU_UNRESPONSIVE,
+    STOP_LISTENING_FOR_WHISPERS,
     SYSTEM,
     USER,
     QuerySource,
@@ -82,11 +83,13 @@ class ConversationState:
             "initiates": [],
         }
 
+        self.listening_context = None
+
     def _add_item(
         self,
         node: str,
         labels: list[str],
-        data: dict,
+        node_data: dict,
         duration: float | None,
         item_type: str,
     ):
@@ -105,11 +108,19 @@ class ConversationState:
                 self.logger.info(f"Reset the time duration of {existing_item}")
                 return
 
+        if item_type == "listens":
+            listening_context = node_data.get("context", None)
+            if listening_context:
+                self.listening_context = listening_context
+                logger.info(f"Set listening context to {self.listening_context}")
+            else:
+                self.logger.error(f"No listening context found for whisper <{node}>")
+
         item = {
             "type": item_type,
             "node": node,
             "labels": labels,
-            "data": data,
+            "data": node_data,
             "time_left": duration,
             "duration": duration,
             "start_time": start_time,
@@ -122,12 +133,12 @@ class ConversationState:
         self,
         node: str,
         labels: list[str],
-        data: dict,
+        node_data: dict,
         duration: float | None,
         item_type: str,
     ):
         if item_type in self.context.keys():
-            self._add_item(node, labels, data, duration, item_type)
+            self._add_item(node, labels, node_data, duration, item_type)
         else:
             raise ValueError(
                 f"Key from {node} = {item_type} does not match context keys: {self.context.keys()} "
@@ -266,7 +277,7 @@ class ConversationState:
         self._update_attitude_levels(log_messages)
 
         if log_messages:
-            self.logger.info("Time-bound updates:\n" + "\n".join(log_messages) + "\n")
+            self.logger.info("Time-bound updates:\n" + "\n".join(log_messages))
         else:
             self.logger.info("No time-bound items or states to update")
 
@@ -353,9 +364,12 @@ class ConversationState:
             if level > 0:
                 attitude_messages.append(f"Attitude {attitude} level: {level}")
 
+        listening_context_message = {f"Listening context: {self.listening_context}"}
+
         log_message.extend(sorted(context_messages))
         log_message.extend(sorted(state_messages))
         log_message.extend(sorted(attitude_messages))
+        log_message.extend(listening_context_message)
 
         self.logger.info("\n".join(log_message))
 
@@ -388,6 +402,9 @@ def handle_transmission_output(
             logger.info(
                 f"Did not prolong stubborn (time_left {stub_time_left:.2f} was long enough)"
             )
+    elif transmission_node == STOP_LISTENING_FOR_WHISPERS:
+        conversation_state.context["listens"] = []
+        logger.info("Cleared the listened to whispers list")  # Keep the context set.
 
 
 def wait_for_audio_to_play(response_nodes_reached: list[str]):
@@ -428,9 +445,7 @@ def play_audio(node: str, conversation_state: ConversationState):
         on_error=on_error,
     )
     audio_player.play_audio(node)
-    logger.info(f"Waiting for first callback")
     first_callback_made.wait()
-    logger.info(f"First callback received, let's go")
     first_callback_made.clear()
 
 
@@ -709,7 +724,7 @@ def process_definitions_relationships(
                 conversation_state.add_item(
                     node=node,
                     labels=labels,
-                    data=data,
+                    node_data=data,
                     duration=duration,
                     item_type=relationship_lower,
                 )
@@ -1080,19 +1095,25 @@ def query_database(
     session: Session,
     text: str,
     labels: list[str],
-    context_label: Optional[str],
+    conversation_state: ConversationState,
 ) -> Result | None:
 
     queries = []
+
     for label in labels:
-        if context_label:
-            queries.append(
-                f"""
-                MATCH (x:{label}:{context_label})-[r]->(y)
-                WHERE toLower(x.text) = toLower($text) 
-                RETURN x, r, y
-                """
-            )
+        if label == "Whisper":
+            listening_context = conversation_state.listening_context
+
+            if listening_context:
+                queries.append(
+                    f"""
+                    MATCH (x:{label})-[r]->(y)
+                    WHERE x.context = '{listening_context}' AND toLower(x.text) = toLower($text) 
+                    RETURN x, r, y
+                    """
+                )
+            else:
+                logger.warning(f"Listening context is not set for Whisper: {text}")
         else:
             queries.append(
                 f"""
@@ -1113,7 +1134,7 @@ def define_labels(
     text: str,
     conversation_state: ConversationState,
     source: QuerySource,
-) -> tuple[list[str], str]:
+) -> list[str]:
 
     def check_for_any_relevant_user_input():
         def text_in_conversation_context() -> bool:
@@ -1169,7 +1190,6 @@ def define_labels(
         handle_transmission_input(session, NO_MATCHING_PROMPT, conversation_state)
 
     labels = []
-    context_label = ""
 
     if source == USER:
 
@@ -1178,43 +1198,51 @@ def define_labels(
         # In answering context
         if conversation_state.context["expects"] and prompt_meets_expectations():
             labels.append("Answer")
-            return labels, context_label
+            return labels
 
         # In stubborn context
         elif conversation_state.stubborn["state"]:
+            matched = False
 
             if prompt_matches_listens():
                 labels.append("Whisper")
-                context_label = "Stubborn_context"
-
-            if prompt_matches_permits():  # Pleas before allows
-                labels.append("Plea")
-
-            if prompt_matches_allows():
-                pass
-
-            else:
-                prompt_is_not_understood()
-
-            return labels, context_label
-
-        else:  # In regular context
-
-            if prompt_matches_listens():
-                labels.append("Whisper")
-                context_label = "Normal_context"
+                matched = True
 
             if prompt_matches_permits():
                 labels.append("Plea")
+                matched = True
+
+            if prompt_matches_allows():  # refuse access to prompt when stubborn
+                matched = True
+
+            if not matched:
+                logger.debug("Stubborn context: Did not understand")
+                prompt_is_not_understood()
+
+            return labels
+
+        else:  # In regular context
+
+            matched = False
+
+            if prompt_matches_listens():
+                labels.append("Whisper")
+                matched = True
+
+            if prompt_matches_permits():
+                labels.append("Plea")
+                matched = True
 
             if prompt_matches_allows():
                 labels.append("Prompt")
+                matched = True
 
-            elif conversation_state.context["allows"]:
+            if not matched and conversation_state.context["allows"]:
                 # Only output a "Did not understand" message if a prompt is expected
+                logger.debug("Normal context: Did not understand ")
                 prompt_is_not_understood()
 
-            return labels, context_label
+            return labels
 
     elif source == GREETING:
         labels.append("Greeting")
@@ -1252,7 +1280,7 @@ def define_labels(
             ]
         )
 
-    return labels, context_label
+    return labels
 
 
 def get_node_connections(
@@ -1262,7 +1290,7 @@ def get_node_connections(
     source: QuerySource,
 ) -> list[dict] | None:
 
-    labels, context_label = define_labels(session, text, conversation_state, source)
+    labels = define_labels(session, text, conversation_state, source)
 
     if not labels:
         labels = [
@@ -1271,7 +1299,7 @@ def get_node_connections(
 
     logger.info(f"Labels for fetching <{text}> connection are {labels}")
 
-    result = query_database(session, text, labels, context_label)
+    result = query_database(session, text, labels, conversation_state)
 
     if not result:
         return None
@@ -1312,7 +1340,7 @@ def process_node(
     log_empty_lines(logger=logger, lines=5 if main_call else (1 if input_node else 0))
 
     if input_node:
-        logger.info(f">>> Start of intermediary input process for: <{node}>\n")
+        logger.info(f">>> Start of intermediary input process for: <{node}>")
 
     logger.info(
         f"Processing node: <{node}> from source {source.name}"
@@ -1370,8 +1398,7 @@ def process_node(
     )
 
     if input_node:
-        log_empty_lines(logger=logger, lines=1)
-        logger.info(f">>> End of intermediary process for input <{node}>\n")
+        logger.info(f">>> End of intermediary process for input <{node}>\n\n")
 
     log_empty_lines(logger=logger, lines=5 if main_call else 0)
 
