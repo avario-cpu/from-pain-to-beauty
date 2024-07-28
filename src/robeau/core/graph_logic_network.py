@@ -380,224 +380,26 @@ first_callback_made = threading.Event()
 node_thread: Thread | None = None
 
 
-def query_database(
-    session: Session,
-    text: str,
-    labels: list[str],
-    context_label: Optional[str],
-) -> Result | None:
+def handle_transmission_output(
+    transmission_node: str, conversation_state: ConversationState
+):
+    if transmission_node == RESET_EXPECTATIONS:
+        conversation_state.reset_attribute("expects")
 
-    queries = []
-    for label in labels:
-        if context_label:
-            queries.append(
-                f"""
-                MATCH (x:{label}:{context_label})-[r]->(y)
-                WHERE toLower(x.text) = toLower($text) 
-                RETURN x, r, y
-                """
-            )
+    elif transmission_node == SET_ROBEAU_UNRESPONSIVE:
+        conversation_state.set_state("unresponsive", random.randint(5, 10))
+
+    elif transmission_node == SET_ROBEAU_STUBBORN:
+        conversation_state.set_state("stubborn", random.randint(15, 20))
+
+    elif transmission_node == PROLONG_STUBBORN:
+        stub_time_left = conversation_state.stubborn["time_left"]
+        if stub_time_left and stub_time_left < 10:
+            conversation_state.set_state("stubborn", random.randint(10, 15))
         else:
-            queries.append(
-                f"""
-                MATCH (x:{label})-[r]->(y)
-                WHERE toLower(x.text) = toLower($text) 
-                RETURN x, r, y
-                """
+            logger.info(
+                f"Did not prolong stubborn (time_left {stub_time_left:.2f} was long enough)"
             )
-
-    full_query = "\nUNION\n".join(queries)
-    result = session.run(full_query, text=text)
-
-    return result if result.peek() else None
-
-
-def define_labels(
-    session: Session,
-    text: str,
-    conversation_state: ConversationState,
-    source: QuerySource,
-) -> tuple[list[str], str]:
-
-    def check_for_any_relevant_user_input():
-        def text_in_conversation_context() -> bool:
-            return any(
-                text.lower() == dictionary["node"].lower()
-                for list_of_dicts in conversation_state.context.values()
-                for dictionary in list_of_dicts
-            )
-
-        if text_in_conversation_context():
-            handle_transmission_input(
-                session, ANY_RELEVANT_USER_INPUT, conversation_state
-            )
-
-    def prompt_meets_expectations():
-        if any(
-            text.lower() == item["node"].lower()
-            for item in conversation_state.context["expects"]
-        ):
-            logger.info(f" <<{text}>> meets conversation expectations")
-            handle_transmission_input(session, EXPECTATIONS_SUCCESS, conversation_state)
-            return True
-        else:
-            logger.info(f" <<{text}>> does not meet conversation expectations")
-            handle_transmission_input(session, EXPECTATIONS_FAILURE, conversation_state)
-            return False
-
-    def prompt_matches_allows():
-        if any(
-            text.lower() == item["node"].lower()
-            for item in conversation_state.context["allows"]
-        ):
-            handle_transmission_input(session, ANY_MATCHING_PROMPT, conversation_state)
-            return True
-
-    def prompt_matches_listens():
-        if any(
-            text.lower() == item["node"].lower()
-            for item in conversation_state.context["listens"]
-        ):
-            handle_transmission_input(session, ANY_MATCHING_WHISPER, conversation_state)
-            return True
-
-    def prompt_matches_permits():
-        if any(
-            text.lower() == item["node"].lower()
-            for item in conversation_state.context["permits"]
-        ):
-            handle_transmission_input(session, ANY_MATCHING_PLEA, conversation_state)
-
-    def prompt_is_not_understood():
-        handle_transmission_input(session, NO_MATCHING_PROMPT, conversation_state)
-
-    labels = []
-    context_label = ""
-
-    if source == USER:
-
-        check_for_any_relevant_user_input()
-
-        # In answering context
-        if conversation_state.context["expects"] and prompt_meets_expectations():
-            labels.append("Answer")
-            return labels, context_label
-
-        # In stubborn context
-        elif conversation_state.stubborn["state"]:
-
-            if prompt_matches_listens():
-                labels.append("Whisper")
-                context_label = "Stubborn_context"
-
-            if prompt_matches_permits():  # Pleas before allows
-                labels.append("Plea")
-
-            if prompt_matches_allows():
-                pass
-
-            else:
-                prompt_is_not_understood()
-
-            return labels, context_label
-
-        else:  # In regular context
-
-            if prompt_matches_listens():
-                labels.append("Whisper")
-                context_label = "Normal_context"
-
-            if prompt_matches_permits():
-                labels.append("Plea")
-
-            if prompt_matches_allows():
-                labels.append("Prompt")
-
-            elif conversation_state.context["allows"]:
-                # Only output a "Did not understand" message if a prompt is expected
-                prompt_is_not_understood()
-
-            return labels, context_label
-
-    elif source == GREETING:
-        labels.append("Greeting")
-
-    elif source == ROBEAU:
-        labels.extend(
-            [
-                "Response",
-                "Question",
-                "LogicGate",
-                "Greeting",
-                "Output",
-                "TrafficGate",
-                "Input",
-            ]
-        )
-
-    elif source == SYSTEM:
-        labels.append("Input")
-
-    elif source == MODIFIER:
-        labels.extend(
-            [
-                "Prompt",
-                "Whisper",
-                "Answer",
-                "Greeting",
-                "Response",
-                "Question",
-                "LogicGate",
-                "Input",
-                "Output",
-                "TrafficGate",
-                "Plea",
-            ]
-        )
-
-    return labels, context_label
-
-
-def get_node_connections(
-    session: Session,
-    text: str,
-    conversation_state: ConversationState,
-    source: QuerySource,
-) -> list[dict] | None:
-
-    labels, context_label = define_labels(session, text, conversation_state, source)
-
-    if not labels:
-        labels = [
-            "None"
-        ]  # This will not return results from the database, but it will also not throw an error. We still want to call get_node_data (instead of making an early return) in order to call relevant nested functions inside.
-
-    logger.info(f"Labels for fetching {text} connection are {labels}")
-
-    result = query_database(session, text, labels, context_label)
-
-    if not result:
-        return None
-
-    result_data = [
-        {
-            "start_node": dict(record["x"])["text"],
-            "relationship": record["r"].type,
-            "end_node": dict(record["y"])["text"],
-            "params": dict(record["r"]),
-            "labels": {
-                "start": list(record["x"].labels),
-                "end": list(record["y"].labels),
-            },
-            "data": {
-                "start": {k: v for k, v in dict(record["x"]).items() if k != "text"},
-                "end": {k: v for k, v in dict(record["y"]).items() if k != "text"},
-            },
-        }
-        for record in result
-    ]
-
-    return result_data
 
 
 def wait_for_audio_to_play(response_nodes_reached: list[str]):
@@ -689,6 +491,22 @@ def activate_connection_or_item(
         print(f"-{node}")
 
     return node_dict
+
+
+def activate_connections(
+    connections: list[dict],
+    conversation_state: ConversationState,
+    connection_type: Literal["regular", "random", "logic_gate"],
+):
+    conn_names = [connection["end_node"] for connection in connections]
+
+    if len(conn_names) > 0:
+        logger.info(
+            f"Activating {len(connections)} {connection_type} connection(s): {conn_names}"
+        )
+    for connection in connections:
+        activate_connection_or_item(connection, conversation_state, "connection")
+    return connections
 
 
 def additional_conditions_are_true(
@@ -912,22 +730,6 @@ def process_definitions_relationships(
 
     if relationships_map["EXPECTS"]:
         handle_transmission_input(session, EXPECTATIONS_SET, conversation_state)
-
-
-def activate_connections(
-    connections: list[dict],
-    conversation_state: ConversationState,
-    connection_type: Literal["regular", "random", "logic_gate"],
-):
-    conn_names = [connection["end_node"] for connection in connections]
-
-    if len(conn_names) > 0:
-        logger.info(
-            f"Activating {len(connections)} {connection_type} connection(s): {conn_names}"
-        )
-    for connection in connections:
-        activate_connection_or_item(connection, conversation_state, "connection")
-    return connections
 
 
 def select_random_connection(connections: list[dict] | dict) -> dict:
@@ -1252,26 +1054,224 @@ def handle_transmission_input(
     pass
 
 
-def handle_transmission_output(
-    transmission_node: str, conversation_state: ConversationState
-):
-    if transmission_node == RESET_EXPECTATIONS:
-        conversation_state.reset_attribute("expects")
+def query_database(
+    session: Session,
+    text: str,
+    labels: list[str],
+    context_label: Optional[str],
+) -> Result | None:
 
-    elif transmission_node == SET_ROBEAU_UNRESPONSIVE:
-        conversation_state.set_state("unresponsive", random.randint(5, 10))
-
-    elif transmission_node == SET_ROBEAU_STUBBORN:
-        conversation_state.set_state("stubborn", random.randint(15, 20))
-
-    elif transmission_node == PROLONG_STUBBORN:
-        stub_time_left = conversation_state.stubborn["time_left"]
-        if stub_time_left and stub_time_left < 10:
-            conversation_state.set_state("stubborn", random.randint(10, 15))
-        else:
-            logger.info(
-                f"Did not prolong stubborn (time_left {stub_time_left:.2f} was long enough)"
+    queries = []
+    for label in labels:
+        if context_label:
+            queries.append(
+                f"""
+                MATCH (x:{label}:{context_label})-[r]->(y)
+                WHERE toLower(x.text) = toLower($text) 
+                RETURN x, r, y
+                """
             )
+        else:
+            queries.append(
+                f"""
+                MATCH (x:{label})-[r]->(y)
+                WHERE toLower(x.text) = toLower($text) 
+                RETURN x, r, y
+                """
+            )
+
+    full_query = "\nUNION\n".join(queries)
+    result = session.run(full_query, text=text)
+
+    return result if result.peek() else None
+
+
+def define_labels(
+    session: Session,
+    text: str,
+    conversation_state: ConversationState,
+    source: QuerySource,
+) -> tuple[list[str], str]:
+
+    def check_for_any_relevant_user_input():
+        def text_in_conversation_context() -> bool:
+            return any(
+                text.lower() == dictionary["node"].lower()
+                for list_of_dicts in conversation_state.context.values()
+                for dictionary in list_of_dicts
+            )
+
+        if text_in_conversation_context():
+            handle_transmission_input(
+                session, ANY_RELEVANT_USER_INPUT, conversation_state
+            )
+
+    def prompt_meets_expectations():
+        if any(
+            text.lower() == item["node"].lower()
+            for item in conversation_state.context["expects"]
+        ):
+            logger.info(f" <<{text}>> meets conversation expectations")
+            handle_transmission_input(session, EXPECTATIONS_SUCCESS, conversation_state)
+            return True
+        else:
+            logger.info(f" <<{text}>> does not meet conversation expectations")
+            handle_transmission_input(session, EXPECTATIONS_FAILURE, conversation_state)
+            return False
+
+    def prompt_matches_allows():
+        if any(
+            text.lower() == item["node"].lower()
+            for item in conversation_state.context["allows"]
+        ):
+            handle_transmission_input(session, ANY_MATCHING_PROMPT, conversation_state)
+            return True
+
+    def prompt_matches_listens():
+        if any(
+            text.lower() == item["node"].lower()
+            for item in conversation_state.context["listens"]
+        ):
+            handle_transmission_input(session, ANY_MATCHING_WHISPER, conversation_state)
+            return True
+
+    def prompt_matches_permits():
+        if any(
+            text.lower() == item["node"].lower()
+            for item in conversation_state.context["permits"]
+        ):
+            handle_transmission_input(session, ANY_MATCHING_PLEA, conversation_state)
+
+    def prompt_is_not_understood():
+        handle_transmission_input(session, NO_MATCHING_PROMPT, conversation_state)
+
+    labels = []
+    context_label = ""
+
+    if source == USER:
+
+        check_for_any_relevant_user_input()
+
+        # In answering context
+        if conversation_state.context["expects"] and prompt_meets_expectations():
+            labels.append("Answer")
+            return labels, context_label
+
+        # In stubborn context
+        elif conversation_state.stubborn["state"]:
+
+            if prompt_matches_listens():
+                labels.append("Whisper")
+                context_label = "Stubborn_context"
+
+            if prompt_matches_permits():  # Pleas before allows
+                labels.append("Plea")
+
+            if prompt_matches_allows():
+                pass
+
+            else:
+                prompt_is_not_understood()
+
+            return labels, context_label
+
+        else:  # In regular context
+
+            if prompt_matches_listens():
+                labels.append("Whisper")
+                context_label = "Normal_context"
+
+            if prompt_matches_permits():
+                labels.append("Plea")
+
+            if prompt_matches_allows():
+                labels.append("Prompt")
+
+            elif conversation_state.context["allows"]:
+                # Only output a "Did not understand" message if a prompt is expected
+                prompt_is_not_understood()
+
+            return labels, context_label
+
+    elif source == GREETING:
+        labels.append("Greeting")
+
+    elif source == ROBEAU:
+        labels.extend(
+            [
+                "Response",
+                "Question",
+                "LogicGate",
+                "Greeting",
+                "Output",
+                "TrafficGate",
+                "Input",
+            ]
+        )
+
+    elif source == SYSTEM:
+        labels.append("Input")
+
+    elif source == MODIFIER:
+        labels.extend(
+            [
+                "Prompt",
+                "Whisper",
+                "Answer",
+                "Greeting",
+                "Response",
+                "Question",
+                "LogicGate",
+                "Input",
+                "Output",
+                "TrafficGate",
+                "Plea",
+            ]
+        )
+
+    return labels, context_label
+
+
+def get_node_connections(
+    session: Session,
+    text: str,
+    conversation_state: ConversationState,
+    source: QuerySource,
+) -> list[dict] | None:
+
+    labels, context_label = define_labels(session, text, conversation_state, source)
+
+    if not labels:
+        labels = [
+            "None"
+        ]  # This will not return results from the database, but it will also not throw an error. We still want to call get_node_data (instead of making an early return) in order to call relevant nested functions inside.
+
+    logger.info(f"Labels for fetching {text} connection are {labels}")
+
+    result = query_database(session, text, labels, context_label)
+
+    if not result:
+        return None
+
+    result_data = [
+        {
+            "start_node": dict(record["x"])["text"],
+            "relationship": record["r"].type,
+            "end_node": dict(record["y"])["text"],
+            "params": dict(record["r"]),
+            "labels": {
+                "start": list(record["x"].labels),
+                "end": list(record["y"].labels),
+            },
+            "data": {
+                "start": {k: v for k, v in dict(record["x"]).items() if k != "text"},
+                "end": {k: v for k, v in dict(record["y"]).items() if k != "text"},
+            },
+        }
+        for record in result
+    ]
+
+    return result_data
 
 
 def process_node(
