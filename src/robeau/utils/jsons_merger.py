@@ -20,9 +20,11 @@ def merge_json_with_synonyms(original, new):
     for key in new.keys():  # Iterate through keys in new_json, as it is the lead
         if key in original:
             # Create a dictionary for easy lookup of texts in original
-            original_texts = {entry["text"]: entry for entry in original[key]}
+            original_texts = {
+                entry["text"]: entry for entry in original[key] if "text" in entry
+            }
             # Create a dictionary for easy lookup of texts in new
-            new_texts = {entry["text"]: entry for entry in new[key]}
+            new_texts = {entry["text"]: entry for entry in new[key] if "text" in entry}
 
             # Create the merged list for the current key
             merged_list = []
@@ -48,7 +50,7 @@ def merge_json_with_synonyms(original, new):
 # File paths
 original_file_path = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\strings_with_synonyms.json"  # Path to the original JSON with synonyms
 new_file_path = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\db_strings.json"  # Path to the new JSON without synonyms
-merged_file_path = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\strings_merged.json"  # Path to save the merged JSON
+merged_file_path = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\strings_with_synonyms_new.json"  # Path to save the merged JSON
 
 # Read JSON content from files
 original_json = read_json(original_file_path)

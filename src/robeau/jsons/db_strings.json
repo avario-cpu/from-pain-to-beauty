@@ -18,9 +18,6 @@
             "text": "calculate 2 + 2"
         },
         {
-            "text": "i'm sorry"
-        },
-        {
             "text": "you're terrible at math"
         },
         {
@@ -31,6 +28,15 @@
         },
         {
             "text": "test gate"
+        },
+        {
+            "text": "say a really long sentence"
+        },
+        {
+            "text": "test unlock"
+        },
+        {
+            "text": "test init"
         }
     ],
     "Answer": [
@@ -51,14 +57,58 @@
         },
         {
             "text": "nothing"
+        },
+        {
+            "text": "yes ok sorry"
+        },
+        {
+            "text": "no I won't"
+        },
+        {
+            "text": "being rude"
         }
     ],
     "Whisper": [
         {
-            "text": "wait robeau"
+            "context": "goodbye"
+        },
+        {
+            "text": "wait"
+        },
+        {
+            "context": "regular_greeting"
         },
         {
             "text": "nothing"
+        },
+        {
+            "context": "regular_greeting"
+        },
+        {
+            "text": "wait"
+        },
+        {
+            "context": "stubborn_greeting"
+        },
+        {
+            "text": "wait"
+        },
+        {
+            "context": "stubborn_greeting"
+        },
+        {
+            "text": "nothing"
+        }
+    ],
+    "Plea": [
+        {
+            "text": "i'm sorry"
+        },
+        {
+            "text": "I want to say sorry for being rude"
+        },
+        {
+            "text": "sorry for cutting you off"
         }
     ]
 }

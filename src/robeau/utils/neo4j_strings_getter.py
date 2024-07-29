@@ -15,7 +15,7 @@ if uri:
 
 def clean_text(text):
     """Remove specific punctuation and handle capitalization."""
-    allowed_punctuation = ["'", "-", "+", "*"]  # keeping math symbols
+    allowed_punctuation = ["'", "-", "+", "*", "_"]  # keeping math symbols
     translator = str.maketrans(
         "", "", "".join(c for c in string.punctuation if c not in allowed_punctuation)
     )
@@ -49,7 +49,7 @@ def write_to_json(data, filename):
 
 
 # List of labels to query
-labels = ["Greeting", "Prompt", "Answer", "Whisper"]
+labels = ["Greeting", "Prompt", "Answer", "Whisper", "Plea"]
 
 # Get text keys from specified labels
 data = get_text_keys_from_labels(labels)

@@ -2,25 +2,27 @@ import json
 import torch
 from sentence_transformers import SentenceTransformer, util
 import time
-from src.robeau.core.constants import STRING_WITH_SYNS_FILE_PATH
+from src.robeau.core.constants import STRINGS_WITH_SYNS_FILE_PATH
 from typing import Optional
 
-STRING_WITH_SYNS = STRING_WITH_SYNS_FILE_PATH
+STRING_WITH_SYNS = STRINGS_WITH_SYNS_FILE_PATH
 
 
 class SBERTMatcher:
     def __init__(
-        self, model_name="all-MiniLM-L6-v2", file_path=None, similarity_threshold=0.6
+        self,
+        model_name="all-MiniLM-L6-v2",
+        file_path=None,
+        similarity_threshold=0.6,
     ):
         self.model = SentenceTransformer(model_name)
         if torch.cuda.is_available():
             self.model = self.model.to("cuda")
-        self.target_embeddings = (
-            self.load_target_embeddings(file_path) if file_path else {}
-        )
+        self.embeddings = self.load_embeddings(file_path) if file_path else {}
+        self.metadata = self.load_metadata(file_path) if file_path else {}
         self.similarity_threshold = similarity_threshold
 
-    def load_target_embeddings(self, file_path: str):
+    def load_embeddings(self, file_path: str):
         with open(file_path, "r") as f:
             data = json.load(f)
 
@@ -39,11 +41,32 @@ class SBERTMatcher:
                     embeddings[section].append((main_text, text, embedding))
         return embeddings
 
+    def load_metadata(self, file_path: str):
+        with open(file_path, "r") as f:
+            data = json.load(f)
+
+        metadata: dict = {}
+        for section, items in data.items():
+            metadata[section] = []
+            for item in items:
+                main_text = item["text"]
+                rudeness_points = item.get("rudeness_points", 0)
+                all_texts = [(main_text, rudeness_points)] + [
+                    (syn, rudeness_points) for syn in item.get("synonyms", [])
+                ]
+                for text, rudeness_pts in all_texts:
+                    metadata[section].append((main_text, text, rudeness_pts))
+        return metadata
+
     def measure_similarity(self, embedding1, embedding2):
         return util.pytorch_cos_sim(embedding1, embedding2).item()
 
     def check_for_best_matching_synonym(
-        self, message: str, show_details: bool = False, labels: Optional[list] = None
+        self,
+        message: str,
+        show_details: bool = False,
+        labels: Optional[list] = None,
+        stop_command: Optional[bool] = False,
     ):
         start_time = time.time()
         input_embedding = self.model.encode(message, convert_to_tensor=True)
@@ -54,11 +77,14 @@ class SBERTMatcher:
         best_match = None
         best_synonym = None
 
-        categories = labels if labels else self.target_embeddings.keys()
+        categories = labels if labels else self.embeddings.keys()
 
         for category in categories:
-            items = self.target_embeddings.get(category, [])
-            for main_text, text, embedding in items:
+            items = self.embeddings.get(category, [])
+            metadata_items = self.metadata.get(category, [])
+            for (main_text, text, embedding), (_, _, rudeness_points) in zip(
+                items, metadata_items
+            ):
                 similarity = self.measure_similarity(input_embedding, embedding)
                 if similarity > max_similarity:
                     max_similarity = similarity
@@ -70,13 +96,13 @@ class SBERTMatcher:
 
         if show_details:
             print(
-                f'Input: "{message}" has match value <<{max_similarity:.3f}>> from matching with "{best_synonym}" for text: "{best_match}" (exec.time: {inference_time:.4f})'
+                f"Input: <{message}> has match value <{max_similarity:.3f}> from matching with <{best_synonym}> for original text: <{best_match}> (exec.time: {inference_time:.4f})"
             )
 
         if max_similarity < self.similarity_threshold:
-            return message
+            return (None, 0) if stop_command else None
         else:
-            return best_match
+            return (best_match, rudeness_points) if stop_command else best_match
 
 
 def main():

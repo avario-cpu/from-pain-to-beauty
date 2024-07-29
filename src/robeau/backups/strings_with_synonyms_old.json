@@ -150,6 +150,9 @@
             "text": "calculate 2 + 2"
         },
         {
+            "text": "i'm sorry"
+        },
+        {
             "text": "you're terrible at math"
         },
         {
@@ -160,15 +163,6 @@
         },
         {
             "text": "test gate"
-        },
-        {
-            "text": "say a really long sentence"
-        },
-        {
-            "text": "test unlock"
-        },
-        {
-            "text": "test init"
         }
     ],
     "Answer": [
@@ -192,69 +186,14 @@
             "synonyms": [
                 "never mind"
             ]
-        },
-        {
-            "text": "yes ok sorry"
-        },
-        {
-            "text": "no I won't"
-        },
-        {
-            "text": "being rude"
         }
     ],
     "Whisper": [
         {
-            "text": "wait"
+            "text": "wait robeau"
         },
         {
             "text": "nothing"
         }
-    ],
-    "Plea": [
-        {
-            "text": "i'm sorry"
-        },
-        {
-            "text": "I want to say sorry for being rude"
-        },
-        {
-            "text": "sorry for cutting you off"
-        }
-    ],
-    "StopCommand": [
-        {
-            "text": "shut up",
-            "synonyms": [
-                ""
-            ],
-            "rudeness_points": 10
-        }
-    ],
-    "StopCommandRude": [
-        {
-        "text": "shut the fuck up",
-        "synonyms": [
-            ""
-        ],
-        "rudeness_points": 20
-    },
-    {
-        "text": "shut the fuck up moron",
-        "synonyms": [
-            ""
-        ],
-        "rudeness_points": 40
-    }
-    ],
-    "StopCommandPolite": [
-        {
-        "text": "can you please be quiet",
-        "synonyms": [
-            ""
-        ],
-        "rudeness_points": 0
-    }
     ]
-
 }

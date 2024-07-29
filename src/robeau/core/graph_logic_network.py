@@ -74,12 +74,12 @@ class ConversationState:
         self.context: dict[str, list[dict]] = {
             "allows": [],
             "permits": [],
+            "expects": [],
+            "listens": [],
             "locks": [],
             "unlocks": [],
-            "expects": [],
             "primes": [],
             "unprimes": [],
-            "listens": [],
             "initiates": [],
         }
 
@@ -375,9 +375,12 @@ class ConversationState:
 
 
 audio_player = AudioPlayer(AUDIO_MAPPINGS_FILE_PATH, logger=logger)
-audio_finished_event = threading.Event()
+
+processing_nodes_audio = threading.Event()
+audio_player_first_callback = threading.Event()
 audio_started_event = threading.Event()
-first_callback_made = threading.Event()
+robeau_is_talking = threading.Event()
+audio_finished_event = threading.Event()
 
 node_thread: Thread | None = None
 
@@ -407,35 +410,63 @@ def handle_transmission_output(
         logger.info("Cleared the listened to whispers list")  # Keep the context set.
 
 
-def wait_for_audio_to_play(response_nodes_reached: list[str]):
-    logger.info(
-        f"Stopping to wait for audio to play for nodes: {response_nodes_reached} "
-    )
-    audio_finished_event.wait()
+def reset_audio_events():
+    audio_finished_event.clear()
     audio_started_event.clear()
-    logger.info(
-        f"Finished waiting for audio to play for nodes: {response_nodes_reached}"
-    )
+    audio_player_first_callback.clear()
+    robeau_is_talking.clear()
 
 
-def play_audio(node: str, conversation_state: ConversationState):
+def interrupt_robeau(stop_command: str, rudeness_points: int):
+    audio_player.stop_audio()
+    if node_thread:
+        node_thread.join()
 
+
+def wait_for_audio_management(response_nodes_reached: list[str]):
+    logger.info(f"Waiting for initial callback from audio_player")
+    audio_player_first_callback.wait()
+    audio_player_first_callback.clear()
+    logger.info(f"Callback received from audio_player, proceeding")
+
+    if audio_started_event.is_set():
+
+        logger.info(
+            f"Stopping to wait for audio to play for nodes: {response_nodes_reached}, state of audio finished event: {audio_finished_event}"
+        )
+        audio_finished_event.wait()
+        reset_audio_events()
+        logger.info(
+            f"Finished waiting for audio to play for nodes: {response_nodes_reached}"
+        )
+    else:
+        logger.info(
+            f"No audio to play for nodes: {response_nodes_reached} continuing processing"
+        )
+
+    processing_nodes_audio.clear()
+
+
+def play_audio(
+    node: str,
+    conversation_state: ConversationState,
+    multiple_activations: Optional[int] = False,
+):
     def on_start():
         audio_started_event.set()
-        first_callback_made.set()
+        audio_player_first_callback.set()
+        robeau_is_talking.set()
         conversation_state.cutoff = False
 
     def on_stop():
         audio_finished_event.set()
-        first_callback_made.set()
         conversation_state.cutoff = True
 
     def on_end():
         audio_finished_event.set()
-        first_callback_made.set()
 
     def on_error():
-        first_callback_made.set()
+        audio_player_first_callback.set()
         conversation_state.cutoff = False
 
     audio_player.set_callbacks(
@@ -444,9 +475,9 @@ def play_audio(node: str, conversation_state: ConversationState):
         on_end=on_end,
         on_error=on_error,
     )
-    audio_player.play_audio(node)
-    first_callback_made.wait()
-    first_callback_made.clear()
+
+    processing_nodes_audio.set()
+    audio_player.play_audio(node, multiple_activations)
 
 
 def process_node_data(data: dict, conversation_state: ConversationState):
@@ -467,6 +498,7 @@ def activate_connection_or_item(
     node_dict: dict,
     conversation_state: ConversationState,
     dict_type: Literal["connection", "item"],
+    multiple_activations: Optional[int] = False,
 ):
     """Works for both activation connections (end_node) and dictionaries from the conversation state(node)."""
     if dict_type == "connection":
@@ -485,11 +517,11 @@ def activate_connection_or_item(
     vocal_labels = ["Response", "Question", "Test"]
 
     if any(label in vocal_labels for label in labels):
-        play_audio(node, conversation_state)
+        play_audio(node, conversation_state, multiple_activations)
         print(node)
     else:
         logger.info(f" <{node}> with labels {labels} is not considered an audio output")
-        print(f"-{node}")
+        print(f"-{node}")  # - is to indicate that the node is not an audio output
 
     return node_dict
 
@@ -508,7 +540,12 @@ def activate_connections(
             f"Activating {len(connections)} {connection_type} connection(s): {conn_names}"
         )
     for connection in connections:
-        activate_connection_or_item(connection, conversation_state, "connection")
+        activate_connection_or_item(
+            connection,
+            conversation_state,
+            "connection",
+            multiple_activations=len(connections) if len(connections) > 1 else False,
+        )
     return connections
 
 
@@ -1337,7 +1374,7 @@ def process_node(
     input_node: Optional[bool] = False,
 ):
 
-    log_empty_lines(logger=logger, lines=5 if main_call else (1 if input_node else 0))
+    log_empty_lines(logger=logger, lines=7 if main_call else 0)
 
     if input_node:
         logger.info(f">>> Start of intermediary input process for: <{node}>")
@@ -1376,10 +1413,8 @@ def process_node(
         if response_node in transmission_output_nodes:
             handle_transmission_output(response_node, conversation_state)
 
-        if audio_started_event.is_set():
-            wait_for_audio_to_play(response_nodes_reached=response_nodes_reached)
-        else:
-            logger.info("No audio to play, continuing processing")
+        if processing_nodes_audio.is_set():
+            wait_for_audio_management(response_nodes_reached=response_nodes_reached)
 
         log_empty_lines(logger=logger, lines=1)
         logger.info(f"Next node in the chain...\n")
@@ -1398,9 +1433,9 @@ def process_node(
     )
 
     if input_node:
-        logger.info(f">>> End of intermediary process for input <{node}>\n\n")
+        logger.info(f">>> End of intermediary process for input <{node}>\n\n\n")
 
-    log_empty_lines(logger=logger, lines=5 if main_call else 0)
+    log_empty_lines(logger=logger, lines=7 if main_call else 0)
 
 
 def run_update_conversation_state(
@@ -1534,12 +1569,21 @@ class TypingDetector:
         self.pause_event.set()
 
 
+def robeau_is_listening(conversation_state: ConversationState):
+    if (
+        conversation_state.context["allows"]
+        or conversation_state.context["permits"]
+        or conversation_state.context["expects"]
+        or conversation_state.context["listens"]
+    ):
+        return True
+
+
 def main():
     (driver, session, conversation_state, stop_event, update_thread, pause_event) = (
         initialize()
     )
     prompt_session: PromptSession = PromptSession()
-    global node_thread
 
     def launch_query(user_query, query_type, silent):
         launch_specified_query(
@@ -1569,9 +1613,7 @@ def main():
                     continue
 
                 if user_query == "stfu":
-                    audio_player.stop_audio()
-                    if node_thread:
-                        node_thread.join()
+                    interrupt_robeau(stop_command="StopCommand", rudeness_points=0)
 
                 elif node_thread and node_thread.is_alive():
                     print(
@@ -1581,12 +1623,7 @@ def main():
                 elif force:
                     launch_query(user_query, query_type="forced", silent=silent)
 
-                elif (
-                    conversation_state.context["allows"]
-                    or conversation_state.context["permits"]
-                    or conversation_state.context["expects"]
-                    or conversation_state.context["listens"]
-                ):
+                elif robeau_is_listening(conversation_state):
                     launch_query(user_query, query_type="regular", silent=silent)
 
                 else:

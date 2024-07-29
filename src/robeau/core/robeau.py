@@ -8,14 +8,15 @@ from neo4j import Session
 from src.config.initialize import setup_script
 from src.core.constants import SLOTS_DB_FILE_PATH
 from src.robeau.classes.sbert_matcher import SBERTMatcher  # type: ignore
-from src.robeau.core.constants import STRING_WITH_SYNS_FILE_PATH
+from src.robeau.core.constants import STRINGS_WITH_SYNS_FILE_PATH
 from src.robeau.core.graph_logic_network import (
-    GREETING,
-    USER,
     ConversationState,
     cleanup,
     initialize,
-    process_node,
+    interrupt_robeau,
+    launch_specified_query,
+    robeau_is_listening,
+    robeau_is_talking,
 )
 from src.robeau.core.speech_recognition import recognize_speech
 from src.utils.helpers import construct_script_name, setup_logger
@@ -25,11 +26,56 @@ SCRIPT_NAME = construct_script_name(__file__)
 
 logger = setup_logger(SCRIPT_NAME)
 
-STRING_WITH_SYNS = STRING_WITH_SYNS_FILE_PATH
+STRINGS_WITH_SYNS = STRINGS_WITH_SYNS_FILE_PATH
 
 
-# Initialize SBERT matcher
-sbert_matcher = SBERTMatcher(file_path=STRING_WITH_SYNS, similarity_threshold=0.65)
+sbert_matcher = SBERTMatcher(file_path=STRINGS_WITH_SYNS, similarity_threshold=0.65)
+
+
+def check_greeting_in_message(msg: str):
+    """Check if first 2, 3, and 4 words segments are a greeting"""
+    words = msg.split()
+    segments = [" ".join(words[:i]) for i in range(2, 5)]
+    for segment in segments:
+        greeting = sbert_matcher.check_for_best_matching_synonym(
+            segment, show_details=True, labels=["Greeting"]
+        )
+        if greeting and "hey robeau" in greeting.lower():
+            return segment
+    return None
+
+
+def check_for_stop_command(message: str):
+    stop_command, rudeness_points = sbert_matcher.check_for_best_matching_synonym(
+        message,
+        show_details=True,
+        labels=["StopCommand", "StopCommandRude", "StopCommandPolite"],
+        stop_command=True,
+    )
+    return stop_command, rudeness_points
+
+
+def extract_remaining_message(message: str, greeting_segment: str):
+    remaining_message = re.sub(
+        re.escape(greeting_segment), "", message, count=1
+    ).strip()
+
+    if remaining_message:
+        logger.info(
+            f'Greeting "{greeting_segment}" and prompt "{remaining_message}" received in one message.'
+        )
+    else:
+        logger.info(
+            f'Greeting "{greeting_segment}" received, ready to process messages.'
+        )
+    return remaining_message
+
+
+def log_matching_synonym(matched_message: str, message: str):
+    if matched_message:
+        logger.info(f"Matched prompt '{message}' with node text: '{matched_message}")
+    else:
+        logger.info(f"Could not match prompt '{message}' with any node text.")
 
 
 class RobeauHandler:
@@ -37,112 +83,100 @@ class RobeauHandler:
         self,
         session: Session,
         conversation_state: ConversationState,
-        show_details=False,
     ):
         self.stop_event = asyncio.Event()
         self.session = session
         self.conversation_state = conversation_state
-        self.show_details = show_details
         print("Waiting for greeting...")
 
     async def handle_message(self, message: str):
-        if (
-            not self.conversation_state.allows
-            and not self.conversation_state.expects
-            and not self.conversation_state.listens
-        ):
+
+        if robeau_is_talking.is_set():
+            print("Robeau is talking.")
+            stop_command, rudeness_points = check_for_stop_command(message)
+            if stop_command:
+                interrupt_robeau(stop_command, rudeness_points)
+                print(f"interrupted robeau and added {rudeness_points} rudeness points")
+            else:
+                print("No stop command detected over robeau's speech")
+
+        elif not robeau_is_listening(self.conversation_state):
             self.process_initial_greeting(message)
+
         else:
             self.process_message(message)
 
-    def check_greeting_in_message(self, msg: str):
-        words = msg.split()
-        segments = [
-            " ".join(words[:i]) for i in range(2, 5)
-        ]  # first 2, 3, and 4 words segments
-        for segment in segments:
-            greeting = sbert_matcher.check_for_best_matching_synonym(
-                segment, self.show_details, labels=["Greeting"]
-            )
-            if greeting and "hey robeau" in greeting.lower():
-                return segment
-        return None
-
     def process_initial_greeting(self, message: str):
-        greeting_segment = self.check_greeting_in_message(message)
+        greeting_segment = check_greeting_in_message(message)
         if not greeting_segment:
             print("Waiting for greeting...")
             return
 
-        remaining_message = self.extract_remaining_message(message, greeting_segment)
+        remaining_message = extract_remaining_message(message, greeting_segment)
+
         if remaining_message:
-            logger.info(
-                f'Greeting "{greeting_segment}" and prompt "{remaining_message}" received in one message.'
-            )
             self.greet(silent=True)
             self.handle_remaining_message(remaining_message)
         else:
-            logger.info(
-                f'Greeting "{greeting_segment}" received, ready to process messages.'
-            )
             self.greet(silent=False)
-
-    def extract_remaining_message(self, message: str, greeting_segment: str):
-        return re.sub(re.escape(greeting_segment), "", message, count=1).strip()
 
     def handle_remaining_message(self, remaining_message: str):
         matched_message = sbert_matcher.check_for_best_matching_synonym(
-            remaining_message, self.show_details, labels=["Prompt"]
+            remaining_message, show_details=True, labels=["Prompt"]
         )
-        logger.info(
-            f'Matched prompt "{remaining_message}" with node text: "{matched_message}"'
-        )
+        log_matching_synonym(matched_message, remaining_message)
         self.process_node_with_message(matched_message)
 
     def process_message(self, message: str):
         labels = self.determine_labels()
         matched_message = sbert_matcher.check_for_best_matching_synonym(
-            message, self.show_details, labels=labels
+            message, show_details=True, labels=labels
         )
-        logger.info(
-            f"Matched prompt '{message}' with node text: '{matched_message if matched_message != message else None}'"  # reason for != message check is because sbert will return the same message if no sufficient match is found
-        )
+        log_matching_synonym(matched_message, message)
         self.process_node_with_message(matched_message)
 
     def determine_labels(self):
-        if self.conversation_state.listens:
-            return ["Prompt", "Whisper"]
-        elif self.conversation_state.expects:
-            return ["Answer"]
-        else:
-            return ["Prompt"]
+        labels = []
+        if self.conversation_state.context["listens"]:
+            labels.append("Whisper")
+
+        if self.conversation_state.context["expects"]:
+            labels.append("Answer")
+
+        if self.conversation_state.context["allows"]:
+            labels.append("Prompt")
+
+        if self.conversation_state.context["permits"]:
+            labels.append("Plea")
+
+        return labels
 
     def greet(self, silent=False):
-        process_node(
+        launch_specified_query(
+            user_query="hey robeau",
+            query_type="greeting",
             session=self.session,
-            node="hey robeau",
             conversation_state=self.conversation_state,
-            source=GREETING,
             silent=silent,
         )
 
     def process_node_with_message(self, matched_message: str):
-        process_node(
+        launch_specified_query(
+            user_query=matched_message,
+            query_type="regular",
             session=self.session,
-            node=matched_message,
             conversation_state=self.conversation_state,
-            source=USER,
             silent=False,
         )
 
 
-async def main(show_details=False):
+async def main():
     try:
         db_conn, slot = await setup_script(SCRIPT_NAME, SLOTS_DB_FILE_PATH)
         driver, session, conversation_state, stop_event, update_thread, pause_event = (
             initialize()
         )
-        handler = RobeauHandler(session, conversation_state, show_details)
+        handler = RobeauHandler(session, conversation_state)
         asyncio.create_task(recognize_speech(handler, pause_event))
         await handler.stop_event.wait()
     except Exception as e:
@@ -156,4 +190,4 @@ async def main(show_details=False):
 
 
 if __name__ == "__main__":
-    asyncio.run(main(show_details=True))
+    asyncio.run(main())

@@ -5,7 +5,7 @@ import threading
 import pygame
 from logging import Logger
 from threading import Event, Thread
-from typing import Literal
+from typing import Literal, Optional
 
 
 class AudioPlayer:
@@ -27,13 +27,19 @@ class AudioPlayer:
         self.on_end = None
         self.on_error = None
 
+        # To manage groups of threads
+        self.group_count = 1
+        self.current_group_start_count = 0
+        self.current_group_done_count = 0
+
     def set_callbacks(self, on_start=None, on_stop=None, on_end=None, on_error=None):
         self.on_start = on_start
         self.on_stop = on_stop
         self.on_end = on_end
         self.on_error = on_error
 
-    def play_audio(self, output_string: str):
+    def play_audio(self, output_string: str, multiple_tracks: Optional[int] = False):
+        self.group_count = multiple_tracks if multiple_tracks else 1
         stop_event = threading.Event()
         thread_name = f"AudioThread-{output_string}-{len(self.playing_threads) + 1}"
         thread = threading.Thread(
@@ -65,9 +71,13 @@ class AudioPlayer:
 
             self.logger.info(f"Starting to play audio for: <<{output_string}>>")
 
-            if self.on_start:
-                self.logger.info(f"Calling on_start() callback.")
-                self.on_start()
+            with self.lock:
+                self.current_group_start_count += 1
+                if self.current_group_start_count == self.group_count:
+                    self.logger.info(f"Calling on_start() callback.")
+                    if self.on_start:
+                        self.on_start()
+                    self.current_group_start_count = 0
 
             sound = pygame.mixer.Sound(audio_file)
             channel = sound.play()
@@ -119,10 +129,14 @@ class AudioPlayer:
                 return
 
             self.active_threads -= 1
+            self.current_group_done_count += 1
+
             self.logger.info(
                 f"Thread done by: {termination_reason}. Active threads remaining: {self.active_threads}"
             )
-            if self.active_threads == 0:
+
+            if self.current_group_done_count == self.group_count:
+                self.current_group_done_count = 0
                 if termination_reason == "stop":
                     self.logger.info(f"Calling on_stop() callback.")
                     if self.on_stop:

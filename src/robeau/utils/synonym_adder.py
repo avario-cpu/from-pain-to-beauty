@@ -4,7 +4,7 @@ from logging import Logger
 import json
 import asyncio
 from src.core.constants import SUBPROCESSES_PORTS
-from src.robeau.core.constants import STRING_WITH_SYNS_FILE_PATH
+from src.robeau.core.constants import STRINGS_WITH_SYNS_FILE_PATH
 from src.robeau.core.speech_recognition import recognize_speech
 import threading
 
@@ -63,7 +63,7 @@ class SynonymHandler:
 
 async def main():
     # Path to your JSON file
-    json_file_path = STRING_WITH_SYNS_FILE_PATH
+    json_file_path = STRINGS_WITH_SYNS_FILE_PATH
     predefined_text = "nothing"  # Replace with the actual predefined text
     handler = SynonymHandler(
         json_file_path=json_file_path, predefined_text=predefined_text
