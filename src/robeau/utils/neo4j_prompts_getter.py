@@ -58,7 +58,7 @@ data = get_text_keys_from_labels(labels)
 print("Data to be written to JSON:", data)
 
 # Write data to JSON file
-json_filename = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\neo4j_prompts.json"
+json_filename = "src/robeau/jsons/raw_from_neo4j/neo4j_prompts.json"
 write_to_json(data, json_filename)
 
 # Check if the file exists and print the absolute path

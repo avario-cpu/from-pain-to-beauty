@@ -53,10 +53,7 @@ def main():
     print(json_data)
 
     # Save the JSON data to a file
-    with open(
-        "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\neo4j_responses.json",
-        "w",
-    ) as f:
+    with open("src/robeau/jsons/raw_from_neo4j/neo4j_responses.json", "w") as f:
         f.write(json_data)
 
 

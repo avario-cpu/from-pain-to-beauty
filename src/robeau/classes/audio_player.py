@@ -13,7 +13,7 @@ class AudioPlayer:
 
     def __init__(self, mappings_file, logger: Logger):
         with open(mappings_file, "r") as file:
-            self.audio_mappings = json.load(file)
+            self.audio_mappings = json.load(file)["nodes"]
         self.logger = logger
         self.playing_threads: list[Thread] = []
         self.stop_events: list[Event] = []
@@ -38,6 +38,12 @@ class AudioPlayer:
         self.on_end = on_end
         self.on_error = on_error
 
+    def _get_audio_files(self, output_string):
+        for node in self.audio_mappings:
+            if node["properties"]["text"] == output_string:
+                return node.get("audio_files", [])
+        return []
+
     def play_audio(self, output_string: str, multiple_tracks: Optional[int] = False):
         self.group_count = multiple_tracks if multiple_tracks else 1
         stop_event = threading.Event()
@@ -57,7 +63,7 @@ class AudioPlayer:
 
     def _play_audio(self, output_string: str, stop_event):
         try:
-            audio_files = self.audio_mappings.get(output_string)
+            audio_files = self._get_audio_files(output_string)
             if not audio_files:
                 self.logger.warning(f"No audio files found for <<{output_string}>>.")
                 self._thread_done(stop_event, termination_reason="error")
