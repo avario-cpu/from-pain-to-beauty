@@ -21,7 +21,7 @@ class Neo4jToJson:
         query = """
         MATCH (n)
         WHERE ANY(label IN labels(n) WHERE label IN ['Response', 'Question', 'Test'])
-        RETURN id(n) AS id, labels(n) AS labels, properties(n) AS properties
+        RETURN apoc.node.id(n) AS id, labels(n) AS labels, properties(n) AS properties
         """
         result = tx.run(query)
         nodes = []

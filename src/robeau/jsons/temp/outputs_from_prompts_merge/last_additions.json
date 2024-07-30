@@ -1,10 +1,19 @@
 {
     "additions": [
         {
-            "text": "hey robeau"
+            "id": 23,
+            "context": "goodbye",
+            "text": "wait"
         },
         {
-            "text": "newtestprompt"
+            "id": 62,
+            "context": "regular_greeting",
+            "text": "nothing"
+        },
+        {
+            "id": 64,
+            "context": "regular_greeting",
+            "text": "wait"
         }
     ]
 }

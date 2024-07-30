@@ -1,5 +1,6 @@
-Updated entry for key 'Prompt', text 'hello': rudenessLevelIncrease changed to 12
-Added new entry for key 'Prompt', text 'hey robeau': {'text': 'hey robeau'}
-Added new entry for key 'Prompt', text 'newtestprompt': {'text': 'newtestprompt'}
-Updated entry for key 'Whisper', text 'wait': context changed to stubborn_greeting
-Updated entry for key 'Whisper', text 'nothing': context changed to stubborn_greeting
+Added new entry for key 'Whisper', id '23': {'id': 23, 'context': 'goodbye', 'text': 'wait'}
+Added new entry for key 'Whisper', id '62': {'id': 62, 'context': 'regular_greeting', 'text': 'nothing'}
+Added new entry for key 'Whisper', id '64': {'id': 64, 'context': 'regular_greeting', 'text': 'wait'}
+Key 'StopCommand' removed
+Key 'StopCommandRude' removed
+Key 'StopCommandPolite' removed

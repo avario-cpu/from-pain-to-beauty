@@ -1,20 +1,3 @@
 {
-    "updates": [
-        {
-            "text": "hello",
-            "synonyms": [
-                "hi",
-                "greetings"
-            ],
-            "rudenessLevelIncrease": 12
-        },
-        {
-            "text": "wait",
-            "context": "stubborn_greeting"
-        },
-        {
-            "text": "nothing",
-            "context": "stubborn_greeting"
-        }
-    ]
+    "updates": []
 }

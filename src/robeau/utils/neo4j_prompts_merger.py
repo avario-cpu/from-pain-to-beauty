@@ -22,27 +22,30 @@ def merge_json_with_synonyms(old, new):
 
     for key in new.keys():
         if key in merged:
-            original_texts = {entry["text"]: entry for entry in merged[key]}
-            new_texts = {entry["text"]: entry for entry in new[key]}
+            # Create a dictionary for easy lookup of nodes in original by id
+            original_nodes = {entry["id"]: entry for entry in merged[key]}
+            # Create a dictionary for easy lookup of nodes in new by id
+            new_nodes = {entry["id"]: entry for entry in new[key]}
 
+            # Create the merged list for the current key
             merged_list = []
 
-            for text, new_entry in new_texts.items():
-                if text in original_texts:
-                    original_entry = original_texts[text]
+            for node_id, new_entry in new_nodes.items():
+                if node_id in original_nodes:
+                    original_entry = original_nodes[node_id]
                     merged_entry = original_entry.copy()
 
                     changes = []
 
                     for k, v in new_entry.items():
-                        if k != "text" and original_entry.get(k) != v:
+                        if k != "id" and original_entry.get(k) != v:
                             merged_entry[k] = v
                             changes.append(f"{k} changed to {v}")
 
                     if changes:
                         updates.append(merged_entry)
                         log_entries.append(
-                            f"Updated entry for key '{key}', text '{text}': {', '.join(changes)}"
+                            f"Updated entry for key '{key}', id '{node_id}': {', '.join(changes)}"
                         )
 
                     merged_list.append(merged_entry)
@@ -50,7 +53,7 @@ def merge_json_with_synonyms(old, new):
                     merged_list.append(new_entry)
                     additions.append(new_entry)
                     log_entries.append(
-                        f"Added new entry for key '{key}', text '{text}': {new_entry}"
+                        f"Added new entry for key '{key}', id '{node_id}': {new_entry}"
                     )
 
             merged[key] = merged_list
@@ -58,6 +61,11 @@ def merge_json_with_synonyms(old, new):
             merged[key] = new[key]
             additions.extend(new[key])
             log_entries.append(f"Added all new entries for new key '{key}'")
+
+    # Detect deletions
+    for key in old.keys():
+        if key not in new:
+            log_entries.append(f"Key '{key}' removed")
 
     return merged, additions, updates, log_entries
 

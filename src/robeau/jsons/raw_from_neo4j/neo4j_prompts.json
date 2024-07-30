@@ -1,110 +1,141 @@
 {
     "Greeting": [
         {
+            "id": 14,
             "text": "hey robeau"
         }
     ],
     "Prompt": [
         {
+            "id": 0,
             "text": "hello",
             "rudenessLevelIncrease": 12
         },
         {
+            "id": 7,
             "text": "how are you"
         },
         {
+            "id": 10,
             "text": "goodbye"
         },
         {
+            "id": 15,
             "text": "calculate 2 + 2"
         },
         {
+            "id": 24,
             "text": "you're terrible at math"
         },
         {
+            "id": 52,
             "text": "can you wipe your memory"
         },
         {
+            "id": 57,
             "text": "test lock"
         },
         {
+            "id": 59,
             "text": "test gate"
         },
         {
+            "id": 72,
             "text": "say a really long sentence"
         },
         {
+            "id": 101,
             "text": "test unlock"
         },
         {
+            "id": 103,
             "text": "test init"
         },
         {
+            "id": 116,
             "text": "hey robeau"
         },
         {
+            "id": 119,
             "text": "newtestprompt"
         }
     ],
     "Answer": [
         {
+            "id": 18,
             "text": "I am doing good"
         },
         {
+            "id": 22,
             "text": "I am not doing good"
         },
         {
+            "id": 31,
             "text": "saying you're terrible at math"
         },
         {
+            "id": 37,
             "text": "I love you"
         },
         {
+            "id": 39,
             "text": "have a good night"
         },
         {
+            "id": 44,
             "text": "nothing"
         },
         {
+            "id": 83,
             "text": "yes ok sorry"
         },
         {
+            "id": 84,
             "text": "no I won't"
         },
         {
+            "id": 100,
             "text": "being rude"
         }
     ],
     "Whisper": [
         {
+            "id": 23,
             "context": "goodbye",
             "text": "wait"
         },
         {
+            "id": 62,
             "context": "regular_greeting",
             "text": "nothing"
         },
         {
+            "id": 64,
             "context": "regular_greeting",
             "text": "wait"
         },
         {
+            "id": 96,
             "context": "stubborn_greeting",
             "text": "wait"
         },
         {
+            "id": 113,
             "context": "stubborn_greeting",
             "text": "nothing"
         }
     ],
     "Plea": [
         {
+            "id": 21,
             "text": "i'm sorry"
         },
         {
+            "id": 86,
             "text": "I want to say sorry for being rude"
         },
         {
+            "id": 94,
             "text": "sorry for cutting you off"
         }
     ]

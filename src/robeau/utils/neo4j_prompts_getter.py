@@ -30,11 +30,11 @@ def get_data_from_labels(labels):
     with driver.session() as session:
         results: dict = {}
         for label in labels:
-            query = f"MATCH (n:{label}) RETURN n"
+            query = f"MATCH (n:{label}) RETURN apoc.node.id(n) AS id, n"
             nodes = session.run(query)
             for node in nodes:
                 node_data = node["n"]
-                cleaned_node_data = {}
+                cleaned_node_data = {"id": node["id"]}
                 for key, value in node_data.items():
                     if isinstance(value, str):
                         cleaned_node_data[key] = clean_text(value)

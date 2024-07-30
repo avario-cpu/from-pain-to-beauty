@@ -129,7 +129,8 @@
                 "hey rebel, my dear",
                 "yo um mr rebel",
                 "well uh mr rebel"
-            ]
+            ],
+            "id": 14
         }
     ],
     "Prompt": [
@@ -138,88 +139,124 @@
             "synonyms": [
                 "hi",
                 "greetings"
-            ]
+            ],
+            "id": 0,
+            "rudenessLevelIncrease": 12
         },
         {
-            "text": "how are you"
+            "text": "how are you",
+            "id": 7
         },
         {
-            "text": "goodbye"
+            "text": "goodbye",
+            "id": 10
         },
         {
-            "text": "calculate 2 + 2"
+            "text": "calculate 2 + 2",
+            "id": 15
         },
         {
-            "text": "you're terrible at math"
+            "text": "you're terrible at math",
+            "id": 24
         },
         {
-            "text": "can you wipe your memory"
+            "text": "can you wipe your memory",
+            "id": 52
         },
         {
-            "text": "test lock"
+            "text": "test lock",
+            "id": 57
         },
         {
-            "text": "test gate"
+            "text": "test gate",
+            "id": 59
         },
         {
-            "text": "say a really long sentence"
+            "text": "say a really long sentence",
+            "id": 72
         },
         {
-            "text": "test unlock"
+            "text": "test unlock",
+            "id": 101
         },
         {
-            "text": "test init"
+            "text": "test init",
+            "id": 103
+        },
+        {
+            "id": 116,
+            "text": "hey robeau"
+        },
+        {
+            "id": 119,
+            "text": "newtestprompt"
         }
     ],
     "Answer": [
         {
-            "text": "I am doing good"
+            "text": "I am doing good",
+            "id": 18
         },
         {
-            "text": "I am not doing good"
+            "text": "I am not doing good",
+            "id": 22
         },
         {
-            "text": "saying you're terrible at math"
+            "text": "saying you're terrible at math",
+            "id": 31
         },
         {
-            "text": "I love you"
+            "text": "I love you",
+            "id": 37
         },
         {
-            "text": "have a good night"
+            "text": "have a good night",
+            "id": 39
         },
         {
             "text": "nothing",
             "synonyms": [
                 "never mind"
-            ]
+            ],
+            "id": 44
         },
         {
-            "text": "yes ok sorry"
+            "text": "yes ok sorry",
+            "id": 83
         },
         {
-            "text": "no I won't"
+            "text": "no I won't",
+            "id": 84
         },
         {
-            "text": "being rude"
+            "text": "being rude",
+            "id": 100
         }
     ],
     "Whisper": [
         {
-            "text": "wait"
+            "text": "wait",
+            "id": 96,
+            "context": "stubborn_greeting"
         },
         {
-            "text": "nothing"
+            "text": "nothing",
+            "id": 113,
+            "context": "stubborn_greeting"
         }
     ],
     "Plea": [
         {
-            "text": "i'm sorry"
+            "text": "i'm sorry",
+            "id": 21
         },
         {
-            "text": "I want to say sorry for being rude"
+            "text": "I want to say sorry for being rude",
+            "id": 86
         },
         {
-            "text": "sorry for cutting you off"
+            "text": "sorry for cutting you off",
+            "id": 94
         }
     ],
     "StopCommand": [
