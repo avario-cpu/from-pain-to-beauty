@@ -71,7 +71,7 @@ def main():
 
     # Save the JSON data to a file
     with open(
-        "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\neo4j_data.json", "w"
+        "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\neo4j_all_data.json", "w"
     ) as f:
         f.write(json_data)
 

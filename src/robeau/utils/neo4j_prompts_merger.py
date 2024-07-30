@@ -48,9 +48,9 @@ def merge_json_with_synonyms(original, new):
 
 
 # File paths
-original_file_path = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\strings_with_synonyms.json"  # Path to the original JSON with synonyms
-new_file_path = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\db_strings.json"  # Path to the new JSON without synonyms
-merged_file_path = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\strings_with_synonyms_new.json"  # Path to save the merged JSON
+original_file_path = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\robeau_prompts.json"  # Path to the original JSON with synonyms
+new_file_path = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\neo4j_prompts.json"  # Path to the new JSON without synonyms
+merged_file_path = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\robeau_prompts_new.json"  # Path to save the merged JSON
 
 # Read JSON content from files
 original_json = read_json(original_file_path)

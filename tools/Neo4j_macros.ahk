@@ -74,8 +74,10 @@ MatchPathNodeIn(){
 MatchPathNodeAll(){
     SendInput, MATCH ppp=(xxx)-[rrr*1..3]-(yyy)
     SendInput, {Shift down}{Enter}{Shift up}WHERE apoc.node.id(xxx)=
+    SendInput, {Shift down}{Enter}{Shift up}AND NONE(r IN relationships(ppp) WHERE type(r) IN ['ALLOWS', 'PERMITS'])
+    SendInput, {Shift down}{Enter}{Shift up}AND (id(yyy) = 14 OR NONE(node IN nodes(ppp)[1..-1] WHERE id(node) = 14))
     SendInput, {Shift down}{Enter}{Shift up}RETURN ppp
-    SendInput, {Up}{End}
+    SendInput, {Up 3}{End}
 }
 
 
