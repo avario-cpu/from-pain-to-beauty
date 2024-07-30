@@ -1,4 +1,0 @@
-Updated entry for key 'Prompt', id '0': rudenessLevelIncrease removed
-Preserved key 'StopCommand'
-Preserved key 'StopCommandRude'
-Preserved key 'StopCommandPolite'
