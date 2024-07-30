@@ -1,0 +1,2 @@
+Node 1 updated: Properties changed from {'text': 'Hello! Test!'} to {'text': 'Hello!'}
+Node 119 deleted: {'id': 119, 'labels': ['Response'], 'properties': {'text': 'Tea Test from teas', 'context': 'teatest'}, 'audio_files': [{'file': '', 'weight': 1}]}

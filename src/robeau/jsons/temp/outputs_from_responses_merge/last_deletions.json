@@ -1,0 +1,20 @@
+{
+    "nodes": [
+        {
+            "id": 119,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Tea Test from teas",
+                "context": "teatest"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        }
+    ]
+}

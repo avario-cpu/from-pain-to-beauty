@@ -161,9 +161,8 @@ cython_debug/
 
 
 
-
 # Project specific directories
-**/temp/*
+/temp/*
 old_files/*
 
 # Project specific files
