@@ -13,54 +13,93 @@ def write_json(file_path, content):
         json.dump(content, file, indent=4)
 
 
-# Function to merge the two JSON files
-def merge_json_with_synonyms(original, new):
-    merged = {}
+# Function to merge the two JSON files with logging
+def merge_json_with_synonyms(old, new):
+    merged = old.copy()
+    additions = []
+    updates = []
+    log_entries = []
 
-    for key in new.keys():  # Iterate through keys in new_json, as it is the lead
-        if key in original:
-            # Create a dictionary for easy lookup of texts in original
-            original_texts = {
-                entry["text"]: entry for entry in original[key] if "text" in entry
-            }
-            # Create a dictionary for easy lookup of texts in new
-            new_texts = {entry["text"]: entry for entry in new[key] if "text" in entry}
+    for key in new.keys():
+        if key in merged:
+            original_texts = {entry["text"]: entry for entry in merged[key]}
+            new_texts = {entry["text"]: entry for entry in new[key]}
 
-            # Create the merged list for the current key
             merged_list = []
 
-            # Add or update entries based on new_texts
             for text, new_entry in new_texts.items():
                 if text in original_texts:
-                    # If the text exists in original, keep the original entry (with synonyms)
-                    merged_list.append(original_texts[text])
-                else:
-                    # If the text is new, add it as is
-                    merged_list.append(new_entry)
+                    original_entry = original_texts[text]
+                    merged_entry = original_entry.copy()
 
-            # Add the merged list to the merged dictionary
+                    changes = []
+
+                    for k, v in new_entry.items():
+                        if k != "text" and original_entry.get(k) != v:
+                            merged_entry[k] = v
+                            changes.append(f"{k} changed to {v}")
+
+                    if changes:
+                        updates.append(merged_entry)
+                        log_entries.append(
+                            f"Updated entry for key '{key}', text '{text}': {', '.join(changes)}"
+                        )
+
+                    merged_list.append(merged_entry)
+                else:
+                    merged_list.append(new_entry)
+                    additions.append(new_entry)
+                    log_entries.append(
+                        f"Added new entry for key '{key}', text '{text}': {new_entry}"
+                    )
+
             merged[key] = merged_list
         else:
-            # If the key is only in new_json, add all its entries
             merged[key] = new[key]
+            additions.extend(new[key])
+            log_entries.append(f"Added all new entries for new key '{key}'")
 
-    return merged
+    return merged, additions, updates, log_entries
 
 
-# File paths
-original_file_path = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\robeau_prompts.json"  # Path to the original JSON with synonyms
-new_file_path = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\neo4j_prompts.json"  # Path to the new JSON without synonyms
-merged_file_path = "C:\\Users\\ville\\MyMegaScript\\src\\robeau\\jsons\\robeau_prompts_new.json"  # Path to save the merged JSON
+# Input file paths
+old_file_path = "src/robeau/jsons/processed_for_robeau/robeau_prompts.json"
+new_file_path = "src/robeau/jsons/raw_from_neo4j/neo4j_prompts.json"
+log_file_path = "src/robeau/jsons/temp/outputs_from_prompts_merge/last_merge_log.txt"
+
+# Result file paths
+additions_file_path = (
+    "src/robeau/jsons/temp/outputs_from_prompts_merge/last_additions.json"
+)
+updates_file_path = "src/robeau/jsons/temp/outputs_from_prompts_merge/last_updates.json"
+backup_file_path = (
+    "src/robeau/jsons/temp/outputs_from_prompts_merge/OLD_robeau_prompts.json"
+)
 
 # Read JSON content from files
-original_json = read_json(original_file_path)
+original_json = read_json(old_file_path)
 new_json = read_json(new_file_path)
 
 # Merging the JSON files
-merged_json = merge_json_with_synonyms(original_json, new_json)
+merged_json, additions, updates, log_entries = merge_json_with_synonyms(
+    original_json, new_json
+)
 
-# Write the merged JSON to a file
-write_json(merged_file_path, merged_json)
+# Save the original old data to a new file with a .old.json extension
+write_json(backup_file_path, original_json)
+
+# Write the merged JSON to the original file path
+write_json(old_file_path, merged_json)
+write_json(additions_file_path, {"additions": additions})
+write_json(updates_file_path, {"updates": updates})
+
+# Save the log entries
+with open(log_file_path, "w") as log_file:
+    log_file.write("\n".join(log_entries))
 
 # Print a confirmation message
-print(f"Merged JSON has been saved to {merged_file_path}")
+print(f"Old file backed up as {backup_file_path}")
+print(f"Merged file saved to {old_file_path}")
+print(f"Additions saved to {additions_file_path}")
+print(f"Updates saved to {updates_file_path}")
+print(f"Log saved to {log_file_path}")

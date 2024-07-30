@@ -6,7 +6,8 @@
     ],
     "Prompt": [
         {
-            "text": "hello"
+            "text": "hello",
+            "rudenessLevelIncrease": 12
         },
         {
             "text": "how are you"
@@ -40,6 +41,9 @@
         },
         {
             "text": "hey robeau"
+        },
+        {
+            "text": "newtestprompt"
         }
     ],
     "Answer": [
@@ -73,33 +77,23 @@
     ],
     "Whisper": [
         {
-            "context": "goodbye"
-        },
-        {
+            "context": "goodbye",
             "text": "wait"
         },
         {
-            "context": "regular_greeting"
-        },
-        {
+            "context": "regular_greeting",
             "text": "nothing"
         },
         {
-            "context": "regular_greeting"
-        },
-        {
+            "context": "regular_greeting",
             "text": "wait"
         },
         {
-            "context": "stubborn_greeting"
-        },
-        {
+            "context": "stubborn_greeting",
             "text": "wait"
         },
         {
-            "context": "stubborn_greeting"
-        },
-        {
+            "context": "stubborn_greeting",
             "text": "nothing"
         }
     ],

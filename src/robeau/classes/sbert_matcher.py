@@ -2,10 +2,8 @@ import json
 import torch
 from sentence_transformers import SentenceTransformer, util
 import time
-from src.robeau.core.constants import STRINGS_WITH_SYNS_FILE_PATH
+from src.robeau.core.constants import ROBEAU_PROMPTS_JSON_FILE_PATH as ROBEAU_PROMPTS
 from typing import Optional
-
-STRING_WITH_SYNS = STRINGS_WITH_SYNS_FILE_PATH
 
 
 class SBERTMatcher:
@@ -106,7 +104,7 @@ class SBERTMatcher:
 
 
 def main():
-    matcher = SBERTMatcher(file_path=STRING_WITH_SYNS)
+    matcher = SBERTMatcher(file_path=ROBEAU_PROMPTS)
     while True:
         message = input("Enter a message (or type 'exit' to quit): ")
         if message.lower() == "exit":

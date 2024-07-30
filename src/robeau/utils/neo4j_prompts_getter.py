@@ -26,7 +26,7 @@ def clean_text(text):
     return " ".join(cleaned_words)
 
 
-def get_text_keys_from_labels(labels):
+def get_data_from_labels(labels):
     with driver.session() as session:
         results: dict = {}
         for label in labels:
@@ -34,12 +34,15 @@ def get_text_keys_from_labels(labels):
             nodes = session.run(query)
             for node in nodes:
                 node_data = node["n"]
+                cleaned_node_data = {}
                 for key, value in node_data.items():
                     if isinstance(value, str):
-                        cleaned_value = clean_text(value)
-                        if label not in results:
-                            results[label] = []
-                        results[label].append({key: cleaned_value})
+                        cleaned_node_data[key] = clean_text(value)
+                    else:
+                        cleaned_node_data[key] = value
+                if label not in results:
+                    results[label] = []
+                results[label].append(cleaned_node_data)
         return results
 
 
@@ -51,8 +54,8 @@ def write_to_json(data, filename):
 # List of labels to query
 labels = ["Greeting", "Prompt", "Answer", "Whisper", "Plea"]
 
-# Get text keys from specified labels
-data = get_text_keys_from_labels(labels)
+# Get data from specified labels
+data = get_data_from_labels(labels)
 
 # Debug: Print the data to be written to the JSON file
 print("Data to be written to JSON:", data)

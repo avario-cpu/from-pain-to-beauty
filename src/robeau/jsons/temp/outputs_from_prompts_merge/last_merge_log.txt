@@ -1,0 +1,5 @@
+Updated entry for key 'Prompt', text 'hello': rudenessLevelIncrease changed to 12
+Added new entry for key 'Prompt', text 'hey robeau': {'text': 'hey robeau'}
+Added new entry for key 'Prompt', text 'newtestprompt': {'text': 'newtestprompt'}
+Updated entry for key 'Whisper', text 'wait': context changed to stubborn_greeting
+Updated entry for key 'Whisper', text 'nothing': context changed to stubborn_greeting
