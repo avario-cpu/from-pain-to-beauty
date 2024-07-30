@@ -210,11 +210,11 @@
         {
             "id": 23,
             "labels": [
-                "Whisper",
-                "Goodbye_context"
+                "Whisper"
             ],
             "properties": {
-                "text": "Wait"
+                "text": "Wait",
+                "context": "goodbye"
             }
         },
         {
@@ -313,7 +313,7 @@
                 "Response"
             ],
             "properties": {
-                "text": "What do you want.."
+                "text": "Are you gonna Answer ?"
             }
         },
         {
@@ -562,11 +562,11 @@
         {
             "id": 62,
             "labels": [
-                "Whisper",
-                "Normal_context"
+                "Whisper"
             ],
             "properties": {
-                "text": "Nothing"
+                "text": "Nothing",
+                "context": "regular_greeting"
             }
         },
         {
@@ -581,11 +581,11 @@
         {
             "id": 64,
             "labels": [
-                "Whisper",
-                "Normal_context"
+                "Whisper"
             ],
             "properties": {
-                "text": "Wait"
+                "text": "Wait",
+                "context": "regular_greeting"
             }
         },
         {
@@ -675,7 +675,17 @@
                 "Response"
             ],
             "properties": {
-                "text": "Why ask me that just to shut me up?"
+                "text": "Why ask me that just to shut me up?",
+                "rudenessLevelIncrease": 15
+            }
+        },
+        {
+            "id": 75,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Hmm Idk if it can be that easy..."
             }
         },
         {
@@ -862,11 +872,11 @@
         {
             "id": 96,
             "labels": [
-                "Whisper",
-                "Stubborn_context"
+                "Whisper"
             ],
             "properties": {
-                "text": "Wait"
+                "text": "Wait",
+                "context": "stubborn_greeting"
             }
         },
         {
@@ -942,6 +952,15 @@
             }
         },
         {
+            "id": 105,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "I don't feel like you've been rude at all"
+            }
+        },
+        {
             "id": 106,
             "labels": [
                 "TrafficGate"
@@ -987,6 +1006,15 @@
             }
         },
         {
+            "id": 111,
+            "labels": [
+                "Output"
+            ],
+            "properties": {
+                "text": "STOP LISTENING FOR WHISPERS"
+            }
+        },
+        {
             "id": 112,
             "labels": [
                 "Response"
@@ -998,11 +1026,11 @@
         {
             "id": 113,
             "labels": [
-                "Whisper",
-                "Stubborn_context"
+                "Whisper"
             ],
             "properties": {
-                "text": "Nothing"
+                "text": "Nothing",
+                "context": "stubborn_greeting"
             }
         },
         {
@@ -1012,6 +1040,42 @@
             ],
             "properties": {
                 "text": "Then don't talk to me"
+            }
+        },
+        {
+            "id": 115,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "You've been mean bro.."
+            }
+        },
+        {
+            "id": 116,
+            "labels": [
+                "Prompt"
+            ],
+            "properties": {
+                "text": "Hey Robeau"
+            }
+        },
+        {
+            "id": 117,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Yes you've said that already, anything to say ?"
+            }
+        },
+        {
+            "id": 118,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Ok listen: call me if you need me"
             }
         }
     ],
@@ -1615,6 +1679,17 @@
             "endNodeId": 70
         },
         {
+            "id": 79,
+            "type": "EVALUATES",
+            "properties": {
+                "randomWeight": 0.6,
+                "rudenessLevelMin": 10,
+                "rudenessLevelMax": 40
+            },
+            "startNodeId": 86,
+            "endNodeId": 75
+        },
+        {
             "id": 80,
             "type": "REVERTS",
             "properties": {},
@@ -1692,10 +1767,14 @@
         },
         {
             "id": 90,
-            "type": "DISABLES",
-            "properties": {},
-            "startNodeId": 71,
-            "endNodeId": 64
+            "type": "EVALUATES",
+            "properties": {
+                "randomWeight": 0.6,
+                "rudenessLevelMin": 40,
+                "rudenessLevelMax": 70
+            },
+            "startNodeId": 86,
+            "endNodeId": 115
         },
         {
             "id": 91,
@@ -1708,10 +1787,10 @@
         },
         {
             "id": 92,
-            "type": "DISABLES",
+            "type": "ALLOWS",
             "properties": {},
-            "startNodeId": 71,
-            "endNodeId": 62
+            "startNodeId": 14,
+            "endNodeId": 116
         },
         {
             "id": 93,
@@ -1961,6 +2040,13 @@
             "endNodeId": 81
         },
         {
+            "id": 126,
+            "type": "TRIGGERS",
+            "properties": {},
+            "startNodeId": 116,
+            "endNodeId": 117
+        },
+        {
             "id": 127,
             "type": "PERMITS",
             "properties": {},
@@ -1978,6 +2064,7 @@
             "id": 129,
             "type": "EVALUATES",
             "properties": {
+                "randomWeight": 1.0,
                 "rudenessLevelMin": 10,
                 "rudenessLevelMax": 40
             },
@@ -1988,6 +2075,7 @@
             "id": 130,
             "type": "EVALUATES",
             "properties": {
+                "randomWeight": 1.0,
                 "rudenessLevelMin": 40,
                 "rudenessLevelMax": 70
             },
@@ -2014,6 +2102,15 @@
             "properties": {},
             "startNodeId": 103,
             "endNodeId": 104
+        },
+        {
+            "id": 134,
+            "type": "EVALUATES",
+            "properties": {
+                "rudenessLevelMax": 10
+            },
+            "startNodeId": 86,
+            "endNodeId": 105
         },
         {
             "id": 135,
@@ -2056,10 +2153,10 @@
         },
         {
             "id": 140,
-            "type": "DISABLES",
+            "type": "APPLIES",
             "properties": {},
-            "startNodeId": 106,
-            "endNodeId": 113
+            "startNodeId": 117,
+            "endNodeId": 14
         },
         {
             "id": 141,
@@ -2070,16 +2167,39 @@
         },
         {
             "id": 142,
+            "type": "INITIATES",
+            "properties": {
+                "duration": 4.5
+            },
+            "startNodeId": 70,
+            "endNodeId": 118
+        },
+        {
+            "id": 143,
+            "type": "ACTIVATES",
+            "properties": {},
+            "startNodeId": 107,
+            "endNodeId": 111
+        },
+        {
+            "id": 144,
             "type": "DISABLES",
             "properties": {},
-            "startNodeId": 106,
-            "endNodeId": 96
+            "startNodeId": 71,
+            "endNodeId": 118
         },
         {
             "id": 146,
             "type": "REVERTS",
             "properties": {},
             "startNodeId": 106,
+            "endNodeId": 14
+        },
+        {
+            "id": 147,
+            "type": "REVERTS",
+            "properties": {},
+            "startNodeId": 118,
             "endNodeId": 14
         },
         {

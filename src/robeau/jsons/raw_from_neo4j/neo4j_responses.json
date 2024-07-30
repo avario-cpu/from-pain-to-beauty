@@ -6,7 +6,7 @@
                 "Response"
             ],
             "properties": {
-                "text": "Hello! Test!"
+                "text": "Hello!"
             },
             "audio_files": [
                 {
@@ -984,22 +984,6 @@
             ],
             "properties": {
                 "text": "Ok listen: call me if you need me"
-            },
-            "audio_files": [
-                {
-                    "file": "",
-                    "weight": 1
-                }
-            ]
-        },
-        {
-            "id": 119,
-            "labels": [
-                "Response"
-            ],
-            "properties": {
-                "text": "Tea Test from teas",
-                "context": "teatest"
             },
             "audio_files": [
                 {

@@ -1,2 +1,0 @@
-Node 1 updated: Properties changed from {'text': 'Hello!'} to {'text': 'Hello! Test!'}
-Node 119 added: {'id': 119, 'labels': ['Response'], 'properties': {'text': 'Tea Test from teas', 'context': 'teatest'}, 'audio_files': [{'file': '', 'weight': 1}]}

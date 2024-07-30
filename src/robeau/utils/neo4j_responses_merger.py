@@ -89,14 +89,14 @@ new_file_path = "src/robeau/jsons/raw_from_neo4j/neo4j_responses.json"
 
 # Result file paths
 additions_file_path = (
-    "src/robeau/jsons/outputs_from_responses_merge/last_additions.json"
+    "src/robeau/jsons/temp/outputs_from_responses_merge/last_additions.json"
 )
 deletions_file_path = (
-    "src/robeau/jsons/outputs_from_responses_merge/last_deletions.json"
+    "src/robeau/jsons/temp/outputs_from_responses_merge/last_deletions.json"
 )
-log_file_path = "src/robeau/jsons/outputs_from_responses_merge/last_merge_log.txt"
+log_file_path = "src/robeau/jsons/temp/outputs_from_responses_merge/last_merge_log.txt"
 backup_file_path = (
-    "src/robeau/jsons/outputs_from_responses_merge/robeau_responses.old.json"
+    "src/robeau/jsons/temp/outputs_from_responses_merge/OLD_robeau_responses.json"
 )
 
 # Merge the files
