@@ -165,6 +165,10 @@ cython_debug/
 temp/*
 !temp/.gitkeep
 
+src/robeau/jsons/temp/*
+!src/robeau/jsons/temp/.gitkeep
+
+
 # Project specific files
 data/slots.db
 
