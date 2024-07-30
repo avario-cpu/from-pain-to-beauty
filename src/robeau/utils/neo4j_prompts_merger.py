@@ -36,20 +36,26 @@ def merge_json_with_synonyms(old, new):
             for node_id, new_entry in new_nodes.items():
                 if node_id in original_nodes:
                     original_entry = original_nodes[node_id]
-                    merged_entry = (
-                        new_entry.copy()
-                    )  # Start with new_entry and add missing old properties
+                    merged_entry = new_entry.copy()  # Start with new_entry
 
                     changes = []
 
+                    # Ensure protected subkeys are preserved
+                    for subkey in protected_subkeys:
+                        if subkey in original_entry and subkey not in new_entry:
+                            merged_entry[subkey] = original_entry[subkey]
+
+                    # Handle the rest of the keys
                     for k, v in original_entry.items():
+                        if k == "id":
+                            continue  # Skip id
                         if k not in new_entry and k not in protected_subkeys:
                             changes.append(f"{k} removed")
-                        elif k in protected_subkeys:
-                            merged_entry[k] = original_entry[k]
-                        elif k != "id" and original_entry.get(k) != v:
-                            merged_entry[k] = v
-                            changes.append(f"{k} changed to {v}")
+                        elif k in new_entry and original_entry[k] != new_entry[k]:
+                            merged_entry[k] = new_entry[k]
+                            changes.append(
+                                f"{k} changed from {original_entry[k]} to {new_entry[k]}"
+                            )
 
                     if changes:
                         updates.append(merged_entry)
