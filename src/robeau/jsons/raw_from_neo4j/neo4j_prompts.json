@@ -8,8 +8,7 @@
     "Prompt": [
         {
             "id": 0,
-            "text": "hello",
-            "rudenessLevelIncrease": 12
+            "text": "hello"
         },
         {
             "id": 7,
@@ -54,10 +53,6 @@
         {
             "id": 116,
             "text": "hey robeau"
-        },
-        {
-            "id": 119,
-            "text": "newtestprompt"
         }
     ],
     "Answer": [

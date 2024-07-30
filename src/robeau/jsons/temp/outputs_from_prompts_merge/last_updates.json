@@ -1,3 +1,12 @@
 {
-    "updates": []
+    "updates": [
+        {
+            "id": 0,
+            "text": "hello",
+            "synonyms": [
+                "hi",
+                "greetings"
+            ]
+        }
+    ]
 }

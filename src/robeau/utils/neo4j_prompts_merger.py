@@ -15,15 +15,18 @@ def write_json(file_path, content):
 
 # Function to merge the two JSON files with logging
 def merge_json_with_synonyms(old, new):
-    merged = old.copy()
+    preserved_keys = ["StopCommand", "StopCommandRude", "StopCommandPolite"]
+    protected_subkeys = ["synonyms"]
+    merged = {}
     additions = []
     updates = []
+    deletions = []
     log_entries = []
 
     for key in new.keys():
-        if key in merged:
-            # Create a dictionary for easy lookup of nodes in original by id
-            original_nodes = {entry["id"]: entry for entry in merged[key]}
+        if key in old:
+            # Create a dictionary for easy lookup of nodes in old by id
+            original_nodes = {entry["id"]: entry for entry in old[key]}
             # Create a dictionary for easy lookup of nodes in new by id
             new_nodes = {entry["id"]: entry for entry in new[key]}
 
@@ -33,12 +36,18 @@ def merge_json_with_synonyms(old, new):
             for node_id, new_entry in new_nodes.items():
                 if node_id in original_nodes:
                     original_entry = original_nodes[node_id]
-                    merged_entry = original_entry.copy()
+                    merged_entry = (
+                        new_entry.copy()
+                    )  # Start with new_entry and add missing old properties
 
                     changes = []
 
-                    for k, v in new_entry.items():
-                        if k != "id" and original_entry.get(k) != v:
+                    for k, v in original_entry.items():
+                        if k not in new_entry and k not in protected_subkeys:
+                            changes.append(f"{k} removed")
+                        elif k in protected_subkeys:
+                            merged_entry[k] = original_entry[k]
+                        elif k != "id" and original_entry.get(k) != v:
                             merged_entry[k] = v
                             changes.append(f"{k} changed to {v}")
 
@@ -62,12 +71,17 @@ def merge_json_with_synonyms(old, new):
             additions.extend(new[key])
             log_entries.append(f"Added all new entries for new key '{key}'")
 
-    # Detect deletions
+    # Detect deletions and preserve specific keys
     for key in old.keys():
         if key not in new:
-            log_entries.append(f"Key '{key}' removed")
+            if key in preserved_keys:
+                merged[key] = old[key]
+                log_entries.append(f"Preserved key '{key}'")
+            else:
+                deletions.extend(old[key])
+                log_entries.append(f"Key '{key}' removed")
 
-    return merged, additions, updates, log_entries
+    return merged, additions, updates, deletions, log_entries
 
 
 # Input file paths
@@ -80,6 +94,9 @@ additions_file_path = (
     "src/robeau/jsons/temp/outputs_from_prompts_merge/last_additions.json"
 )
 updates_file_path = "src/robeau/jsons/temp/outputs_from_prompts_merge/last_updates.json"
+deletions_file_path = (
+    "src/robeau/jsons/temp/outputs_from_prompts_merge/last_deletions.json"
+)
 backup_file_path = (
     "src/robeau/jsons/temp/outputs_from_prompts_merge/OLD_robeau_prompts.json"
 )
@@ -89,7 +106,7 @@ original_json = read_json(old_file_path)
 new_json = read_json(new_file_path)
 
 # Merging the JSON files
-merged_json, additions, updates, log_entries = merge_json_with_synonyms(
+merged_json, additions, updates, deletions, log_entries = merge_json_with_synonyms(
     original_json, new_json
 )
 
@@ -100,6 +117,7 @@ write_json(backup_file_path, original_json)
 write_json(old_file_path, merged_json)
 write_json(additions_file_path, {"additions": additions})
 write_json(updates_file_path, {"updates": updates})
+write_json(deletions_file_path, {"deletions": deletions})
 
 # Save the log entries
 with open(log_file_path, "w") as log_file:
@@ -110,4 +128,5 @@ print(f"Old file backed up as {backup_file_path}")
 print(f"Merged file saved to {old_file_path}")
 print(f"Additions saved to {additions_file_path}")
 print(f"Updates saved to {updates_file_path}")
+print(f"Deletions saved to {deletions_file_path}")
 print(f"Log saved to {log_file_path}")

@@ -1,19 +1,3 @@
 {
-    "additions": [
-        {
-            "id": 23,
-            "context": "goodbye",
-            "text": "wait"
-        },
-        {
-            "id": 62,
-            "context": "regular_greeting",
-            "text": "nothing"
-        },
-        {
-            "id": 64,
-            "context": "regular_greeting",
-            "text": "wait"
-        }
-    ]
+    "additions": []
 }

@@ -1,6 +1,7 @@
 {
     "Greeting": [
         {
+            "id": 14,
             "text": "hey robeau",
             "synonyms": [
                 "hey rubble",
@@ -129,108 +130,102 @@
                 "hey rebel, my dear",
                 "yo um mr rebel",
                 "well uh mr rebel"
-            ],
-            "id": 14
+            ]
         }
     ],
     "Prompt": [
         {
+            "id": 0,
             "text": "hello",
             "synonyms": [
                 "hi",
                 "greetings"
-            ],
-            "id": 0,
-            "rudenessLevelIncrease": 12
+            ]
         },
         {
-            "text": "how are you",
-            "id": 7
+            "id": 7,
+            "text": "how are you"
         },
         {
-            "text": "goodbye",
-            "id": 10
+            "id": 10,
+            "text": "goodbye"
         },
         {
-            "text": "calculate 2 + 2",
-            "id": 15
+            "id": 15,
+            "text": "calculate 2 + 2"
         },
         {
-            "text": "you're terrible at math",
-            "id": 24
+            "id": 24,
+            "text": "you're terrible at math"
         },
         {
-            "text": "can you wipe your memory",
-            "id": 52
+            "id": 52,
+            "text": "can you wipe your memory"
         },
         {
-            "text": "test lock",
-            "id": 57
+            "id": 57,
+            "text": "test lock"
         },
         {
-            "text": "test gate",
-            "id": 59
+            "id": 59,
+            "text": "test gate"
         },
         {
-            "text": "say a really long sentence",
-            "id": 72
+            "id": 72,
+            "text": "say a really long sentence"
         },
         {
-            "text": "test unlock",
-            "id": 101
+            "id": 101,
+            "text": "test unlock"
         },
         {
-            "text": "test init",
-            "id": 103
+            "id": 103,
+            "text": "test init"
         },
         {
             "id": 116,
             "text": "hey robeau"
-        },
-        {
-            "id": 119,
-            "text": "newtestprompt"
         }
     ],
     "Answer": [
         {
-            "text": "I am doing good",
-            "id": 18
+            "id": 18,
+            "text": "I am doing good"
         },
         {
-            "text": "I am not doing good",
-            "id": 22
+            "id": 22,
+            "text": "I am not doing good"
         },
         {
-            "text": "saying you're terrible at math",
-            "id": 31
+            "id": 31,
+            "text": "saying you're terrible at math"
         },
         {
-            "text": "I love you",
-            "id": 37
+            "id": 37,
+            "text": "I love you"
         },
         {
-            "text": "have a good night",
-            "id": 39
+            "id": 39,
+            "text": "have a good night"
         },
         {
+            "id": 44,
             "text": "nothing",
             "synonyms": [
                 "never mind"
-            ],
-            "id": 44
+            ]
         },
         {
-            "text": "yes ok sorry",
-            "id": 83
+            "id": 83,
+            "text": "yes ok sorry"
         },
         {
-            "text": "no I won't",
-            "id": 84
+            "id": 84,
+            "text": "no I won't"
         },
         {
-            "text": "being rude",
-            "id": 100
+            "id": 100,
+            "text": "being rude"
         }
     ],
     "Whisper": [
@@ -250,28 +245,28 @@
             "text": "wait"
         },
         {
-            "text": "wait",
             "id": 96,
-            "context": "stubborn_greeting"
+            "context": "stubborn_greeting",
+            "text": "wait"
         },
         {
-            "text": "nothing",
             "id": 113,
-            "context": "stubborn_greeting"
+            "context": "stubborn_greeting",
+            "text": "nothing"
         }
     ],
     "Plea": [
         {
-            "text": "i'm sorry",
-            "id": 21
+            "id": 21,
+            "text": "i'm sorry"
         },
         {
-            "text": "I want to say sorry for being rude",
-            "id": 86
+            "id": 86,
+            "text": "I want to say sorry for being rude"
         },
         {
-            "text": "sorry for cutting you off",
-            "id": 94
+            "id": 94,
+            "text": "sorry for cutting you off"
         }
     ],
     "StopCommand": [

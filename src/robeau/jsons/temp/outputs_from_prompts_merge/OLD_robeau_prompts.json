@@ -186,10 +186,6 @@
         {
             "id": 116,
             "text": "hey robeau"
-        },
-        {
-            "id": 119,
-            "text": "newtestprompt"
         }
     ],
     "Answer": [
@@ -234,6 +230,21 @@
         }
     ],
     "Whisper": [
+        {
+            "id": 23,
+            "context": "goodbye",
+            "text": "wait"
+        },
+        {
+            "id": 62,
+            "context": "regular_greeting",
+            "text": "nothing"
+        },
+        {
+            "id": 64,
+            "context": "regular_greeting",
+            "text": "wait"
+        },
         {
             "text": "wait",
             "id": 96,
