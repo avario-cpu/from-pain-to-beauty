@@ -1,0 +1,996 @@
+{
+    "nodes": [
+        {
+            "id": 1,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Hello!"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "The answer is 4"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Fuck you."
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "labels": [
+                "Test"
+            ],
+            "properties": {
+                "text": "test_rand_pool1"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "labels": [
+                "Test"
+            ],
+            "properties": {
+                "text": "test_rand_pool2"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "labels": [
+                "Test"
+            ],
+            "properties": {
+                "text": "test_rand_pool3"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 8,
+            "labels": [
+                "Question"
+            ],
+            "properties": {
+                "text": "Good and you?"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 9,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Goodbye!"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 11,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Say hello first?"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 12,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "You didn't greet me!"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 13,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Goodbye Already?"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 16,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "I just answered that, but ok"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 17,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "No, I just answered that"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 19,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Sorry can you repeat that?"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 20,
+            "labels": [
+                "Question"
+            ],
+            "properties": {
+                "text": "...Yeah ?"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 25,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "You've never said that..."
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 26,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "OK. Locking my math functions."
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 27,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Oh no, looks like I cannot do math"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 28,
+            "labels": [
+                "Question"
+            ],
+            "properties": {
+                "text": "About what?"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 29,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Sorry to hear that"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 30,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "That's great!"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 32,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "I don't care"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 33,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "You're forgiven"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 34,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Are you gonna Answer ?"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 35,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "It's ok I forgave you already"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 36,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "I cannot understand you.."
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 38,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Okay, then I give up..."
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 45,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Okay.."
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 46,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "You too, buddy."
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 47,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "I love you too"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 48,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "No I'm not"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 50,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "I Unlock my math functions"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 53,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Sure..."
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 54,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "No way bro I hate doing that"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 55,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "What's the point if you can just ask again?"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 56,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "locked the test"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 60,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Test Output"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 61,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Yes ?"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 63,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Nothing to say ? Ok."
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 65,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Ok, fine"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 67,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Sorry, could not understand"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 70,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Ok, ask something then."
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 73,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Ok, playing audio for really long sentence"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 74,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Why ask me that just to shut me up?",
+                "rudenessLevelIncrease": 15
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 75,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Hmm Idk if it can be that easy..."
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 77,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Ok sorry for talking"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 78,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "I talk whenever I please",
+                "rudenessLevelIncrease": 25
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 79,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "That's so rude man..."
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 80,
+            "labels": [
+                "Question"
+            ],
+            "properties": {
+                "text": "Can you please be nicer ?"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 81,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "I'm not talking to you anymore"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 82,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "*silence*"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 90,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Sorry, I'm not mad anymore"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 91,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "I am not answering that."
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 95,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Don't bother me only to stay quiet"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 97,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "No. You're wasting my time"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 98,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Don't worry it's all good"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 99,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Hmm... ok I can forgive you"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 102,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "unlocked the test"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 104,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "initiation for test"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 105,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "I don't feel like you've been rude at all"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 108,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Make an effort when you talk to me"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 112,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "What do you want."
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 114,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Then don't talk to me"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 115,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "You've been mean bro.."
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 117,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Yes you've said that already, anything to say ?"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        },
+        {
+            "id": 118,
+            "labels": [
+                "Response"
+            ],
+            "properties": {
+                "text": "Ok listen: call me if you need me"
+            },
+            "audio_files": [
+                {
+                    "file": "",
+                    "weight": 1
+                }
+            ]
+        }
+    ]
+}

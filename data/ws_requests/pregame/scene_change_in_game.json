@@ -1,0 +1,11 @@
+{
+  "request": "DoAction",
+  "action": {
+    "id": "1f8045f7-d4dc-45ef-bc8e-9d52be9d0db0",
+    "name": "Switch to metascene"
+  },
+  "args": {
+    "key": "value"
+  },
+  "id": "<id>"
+}
