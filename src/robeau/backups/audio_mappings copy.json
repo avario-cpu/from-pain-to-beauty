@@ -1,0 +1,19 @@
+{
+    "Hello!": [
+        {"file": "data/robeau/voicelines/greetings.mp3", "weight": 1},
+        {"file": "data/robeau/voicelines/hello.mp3", "weight": 2},
+        {"file": "data/robeau/voicelines/hi_there.mp3", "weight": 1}
+    ],
+    "Ok, playing audio for really long sentence": [
+        {"file": "data/robeau/voicelines/long_sentence.mp3", "weight": 1}
+    ],
+    "test_rand_pool1": [
+        {"file": "data/robeau/voicelines/sine.wav", "weight": 1}
+    ],
+    "test_rand_pool2": [
+        {"file": "data/robeau/voicelines/sine.wav", "weight": 1}
+    ],
+    "test_rand_pool3": [
+        {"file": "data/robeau/voicelines/sine.wav", "weight": 1}
+    ]
+}
