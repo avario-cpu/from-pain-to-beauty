@@ -172,8 +172,6 @@ data/slots.db
 # PyTorch state dictionary files
 **/*.pth
 
-
-
 # Unignore directories so we can unignore .gitkeep files within them
 !*/
 # Git keep files
