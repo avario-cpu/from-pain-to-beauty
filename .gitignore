@@ -161,19 +161,12 @@ cython_debug/
 
 
 
-
 # Project specific directories
-/temp/*
-
-old_files/*
+temp/*
+!temp/.gitkeep
 
 # Project specific files
 data/slots.db
 
 # PyTorch state dictionary files
 **/*.pth
-
-# Unignore directories so we can unignore .gitkeep files within them
-!*/
-# Git keep files
-!**/.gitkeep
