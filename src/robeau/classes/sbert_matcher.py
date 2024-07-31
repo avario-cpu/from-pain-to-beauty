@@ -16,11 +16,11 @@ class SBERTMatcher:
         self.model = SentenceTransformer(model_name)
         if torch.cuda.is_available():
             self.model = self.model.to("cuda")
-        self.embeddings = self.load_embeddings(file_path) if file_path else {}
-        self.metadata = self.load_metadata(file_path) if file_path else {}
+        self.embeddings = self._load_embeddings(file_path) if file_path else {}
+        self.metadata = self._load_metadata(file_path) if file_path else {}
         self.similarity_threshold = similarity_threshold
 
-    def load_embeddings(self, file_path: str):
+    def _load_embeddings(self, file_path: str):
         with open(file_path, "r") as f:
             data = json.load(f)
 
@@ -39,24 +39,22 @@ class SBERTMatcher:
                     embeddings[section].append((main_text, text, embedding))
         return embeddings
 
-    def load_metadata(self, file_path: str):
+    def _load_metadata(self, file_path: str):
         with open(file_path, "r") as f:
             data = json.load(f)
 
         metadata: dict = {}
         for section, items in data.items():
-            metadata[section] = []
+            metadata[section] = {}
             for item in items:
                 main_text = item["text"]
-                rudeness_points = item.get("rudeness_points", 0)
-                all_texts = [(main_text, rudeness_points)] + [
-                    (syn, rudeness_points) for syn in item.get("synonyms", [])
-                ]
-                for text, rudeness_pts in all_texts:
-                    metadata[section].append((main_text, text, rudeness_pts))
+                meta = {
+                    k: v for k, v in item.items() if k != "text" and k != "synonyms"
+                }
+                metadata[section][main_text] = meta
         return metadata
 
-    def measure_similarity(self, embedding1, embedding2):
+    def _measure_similarity(self, embedding1, embedding2):
         return util.pytorch_cos_sim(embedding1, embedding2).item()
 
     def check_for_best_matching_synonym(
@@ -64,8 +62,7 @@ class SBERTMatcher:
         message: str,
         show_details: bool = False,
         labels: Optional[list] = None,
-        stop_command: Optional[bool] = False,
-    ):
+    ) -> tuple[str | None, dict]:
         start_time = time.time()
         input_embedding = self.model.encode(message, convert_to_tensor=True)
         if torch.cuda.is_available() and isinstance(input_embedding, torch.Tensor):
@@ -74,33 +71,33 @@ class SBERTMatcher:
         max_similarity = -1
         best_match = None
         best_synonym = None
+        text_metadata = {}
 
         categories = labels if labels else self.embeddings.keys()
 
         for category in categories:
             items = self.embeddings.get(category, [])
-            metadata_items = self.metadata.get(category, [])
-            for (main_text, text, embedding), (_, _, rudeness_points) in zip(
-                items, metadata_items
-            ):
-                similarity = self.measure_similarity(input_embedding, embedding)
+            metadata_items = self.metadata.get(category, {})
+            for main_text, text, embedding in items:
+                similarity = self._measure_similarity(input_embedding, embedding)
                 if similarity > max_similarity:
                     max_similarity = similarity
                     best_match = main_text
                     best_synonym = text
+                    text_metadata = metadata_items.get(main_text, {})
 
         end_time = time.time()
         inference_time = end_time - start_time
 
         if show_details:
             print(
-                f"Input: <{message}> has match value <{max_similarity:.3f}> from matching with <{best_synonym}> for original text: <{best_match}> (exec.time: {inference_time:.4f})"
+                f"Input: <{message}> has match value <{max_similarity:.3f}> from matching with <{best_synonym}> for original text: <{best_match}> with metadata {text_metadata} (exec.time: {inference_time:.4f})"
             )
 
         if max_similarity < self.similarity_threshold:
-            return (None, 0) if stop_command else None
+            return None, {}
         else:
-            return (best_match, rudeness_points) if stop_command else best_match
+            return best_match, text_metadata  # for now only stop commands use metadata
 
 
 def main():
@@ -110,10 +107,12 @@ def main():
         if message.lower() == "exit":
             break
 
-        best_match = matcher.check_for_best_matching_synonym(
-            message, show_details=True, labels=["Greeting"]
+        best_match, metadata = matcher.check_for_best_matching_synonym(
+            message,
+            show_details=True,
         )
-        print(f"Best Match: {best_match}\n")
+        print(f"Best Match: {best_match}")
+        print(f"Metadata: {metadata}\n")
 
 
 if __name__ == "__main__":

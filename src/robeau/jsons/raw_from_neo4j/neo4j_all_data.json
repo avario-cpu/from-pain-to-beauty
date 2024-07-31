@@ -1088,23 +1088,29 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 0,
-            "endNodeId": 1
+            "endNodeId": 1,
+            "startNodeText": "Hello",
+            "endNodeText": "Hello!"
         },
         {
             "id": 1,
             "type": "ATTEMPTS",
             "properties": {},
             "startNodeId": 10,
-            "endNodeId": 13
+            "endNodeId": 13,
+            "startNodeText": "Goodbye",
+            "endNodeText": "Goodbye Already?"
         },
         {
             "id": 2,
             "type": "INITIATES",
             "properties": {
-                "duration": 7.0
+                "duration": 6.5
             },
             "startNodeId": 34,
-            "endNodeId": 38
+            "endNodeId": 38,
+            "startNodeText": "Are you gonna Answer ?",
+            "endNodeText": "Okay, then I give up..."
         },
         {
             "id": 3,
@@ -1114,7 +1120,9 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 0,
-            "endNodeId": 4
+            "endNodeId": 4,
+            "startNodeText": "Hello",
+            "endNodeText": "test_rand_pool1"
         },
         {
             "id": 4,
@@ -1124,7 +1132,9 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 0,
-            "endNodeId": 5
+            "endNodeId": 5,
+            "startNodeText": "Hello",
+            "endNodeText": "test_rand_pool2"
         },
         {
             "id": 5,
@@ -1134,14 +1144,18 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 0,
-            "endNodeId": 6
+            "endNodeId": 6,
+            "startNodeText": "Hello",
+            "endNodeText": "test_rand_pool3"
         },
         {
             "id": 6,
             "type": "PRIMES",
             "properties": {},
             "startNodeId": 19,
-            "endNodeId": 36
+            "endNodeId": 36,
+            "startNodeText": "Sorry can you repeat that?",
+            "endNodeText": "I cannot understand you.."
         },
         {
             "id": 7,
@@ -1150,14 +1164,18 @@
                 "duration": 15.0
             },
             "startNodeId": 2,
-            "endNodeId": 16
+            "endNodeId": 16,
+            "startNodeText": "The answer is 4",
+            "endNodeText": "I just answered that, but ok"
         },
         {
             "id": 8,
             "type": "REVERTS",
             "properties": {},
             "startNodeId": 50,
-            "endNodeId": 26
+            "endNodeId": 26,
+            "startNodeText": "I Unlock my math functions",
+            "endNodeText": "OK. Locking my math functions."
         },
         {
             "id": 9,
@@ -1167,49 +1185,63 @@
                 "randomWeight": 0.05
             },
             "startNodeId": 0,
-            "endNodeId": 3
+            "endNodeId": 3,
+            "startNodeText": "Hello",
+            "endNodeText": "Fuck you."
         },
         {
             "id": 10,
             "type": "ATTEMPTS",
             "properties": {},
             "startNodeId": 69,
-            "endNodeId": 91
+            "endNodeId": 91,
+            "startNodeText": "ANY MATCHING PROMPT",
+            "endNodeText": "I am not answering that."
         },
         {
             "id": 11,
             "type": "UNLOCKS",
             "properties": {},
             "startNodeId": 101,
-            "endNodeId": 102
+            "endNodeId": 102,
+            "startNodeText": "test unlock",
+            "endNodeText": "unlocked the test"
         },
         {
             "id": 12,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 14,
-            "endNodeId": 61
+            "endNodeId": 61,
+            "startNodeText": "Hey Robeau",
+            "endNodeText": "Yes ?"
         },
         {
             "id": 13,
             "type": "ALLOWS",
             "properties": {},
             "startNodeId": 14,
-            "endNodeId": 24
+            "endNodeId": 24,
+            "startNodeText": "Hey Robeau",
+            "endNodeText": "You're terrible at math"
         },
         {
             "id": 14,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 72,
-            "endNodeId": 73
+            "endNodeId": 73,
+            "startNodeText": "Say a really long sentence",
+            "endNodeText": "Ok, playing audio for really long sentence"
         },
         {
             "id": 15,
             "type": "EXPECTS",
             "properties": {},
             "startNodeId": 20,
-            "endNodeId": 37
+            "endNodeId": 37,
+            "startNodeText": "...Yeah ?",
+            "endNodeText": "I love you"
         },
         {
             "id": 16,
@@ -1218,21 +1250,27 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 24,
-            "endNodeId": 26
+            "endNodeId": 26,
+            "startNodeText": "You're terrible at math",
+            "endNodeText": "OK. Locking my math functions."
         },
         {
             "id": 17,
             "type": "ACTIVATES",
             "properties": {},
             "startNodeId": 68,
-            "endNodeId": 107
+            "endNodeId": 107,
+            "startNodeText": "NO MATCHING PROMPT",
+            "endNodeText": "Prompting Gates"
         },
         {
             "id": 18,
             "type": "ALLOWS",
             "properties": {},
             "startNodeId": 14,
-            "endNodeId": 72
+            "endNodeId": 72,
+            "startNodeText": "Hey Robeau",
+            "endNodeText": "Say a really long sentence"
         },
         {
             "id": 19,
@@ -1241,14 +1279,18 @@
                 "duration": 7.0
             },
             "startNodeId": 61,
-            "endNodeId": 62
+            "endNodeId": 62,
+            "startNodeText": "Yes ?",
+            "endNodeText": "Nothing"
         },
         {
             "id": 20,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 10,
-            "endNodeId": 9
+            "endNodeId": 9,
+            "startNodeText": "Goodbye",
+            "endNodeText": "Goodbye!"
         },
         {
             "id": 21,
@@ -1257,7 +1299,9 @@
                 "duration": 6.5
             },
             "startNodeId": 61,
-            "endNodeId": 63
+            "endNodeId": 63,
+            "startNodeText": "Yes ?",
+            "endNodeText": "Nothing to say ? Ok."
         },
         {
             "id": 22,
@@ -1266,133 +1310,171 @@
                 "duration": 15.0
             },
             "startNodeId": 2,
-            "endNodeId": 17
+            "endNodeId": 17,
+            "startNodeText": "The answer is 4",
+            "endNodeText": "No, I just answered that"
         },
         {
             "id": 23,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 16,
-            "endNodeId": 2
+            "endNodeId": 2,
+            "startNodeText": "I just answered that, but ok",
+            "endNodeText": "The answer is 4"
         },
         {
             "id": 24,
             "type": "CHECKS",
             "properties": {},
             "startNodeId": 10,
-            "endNodeId": 12
+            "endNodeId": 12,
+            "startNodeText": "Goodbye",
+            "endNodeText": "You didn't greet me!"
         },
         {
             "id": 25,
             "type": "ALLOWS",
             "properties": {},
             "startNodeId": 14,
-            "endNodeId": 15
+            "endNodeId": 15,
+            "startNodeText": "Hey Robeau",
+            "endNodeText": "Calculate 2 + 2"
         },
         {
             "id": 26,
             "type": "ALLOWS",
             "properties": {},
             "startNodeId": 14,
-            "endNodeId": 0
+            "endNodeId": 0,
+            "startNodeText": "Hey Robeau",
+            "endNodeText": "Hello"
         },
         {
             "id": 27,
             "type": "ALLOWS",
             "properties": {},
             "startNodeId": 14,
-            "endNodeId": 7
+            "endNodeId": 7,
+            "startNodeText": "Hey Robeau",
+            "endNodeText": "How are you"
         },
         {
             "id": 28,
             "type": "EXPECTS",
             "properties": {},
             "startNodeId": 20,
-            "endNodeId": 39
+            "endNodeId": 39,
+            "startNodeText": "...Yeah ?",
+            "endNodeText": "Have a good night"
         },
         {
             "id": 29,
             "type": "ALLOWS",
             "properties": {},
             "startNodeId": 14,
-            "endNodeId": 10
+            "endNodeId": 10,
+            "startNodeText": "Hey Robeau",
+            "endNodeText": "Goodbye"
         },
         {
             "id": 30,
             "type": "DISABLES",
             "properties": {},
             "startNodeId": 19,
-            "endNodeId": 38
+            "endNodeId": 38,
+            "startNodeText": "Sorry can you repeat that?",
+            "endNodeText": "Okay, then I give up..."
         },
         {
             "id": 31,
             "type": "DISABLES",
             "properties": {},
             "startNodeId": 36,
-            "endNodeId": 34
+            "endNodeId": 34,
+            "startNodeText": "I cannot understand you..",
+            "endNodeText": "Are you gonna Answer ?"
         },
         {
             "id": 32,
             "type": "DISABLES",
             "properties": {},
             "startNodeId": 36,
-            "endNodeId": 38
+            "endNodeId": 38,
+            "startNodeText": "I cannot understand you..",
+            "endNodeText": "Okay, then I give up..."
         },
         {
             "id": 33,
             "type": "LOCKS",
             "properties": {},
             "startNodeId": 26,
-            "endNodeId": 51
+            "endNodeId": 51,
+            "startNodeText": "OK. Locking my math functions.",
+            "endNodeText": "Calculate Gate"
         },
         {
             "id": 34,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 62,
-            "endNodeId": 65
+            "endNodeId": 65,
+            "startNodeText": "Nothing",
+            "endNodeText": "Ok, fine"
         },
         {
             "id": 35,
             "type": "REVERTS",
             "properties": {},
             "startNodeId": 63,
-            "endNodeId": 14
+            "endNodeId": 14,
+            "startNodeText": "Nothing to say ? Ok.",
+            "endNodeText": "Hey Robeau"
         },
         {
             "id": 36,
             "type": "DEFAULTS",
             "properties": {},
             "startNodeId": 15,
-            "endNodeId": 27
+            "endNodeId": 27,
+            "startNodeText": "Calculate 2 + 2",
+            "endNodeText": "Oh no, looks like I cannot do math"
         },
         {
             "id": 37,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 36,
-            "endNodeId": 43
+            "endNodeId": 43,
+            "startNodeText": "I cannot understand you..",
+            "endNodeText": "RESET EXPECTATIONS"
         },
         {
             "id": 38,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 23,
-            "endNodeId": 20
+            "endNodeId": 20,
+            "startNodeText": "Wait",
+            "endNodeText": "...Yeah ?"
         },
         {
             "id": 39,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 21,
-            "endNodeId": 28
+            "endNodeId": 28,
+            "startNodeText": "I'm sorry",
+            "endNodeText": "About what?"
         },
         {
             "id": 40,
             "type": "EXPECTS",
             "properties": {},
             "startNodeId": 28,
-            "endNodeId": 31
+            "endNodeId": 31,
+            "startNodeText": "About what?",
+            "endNodeText": "Saying you're terrible at math"
         },
         {
             "id": 41,
@@ -1401,7 +1483,9 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 31,
-            "endNodeId": 32
+            "endNodeId": 32,
+            "startNodeText": "Saying you're terrible at math",
+            "endNodeText": "I don't care"
         },
         {
             "id": 42,
@@ -1410,114 +1494,146 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 31,
-            "endNodeId": 33
+            "endNodeId": 33,
+            "startNodeText": "Saying you're terrible at math",
+            "endNodeText": "You're forgiven"
         },
         {
             "id": 43,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 38,
-            "endNodeId": 43
+            "endNodeId": 43,
+            "startNodeText": "Okay, then I give up...",
+            "endNodeText": "RESET EXPECTATIONS"
         },
         {
             "id": 44,
             "type": "EXPECTS",
             "properties": {},
             "startNodeId": 20,
-            "endNodeId": 44
+            "endNodeId": 44,
+            "startNodeText": "...Yeah ?",
+            "endNodeText": "Nothing"
         },
         {
             "id": 45,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 44,
-            "endNodeId": 45
+            "endNodeId": 45,
+            "startNodeText": "Nothing",
+            "endNodeText": "Okay.."
         },
         {
             "id": 46,
             "type": "INITIATES",
             "properties": {
-                "duration": 7.0
+                "duration": 6.5
             },
             "startNodeId": 19,
-            "endNodeId": 34
+            "endNodeId": 34,
+            "startNodeText": "Sorry can you repeat that?",
+            "endNodeText": "Are you gonna Answer ?"
         },
         {
             "id": 47,
             "type": "LOCKS",
             "properties": {},
             "startNodeId": 24,
-            "endNodeId": 25
+            "endNodeId": 25,
+            "startNodeText": "You're terrible at math",
+            "endNodeText": "You've never said that..."
         },
         {
             "id": 48,
             "type": "CHECKS",
             "properties": {},
             "startNodeId": 31,
-            "endNodeId": 25
+            "endNodeId": 25,
+            "startNodeText": "Saying you're terrible at math",
+            "endNodeText": "You've never said that..."
         },
         {
             "id": 49,
             "type": "ATTEMPTS",
             "properties": {},
             "startNodeId": 31,
-            "endNodeId": 35
+            "endNodeId": 35,
+            "startNodeText": "Saying you're terrible at math",
+            "endNodeText": "It's ok I forgave you already"
         },
         {
             "id": 50,
             "type": "UNLOCKS",
             "properties": {},
             "startNodeId": 33,
-            "endNodeId": 35
+            "endNodeId": 35,
+            "startNodeText": "You're forgiven",
+            "endNodeText": "It's ok I forgave you already"
         },
         {
             "id": 51,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 68,
-            "endNodeId": 67
+            "endNodeId": 67,
+            "startNodeText": "NO MATCHING PROMPT",
+            "endNodeText": "Sorry, could not understand"
         },
         {
             "id": 52,
             "type": "CHECKS",
             "properties": {},
             "startNodeId": 15,
-            "endNodeId": 11
+            "endNodeId": 11,
+            "startNodeText": "Calculate 2 + 2",
+            "endNodeText": "Say hello first?"
         },
         {
             "id": 53,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 7,
-            "endNodeId": 8
+            "endNodeId": 8,
+            "startNodeText": "How are you",
+            "endNodeText": "Good and you?"
         },
         {
             "id": 54,
             "type": "EXPECTS",
             "properties": {},
             "startNodeId": 8,
-            "endNodeId": 18
+            "endNodeId": 18,
+            "startNodeText": "Good and you?",
+            "endNodeText": "I am doing good"
         },
         {
             "id": 55,
             "type": "EXPECTS",
             "properties": {},
             "startNodeId": 8,
-            "endNodeId": 22
+            "endNodeId": 22,
+            "startNodeText": "Good and you?",
+            "endNodeText": "I am not doing good"
         },
         {
             "id": 56,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 18,
-            "endNodeId": 30
+            "endNodeId": 30,
+            "startNodeText": "I am doing good",
+            "endNodeText": "That's great!"
         },
         {
             "id": 57,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 22,
-            "endNodeId": 29
+            "endNodeId": 29,
+            "startNodeText": "I am not doing good",
+            "endNodeText": "Sorry to hear that"
         },
         {
             "id": 58,
@@ -1526,30 +1642,38 @@
                 "duration": 6.0
             },
             "startNodeId": 9,
-            "endNodeId": 23
+            "endNodeId": 23,
+            "startNodeText": "Goodbye!",
+            "endNodeText": "Wait"
         },
         {
             "id": 59,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 39,
-            "endNodeId": 46
+            "endNodeId": 46,
+            "startNodeText": "Have a good night",
+            "endNodeText": "You too, buddy."
         },
         {
             "id": 60,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 37,
-            "endNodeId": 47
+            "endNodeId": 47,
+            "startNodeText": "I love you",
+            "endNodeText": "I love you too"
         },
         {
             "id": 61,
             "type": "INITIATES",
             "properties": {
-                "duration": 7.0
+                "duration": 6.5
             },
             "startNodeId": 40,
-            "endNodeId": 34
+            "endNodeId": 34,
+            "startNodeText": "EXPECTATIONS SET",
+            "endNodeText": "Are you gonna Answer ?"
         },
         {
             "id": 62,
@@ -1558,77 +1682,99 @@
                 "randomWeight": 0.8
             },
             "startNodeId": 24,
-            "endNodeId": 48
+            "endNodeId": 48,
+            "startNodeText": "You're terrible at math",
+            "endNodeText": "No I'm not"
         },
         {
             "id": 63,
             "type": "PRIMES",
             "properties": {},
             "startNodeId": 40,
-            "endNodeId": 19
+            "endNodeId": 19,
+            "startNodeText": "EXPECTATIONS SET",
+            "endNodeText": "Sorry can you repeat that?"
         },
         {
             "id": 64,
             "type": "ATTEMPTS",
             "properties": {},
             "startNodeId": 42,
-            "endNodeId": 19
+            "endNodeId": 19,
+            "startNodeText": "EXPECTATIONS FAILURE",
+            "endNodeText": "Sorry can you repeat that?"
         },
         {
             "id": 65,
             "type": "ATTEMPTS",
             "properties": {},
             "startNodeId": 42,
-            "endNodeId": 36
+            "endNodeId": 36,
+            "startNodeText": "EXPECTATIONS FAILURE",
+            "endNodeText": "I cannot understand you.."
         },
         {
             "id": 66,
             "type": "DISABLES",
             "properties": {},
             "startNodeId": 41,
-            "endNodeId": 38
+            "endNodeId": 38,
+            "startNodeText": "EXPECTATIONS SUCCESS",
+            "endNodeText": "Okay, then I give up..."
         },
         {
             "id": 67,
             "type": "DISABLES",
             "properties": {},
             "startNodeId": 41,
-            "endNodeId": 34
+            "endNodeId": 34,
+            "startNodeText": "EXPECTATIONS SUCCESS",
+            "endNodeText": "Are you gonna Answer ?"
         },
         {
             "id": 68,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 41,
-            "endNodeId": 43
+            "endNodeId": 43,
+            "startNodeText": "EXPECTATIONS SUCCESS",
+            "endNodeText": "RESET EXPECTATIONS"
         },
         {
             "id": 69,
             "type": "UNLOCKS",
             "properties": {},
             "startNodeId": 89,
-            "endNodeId": 91
+            "endNodeId": 91,
+            "startNodeText": "SET ROBEAU STUBBORN",
+            "endNodeText": "I am not answering that."
         },
         {
             "id": 70,
             "type": "PERMITS",
             "properties": {},
             "startNodeId": 14,
-            "endNodeId": 21
+            "endNodeId": 21,
+            "startNodeText": "Hey Robeau",
+            "endNodeText": "I'm sorry"
         },
         {
             "id": 71,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 101,
-            "endNodeId": 102
+            "endNodeId": 102,
+            "startNodeText": "test unlock",
+            "endNodeText": "unlocked the test"
         },
         {
             "id": 72,
             "type": "IF",
             "properties": {},
             "startNodeId": 33,
-            "endNodeId": 49
+            "endNodeId": 49,
+            "startNodeText": "You're forgiven",
+            "endNodeText": "CheckLock"
         },
         {
             "id": 73,
@@ -1637,21 +1783,27 @@
                 "duration": 2.0
             },
             "startNodeId": 95,
-            "endNodeId": 96
+            "endNodeId": 96,
+            "startNodeText": "Don't bother me only to stay quiet",
+            "endNodeText": "Wait"
         },
         {
             "id": 74,
             "type": "THEN",
             "properties": {},
             "startNodeId": 49,
-            "endNodeId": 50
+            "endNodeId": 50,
+            "startNodeText": "CheckLock",
+            "endNodeText": "I Unlock my math functions"
         },
         {
             "id": 75,
             "type": "DISABLES",
             "properties": {},
             "startNodeId": 71,
-            "endNodeId": 63
+            "endNodeId": 63,
+            "startNodeText": "Normal P. Gate",
+            "endNodeText": "Nothing to say ? Ok."
         },
         {
             "id": 76,
@@ -1660,7 +1812,9 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 73,
-            "endNodeId": 74
+            "endNodeId": 74,
+            "startNodeText": "Ok, playing audio for really long sentence",
+            "endNodeText": "Why ask me that just to shut me up?"
         },
         {
             "id": 77,
@@ -1669,14 +1823,18 @@
                 "duration": 2.5
             },
             "startNodeId": 63,
-            "endNodeId": 64
+            "endNodeId": 64,
+            "startNodeText": "Nothing to say ? Ok.",
+            "endNodeText": "Wait"
         },
         {
             "id": 78,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 64,
-            "endNodeId": 70
+            "endNodeId": 70,
+            "startNodeText": "Wait",
+            "endNodeText": "Ok, ask something then."
         },
         {
             "id": 79,
@@ -1687,14 +1845,18 @@
                 "rudenessLevelMax": 40
             },
             "startNodeId": 86,
-            "endNodeId": 75
+            "endNodeId": 75,
+            "startNodeText": "I want to say sorry for being rude",
+            "endNodeText": "Hmm Idk if it can be that easy..."
         },
         {
             "id": 80,
             "type": "REVERTS",
             "properties": {},
             "startNodeId": 24,
-            "endNodeId": 33
+            "endNodeId": 33,
+            "startNodeText": "You're terrible at math",
+            "endNodeText": "You're forgiven"
         },
         {
             "id": 81,
@@ -1703,7 +1865,9 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 76,
-            "endNodeId": 77
+            "endNodeId": 77,
+            "startNodeText": "ANY NON SPECIFIC CUTOFF",
+            "endNodeText": "Ok sorry for talking"
         },
         {
             "id": 82,
@@ -1712,14 +1876,18 @@
                 "randomWeight": 100
             },
             "startNodeId": 76,
-            "endNodeId": 78
+            "endNodeId": 78,
+            "startNodeText": "ANY NON SPECIFIC CUTOFF",
+            "endNodeText": "I talk whenever I please"
         },
         {
             "id": 83,
             "type": "APPLIES",
             "properties": {},
             "startNodeId": 70,
-            "endNodeId": 14
+            "endNodeId": 14,
+            "startNodeText": "Ok, ask something then.",
+            "endNodeText": "Hey Robeau"
         },
         {
             "id": 84,
@@ -1728,42 +1896,54 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 76,
-            "endNodeId": 79
+            "endNodeId": 79,
+            "startNodeText": "ANY NON SPECIFIC CUTOFF",
+            "endNodeText": "That's so rude man..."
         },
         {
             "id": 85,
             "type": "ACTIVATES",
             "properties": {},
             "startNodeId": 107,
-            "endNodeId": 71
+            "endNodeId": 71,
+            "startNodeText": "Prompting Gates",
+            "endNodeText": "Normal P. Gate"
         },
         {
             "id": 86,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 15,
-            "endNodeId": 51
+            "endNodeId": 51,
+            "startNodeText": "Calculate 2 + 2",
+            "endNodeText": "Calculate Gate"
         },
         {
             "id": 87,
             "type": "IS_LOCKED",
             "properties": {},
             "startNodeId": 49,
-            "endNodeId": 51
+            "endNodeId": 51,
+            "startNodeText": "CheckLock",
+            "endNodeText": "Calculate Gate"
         },
         {
             "id": 88,
             "type": "ACTIVATES",
             "properties": {},
             "startNodeId": 69,
-            "endNodeId": 107
+            "endNodeId": 107,
+            "startNodeText": "ANY MATCHING PROMPT",
+            "endNodeText": "Prompting Gates"
         },
         {
             "id": 89,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 51,
-            "endNodeId": 2
+            "endNodeId": 2,
+            "startNodeText": "Calculate Gate",
+            "endNodeText": "The answer is 4"
         },
         {
             "id": 90,
@@ -1774,7 +1954,9 @@
                 "rudenessLevelMax": 70
             },
             "startNodeId": 86,
-            "endNodeId": 115
+            "endNodeId": 115,
+            "startNodeText": "I want to say sorry for being rude",
+            "endNodeText": "You've been mean bro.."
         },
         {
             "id": 91,
@@ -1783,14 +1965,18 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 51,
-            "endNodeId": 17
+            "endNodeId": 17,
+            "startNodeText": "Calculate Gate",
+            "endNodeText": "No, I just answered that"
         },
         {
             "id": 92,
             "type": "ALLOWS",
             "properties": {},
             "startNodeId": 14,
-            "endNodeId": 116
+            "endNodeId": 116,
+            "startNodeText": "Hey Robeau",
+            "endNodeText": "Hey Robeau"
         },
         {
             "id": 93,
@@ -1799,7 +1985,9 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 51,
-            "endNodeId": 16
+            "endNodeId": 16,
+            "startNodeText": "Calculate Gate",
+            "endNodeText": "I just answered that, but ok"
         },
         {
             "id": 94,
@@ -1808,7 +1996,9 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 79,
-            "endNodeId": 80
+            "endNodeId": 80,
+            "startNodeText": "That's so rude man...",
+            "endNodeText": "Can you please be nicer ?"
         },
         {
             "id": 95,
@@ -1817,14 +2007,18 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 79,
-            "endNodeId": 81
+            "endNodeId": 81,
+            "startNodeText": "That's so rude man...",
+            "endNodeText": "I'm not talking to you anymore"
         },
         {
             "id": 96,
             "type": "ALLOWS",
             "properties": {},
             "startNodeId": 14,
-            "endNodeId": 52
+            "endNodeId": 52,
+            "startNodeText": "Hey Robeau",
+            "endNodeText": "Can you wipe your memory"
         },
         {
             "id": 97,
@@ -1833,7 +2027,9 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 52,
-            "endNodeId": 53
+            "endNodeId": 53,
+            "startNodeText": "Can you wipe your memory",
+            "endNodeText": "Sure..."
         },
         {
             "id": 98,
@@ -1842,21 +2038,27 @@
                 "randomWeight": 0.5
             },
             "startNodeId": 52,
-            "endNodeId": 54
+            "endNodeId": 54,
+            "startNodeText": "Can you wipe your memory",
+            "endNodeText": "No way bro I hate doing that"
         },
         {
             "id": 99,
             "type": "UNLOCKS",
             "properties": {},
             "startNodeId": 54,
-            "endNodeId": 55
+            "endNodeId": 55,
+            "startNodeText": "No way bro I hate doing that",
+            "endNodeText": "What's the point if you can just ask again?"
         },
         {
             "id": 100,
             "type": "ATTEMPTS",
             "properties": {},
             "startNodeId": 52,
-            "endNodeId": 55
+            "endNodeId": 55,
+            "startNodeText": "Can you wipe your memory",
+            "endNodeText": "What's the point if you can just ask again?"
         },
         {
             "id": 101,
@@ -1865,105 +2067,135 @@
                 "randomWeight": 1.0
             },
             "startNodeId": 76,
-            "endNodeId": 82
+            "endNodeId": 82,
+            "startNodeText": "ANY NON SPECIFIC CUTOFF",
+            "endNodeText": "*silence*"
         },
         {
             "id": 102,
             "type": "LOCKS",
             "properties": {},
             "startNodeId": 57,
-            "endNodeId": 56
+            "endNodeId": 56,
+            "startNodeText": "test lock",
+            "endNodeText": "locked the test"
         },
         {
             "id": 103,
             "type": "EXPECTS",
             "properties": {},
             "startNodeId": 80,
-            "endNodeId": 83
+            "endNodeId": 83,
+            "startNodeText": "Can you please be nicer ?",
+            "endNodeText": "Yes ok sorry"
         },
         {
             "id": 104,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 57,
-            "endNodeId": 56
+            "endNodeId": 56,
+            "startNodeText": "test lock",
+            "endNodeText": "locked the test"
         },
         {
             "id": 105,
             "type": "IS_LOCKED",
             "properties": {},
             "startNodeId": 58,
-            "endNodeId": 56
+            "endNodeId": 56,
+            "startNodeText": "TestLogic",
+            "endNodeText": "locked the test"
         },
         {
             "id": 106,
             "type": "EXPECTS",
             "properties": {},
             "startNodeId": 80,
-            "endNodeId": 84
+            "endNodeId": 84,
+            "startNodeText": "Can you please be nicer ?",
+            "endNodeText": "No I won't"
         },
         {
             "id": 107,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 81,
-            "endNodeId": 85
+            "endNodeId": 85,
+            "startNodeText": "I'm not talking to you anymore",
+            "endNodeText": "SET ROBEAU UNRESPONSIVE"
         },
         {
             "id": 108,
             "type": "IF",
             "properties": {},
             "startNodeId": 59,
-            "endNodeId": 58
+            "endNodeId": 58,
+            "startNodeText": "test gate",
+            "endNodeText": "TestLogic"
         },
         {
             "id": 109,
             "type": "THEN",
             "properties": {},
             "startNodeId": 58,
-            "endNodeId": 60
+            "endNodeId": 60,
+            "startNodeText": "TestLogic",
+            "endNodeText": "Test Output"
         },
         {
             "id": 110,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 96,
-            "endNodeId": 97
+            "endNodeId": 97,
+            "startNodeText": "Wait",
+            "endNodeText": "No. You're wasting my time"
         },
         {
             "id": 111,
             "type": "ACTIVATES",
             "properties": {},
             "startNodeId": 107,
-            "endNodeId": 106
+            "endNodeId": 106,
+            "startNodeText": "Prompting Gates",
+            "endNodeText": "Stubborn P. Gate"
         },
         {
             "id": 112,
             "type": "ACTIVATES",
             "properties": {},
             "startNodeId": 92,
-            "endNodeId": 107
+            "endNodeId": 107,
+            "startNodeText": "ANY MATCHING PLEA",
+            "endNodeText": "Prompting Gates"
         },
         {
             "id": 113,
             "type": "PERMITS",
             "properties": {},
             "startNodeId": 14,
-            "endNodeId": 86
+            "endNodeId": 86,
+            "startNodeText": "Hey Robeau",
+            "endNodeText": "I want to say sorry for being rude"
         },
         {
             "id": 114,
             "type": "LOCKS",
             "properties": {},
             "startNodeId": 87,
-            "endNodeId": 11
+            "endNodeId": 11,
+            "startNodeText": "Greeting Gate",
+            "endNodeText": "Say hello first?"
         },
         {
             "id": 115,
             "type": "LOCKS",
             "properties": {},
             "startNodeId": 87,
-            "endNodeId": 12
+            "endNodeId": 12,
+            "startNodeText": "Greeting Gate",
+            "endNodeText": "You didn't greet me!"
         },
         {
             "id": 116,
@@ -1972,63 +2204,81 @@
                 "duration": 30.0
             },
             "startNodeId": 87,
-            "endNodeId": 13
+            "endNodeId": 13,
+            "startNodeText": "Greeting Gate",
+            "endNodeText": "Goodbye Already?"
         },
         {
             "id": 117,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 81,
-            "endNodeId": 89
+            "endNodeId": 89,
+            "startNodeText": "I'm not talking to you anymore",
+            "endNodeText": "SET ROBEAU STUBBORN"
         },
         {
             "id": 118,
             "type": "ACTIVATES",
             "properties": {},
             "startNodeId": 93,
-            "endNodeId": 107
+            "endNodeId": 107,
+            "startNodeText": "ANY MATCHING WHISPER",
+            "endNodeText": "Prompting Gates"
         },
         {
             "id": 119,
             "type": "REVERTS",
             "properties": {},
             "startNodeId": 88,
-            "endNodeId": 89
+            "endNodeId": 89,
+            "startNodeText": "ROBEAU NO MORE STUBBORN",
+            "endNodeText": "SET ROBEAU STUBBORN"
         },
         {
             "id": 120,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 88,
-            "endNodeId": 90
+            "endNodeId": 90,
+            "startNodeText": "ROBEAU NO MORE STUBBORN",
+            "endNodeText": "Sorry, I'm not mad anymore"
         },
         {
             "id": 121,
             "type": "ACTIVATES",
             "properties": {},
             "startNodeId": 7,
-            "endNodeId": 87
+            "endNodeId": 87,
+            "startNodeText": "How are you",
+            "endNodeText": "Greeting Gate"
         },
         {
             "id": 122,
             "type": "ACTIVATES",
             "properties": {},
             "startNodeId": 0,
-            "endNodeId": 87
+            "endNodeId": 87,
+            "startNodeText": "Hello",
+            "endNodeText": "Greeting Gate"
         },
         {
             "id": 123,
             "type": "REVERTS",
             "properties": {},
             "startNodeId": 71,
-            "endNodeId": 14
+            "endNodeId": 14,
+            "startNodeText": "Normal P. Gate",
+            "endNodeText": "Hey Robeau"
         },
         {
             "id": 124,
             "type": "AND_IS_UNLOCKED",
             "properties": {},
             "startNodeId": 58,
-            "endNodeId": 102
+            "endNodeId": 102,
+            "startNodeText": "TestLogic",
+            "endNodeText": "unlocked the test"
         },
         {
             "id": 125,
@@ -2037,28 +2287,36 @@
                 "randomWeight": 0.5
             },
             "startNodeId": 76,
-            "endNodeId": 81
+            "endNodeId": 81,
+            "startNodeText": "ANY NON SPECIFIC CUTOFF",
+            "endNodeText": "I'm not talking to you anymore"
         },
         {
             "id": 126,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 116,
-            "endNodeId": 117
+            "endNodeId": 117,
+            "startNodeText": "Hey Robeau",
+            "endNodeText": "Yes you've said that already, anything to say ?"
         },
         {
             "id": 127,
             "type": "PERMITS",
             "properties": {},
             "startNodeId": 14,
-            "endNodeId": 94
+            "endNodeId": 94,
+            "startNodeText": "Hey Robeau",
+            "endNodeText": "Sorry for cutting you off"
         },
         {
             "id": 128,
             "type": "EXPECTS",
             "properties": {},
             "startNodeId": 28,
-            "endNodeId": 100
+            "endNodeId": 100,
+            "startNodeText": "About what?",
+            "endNodeText": "Being rude"
         },
         {
             "id": 129,
@@ -2069,7 +2327,9 @@
                 "rudenessLevelMax": 40
             },
             "startNodeId": 86,
-            "endNodeId": 98
+            "endNodeId": 98,
+            "startNodeText": "I want to say sorry for being rude",
+            "endNodeText": "Don't worry it's all good"
         },
         {
             "id": 130,
@@ -2080,28 +2340,36 @@
                 "rudenessLevelMax": 70
             },
             "startNodeId": 86,
-            "endNodeId": 99
+            "endNodeId": 99,
+            "startNodeText": "I want to say sorry for being rude",
+            "endNodeText": "Hmm... ok I can forgive you"
         },
         {
             "id": 131,
             "type": "REPLACES",
             "properties": {},
             "startNodeId": 100,
-            "endNodeId": 86
+            "endNodeId": 86,
+            "startNodeText": "Being rude",
+            "endNodeText": "I want to say sorry for being rude"
         },
         {
             "id": 132,
             "type": "AND_IS_NOT_INITIATED",
             "properties": {},
             "startNodeId": 58,
-            "endNodeId": 104
+            "endNodeId": 104,
+            "startNodeText": "TestLogic",
+            "endNodeText": "initiation for test"
         },
         {
             "id": 133,
             "type": "INITIATES",
             "properties": {},
             "startNodeId": 103,
-            "endNodeId": 104
+            "endNodeId": 104,
+            "startNodeText": "test init",
+            "endNodeText": "initiation for test"
         },
         {
             "id": 134,
@@ -2110,7 +2378,9 @@
                 "rudenessLevelMax": 10
             },
             "startNodeId": 86,
-            "endNodeId": 105
+            "endNodeId": 105,
+            "startNodeText": "I want to say sorry for being rude",
+            "endNodeText": "I don't feel like you've been rude at all"
         },
         {
             "id": 135,
@@ -2119,14 +2389,18 @@
                 "duration": 5.0
             },
             "startNodeId": 112,
-            "endNodeId": 113
+            "endNodeId": 113,
+            "startNodeText": "What do you want.",
+            "endNodeText": "Nothing"
         },
         {
             "id": 136,
             "type": "TRIGGERS",
             "properties": {},
             "startNodeId": 113,
-            "endNodeId": 114
+            "endNodeId": 114,
+            "startNodeText": "Nothing",
+            "endNodeText": "Then don't talk to me"
         },
         {
             "id": 137,
@@ -2135,35 +2409,45 @@
                 "duration": 5.0
             },
             "startNodeId": 112,
-            "endNodeId": 95
+            "endNodeId": 95,
+            "startNodeText": "What do you want.",
+            "endNodeText": "Don't bother me only to stay quiet"
         },
         {
             "id": 138,
             "type": "ATTEMPTS",
             "properties": {},
             "startNodeId": 14,
-            "endNodeId": 112
+            "endNodeId": 112,
+            "startNodeText": "Hey Robeau",
+            "endNodeText": "What do you want."
         },
         {
             "id": 139,
             "type": "UNLOCKS",
             "properties": {},
             "startNodeId": 89,
-            "endNodeId": 112
+            "endNodeId": 112,
+            "startNodeText": "SET ROBEAU STUBBORN",
+            "endNodeText": "What do you want."
         },
         {
             "id": 140,
             "type": "APPLIES",
             "properties": {},
             "startNodeId": 117,
-            "endNodeId": 14
+            "endNodeId": 14,
+            "startNodeText": "Yes you've said that already, anything to say ?",
+            "endNodeText": "Hey Robeau"
         },
         {
             "id": 141,
             "type": "DISABLES",
             "properties": {},
             "startNodeId": 106,
-            "endNodeId": 95
+            "endNodeId": 95,
+            "startNodeText": "Stubborn P. Gate",
+            "endNodeText": "Don't bother me only to stay quiet"
         },
         {
             "id": 142,
@@ -2172,63 +2456,81 @@
                 "duration": 4.5
             },
             "startNodeId": 70,
-            "endNodeId": 118
+            "endNodeId": 118,
+            "startNodeText": "Ok, ask something then.",
+            "endNodeText": "Ok listen: call me if you need me"
         },
         {
             "id": 143,
             "type": "ACTIVATES",
             "properties": {},
             "startNodeId": 107,
-            "endNodeId": 111
+            "endNodeId": 111,
+            "startNodeText": "Prompting Gates",
+            "endNodeText": "STOP LISTENING FOR WHISPERS"
         },
         {
             "id": 144,
             "type": "DISABLES",
             "properties": {},
             "startNodeId": 71,
-            "endNodeId": 118
+            "endNodeId": 118,
+            "startNodeText": "Normal P. Gate",
+            "endNodeText": "Ok listen: call me if you need me"
         },
         {
             "id": 146,
             "type": "REVERTS",
             "properties": {},
             "startNodeId": 106,
-            "endNodeId": 14
+            "endNodeId": 14,
+            "startNodeText": "Stubborn P. Gate",
+            "endNodeText": "Hey Robeau"
         },
         {
             "id": 147,
             "type": "REVERTS",
             "properties": {},
             "startNodeId": 118,
-            "endNodeId": 14
+            "endNodeId": 14,
+            "startNodeText": "Ok listen: call me if you need me",
+            "endNodeText": "Hey Robeau"
         },
         {
             "id": 149,
             "type": "UNLOCKS",
             "properties": {},
             "startNodeId": 89,
-            "endNodeId": 108
+            "endNodeId": 108,
+            "startNodeText": "SET ROBEAU STUBBORN",
+            "endNodeText": "Make an effort when you talk to me"
         },
         {
             "id": 150,
             "type": "ATTEMPTS",
             "properties": {},
             "startNodeId": 68,
-            "endNodeId": 108
+            "endNodeId": 108,
+            "startNodeText": "NO MATCHING PROMPT",
+            "endNodeText": "Make an effort when you talk to me"
         },
         {
             "id": 151,
             "type": "UNLOCKS",
             "properties": {},
             "startNodeId": 89,
-            "endNodeId": 110
+            "endNodeId": 110,
+            "startNodeText": "SET ROBEAU STUBBORN",
+            "endNodeText": "PROLONG STUBBORN"
         },
         {
             "id": 152,
             "type": "ATTEMPTS",
             "properties": {},
             "startNodeId": 109,
-            "endNodeId": 110
+            "endNodeId": 110,
+            "startNodeText": "ANY RELEVANT USER INPUT",
+            "endNodeText": "PROLONG STUBBORN"
         }
     ]
 }

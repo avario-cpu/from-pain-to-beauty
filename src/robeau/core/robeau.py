@@ -35,7 +35,7 @@ def check_greeting_in_message(msg: str):
     words = msg.split()
     segments = [" ".join(words[:i]) for i in range(2, 5)]
     for segment in segments:
-        greeting = sbert_matcher.check_for_best_matching_synonym(
+        greeting, _ = sbert_matcher.check_for_best_matching_synonym(
             segment, show_details=True, labels=["Greeting"]
         )
         if greeting and "hey robeau" in greeting.lower():
@@ -44,12 +44,12 @@ def check_greeting_in_message(msg: str):
 
 
 def check_for_stop_command(message: str):
-    stop_command, rudeness_points = sbert_matcher.check_for_best_matching_synonym(
+    stop_command, data = sbert_matcher.check_for_best_matching_synonym(
         message,
         show_details=True,
         labels=["StopCommand", "StopCommandRude", "StopCommandPolite"],
-        stop_command=True,
     )
+    rudeness_points = data.get("rudeness_points", None)
     return stop_command, rudeness_points
 
 
@@ -69,7 +69,7 @@ def extract_remaining_message(message: str, greeting_segment: str):
     return remaining_message
 
 
-def log_matching_synonym(matched_message: str, message: str):
+def log_matching_synonym(matched_message: str | None, message: str):
     if matched_message:
         logger.info(f"Matched prompt '{message}' with node text: '{matched_message}")
     else:
@@ -94,7 +94,7 @@ class RobeauHandler:
             stop_command, rudeness_points = check_for_stop_command(message)
             if stop_command:
                 interrupt_robeau(stop_command, rudeness_points)
-                print(f"interrupted robeau and added {rudeness_points} rudeness points")
+                print(f"interrupted robeau with {rudeness_points} rudeness points")
             else:
                 print("No stop command detected over robeau's speech")
 
@@ -119,19 +119,21 @@ class RobeauHandler:
             self.greet(silent=False)
 
     def handle_remaining_message(self, remaining_message: str):
-        matched_message = sbert_matcher.check_for_best_matching_synonym(
+        matched_message, _ = sbert_matcher.check_for_best_matching_synonym(
             remaining_message, show_details=True, labels=["Prompt"]
         )
         log_matching_synonym(matched_message, remaining_message)
-        self.process_node_with_message(matched_message)
+        if matched_message:
+            self.process_node_with_message(matched_message)
 
     def process_message(self, message: str):
         labels = self.determine_labels()
-        matched_message = sbert_matcher.check_for_best_matching_synonym(
+        matched_message, _ = sbert_matcher.check_for_best_matching_synonym(
             message, show_details=True, labels=labels
         )
         log_matching_synonym(matched_message, message)
-        self.process_node_with_message(matched_message)
+        if matched_message:
+            self.process_node_with_message(matched_message)
 
     def determine_labels(self):
         labels = []
