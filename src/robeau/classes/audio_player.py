@@ -38,19 +38,19 @@ class AudioPlayer:
         self.on_end = on_end
         self.on_error = on_error
 
-    def _get_audio_files(self, output_string):
+    def _get_audio_files(self, response_string):
         for node in self.audio_mappings:
-            if node["properties"]["text"] == output_string:
+            if node["properties"]["text"] == response_string:
                 return node.get("audio_files", [])
         return []
 
-    def play_audio(self, output_string: str, multiple_tracks: Optional[int] = False):
+    def play_audio(self, response_string: str, multiple_tracks: Optional[int] = False):
         self.group_count = multiple_tracks if multiple_tracks else 1
         stop_event = threading.Event()
-        thread_name = f"AudioThread-{output_string}-{len(self.playing_threads) + 1}"
+        thread_name = f"AudioThread-{response_string}-{len(self.playing_threads) + 1}"
         thread = threading.Thread(
             target=self._play_audio,
-            args=(output_string, stop_event),
+            args=(response_string, stop_event),
             name=thread_name,
             daemon=True,
         )
@@ -61,11 +61,11 @@ class AudioPlayer:
         thread.start()
         self.logger.info(f"Started thread {thread_name}")
 
-    def _play_audio(self, output_string: str, stop_event):
+    def _play_audio(self, response_string: str, stop_event):
         try:
-            audio_files = self._get_audio_files(output_string)
+            audio_files = self._get_audio_files(response_string)
             if not audio_files:
-                self.logger.warning(f"No audio files found for <<{output_string}>>.")
+                self.logger.warning(f"No audio files found for <<{response_string}>>.")
                 self._thread_done(stop_event, termination_reason="error")
                 return
 
@@ -75,7 +75,7 @@ class AudioPlayer:
                 self._thread_done(stop_event, termination_reason="error")
                 return
 
-            self.logger.info(f"Starting to play audio for: <<{output_string}>>")
+            self.logger.info(f"Starting to play audio for: <<{response_string}>>")
 
             with self.lock:
                 self.current_group_start_count += 1
@@ -97,7 +97,7 @@ class AudioPlayer:
                 pygame.time.wait(5)  # Reduce the wait time to check more frequently
 
             self.logger.info(
-                f"Thread for <<{output_string}>> finished playing naturally."
+                f"Thread for <<{response_string}>> finished playing naturally."
             )
             self._thread_done(stop_event, termination_reason="end")
 
