@@ -162,28 +162,8 @@ cython_debug/
 
 
 # Project specific directories
-# data/*
-# !data/.gitkeep
-# data/audio/*
-# !data/audio/.gitkeep
-# data/audio/robeau/*
-# !data/audio/robeau/.gitkeep
-# data/audio/robeau/voicelines/*
-# !data/audio/robeau/voicelines/.gitkeep
-
-
-# Ignore all files in data and subdirectories
-data/**/*
-!data/**/.gitkeep
-
 temp/*
 !temp/.gitkeep
-
-src/robeau/jsons/temp/*
-!src/robeau/jsons/temp/outputs_from_get_data/.gitkeep
-!src/robeau/jsons/temp/outputs_from_prompts_merge/.gitkeep
-!src/robeau/jsons/temp/outputs_from_responses_merge/.gitkeep
-
 
 # PyTorch state dictionary files
 **/*.pth
