@@ -162,14 +162,19 @@ cython_debug/
 
 
 # Project specific directories
-data/*
-!data/.gitkeep
-data/audio/*
-!data/audio/.gitkeep
-data/audio/robeau/*
-!data/audio/robeau/.gitkeep
-data/audio/robeau/voicelines/*
-!data/audio/robeau/voicelines/.gitkeep
+# data/*
+# !data/.gitkeep
+# data/audio/*
+# !data/audio/.gitkeep
+# data/audio/robeau/*
+# !data/audio/robeau/.gitkeep
+# data/audio/robeau/voicelines/*
+# !data/audio/robeau/voicelines/.gitkeep
+
+
+# Ignore all files in data and subdirectories
+data/**/*
+!data/**/.gitkeep
 
 temp/*
 !temp/.gitkeep
