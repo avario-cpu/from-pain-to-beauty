@@ -6,7 +6,7 @@ from typing import Optional
 from neo4j import Session
 
 from src.config.initialize import setup_script
-from src.core.constants import SLOTS_DB_FILE_PATH
+from src.core.constants import TERMINAL_WINDOW_SLOTS_DB_FILE_PATH
 from src.robeau.classes.sbert_matcher import SBERTMatcher  # type: ignore
 from src.robeau.core.constants import ROBEAU_PROMPTS_JSON_FILE_PATH as ROBEAU_PROMPTS
 from src.robeau.core.graph_logic_network import (
@@ -172,7 +172,9 @@ class RobeauHandler:
 
 async def main():
     try:
-        db_conn, slot = await setup_script(SCRIPT_NAME, SLOTS_DB_FILE_PATH)
+        db_conn, slot = await setup_script(
+            SCRIPT_NAME, TERMINAL_WINDOW_SLOTS_DB_FILE_PATH
+        )
         driver, session, conversation_state, stop_event, update_thread, pause_event = (
             initialize()
         )

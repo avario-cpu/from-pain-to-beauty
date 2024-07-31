@@ -28,7 +28,7 @@ class LockFileManager:
             print(f"Lock file path: {self.lock_file_path} already exists.")
 
     def remove_lock_file(self):
-        self.logger.debug(f"Attempting to remove lock file for" f" {self.filename}")
+        self.logger.debug(f"Attempting to remove lock file for <{self.filename}>")
         try:
             os.remove(self.lock_file_path)
             print(f"Removed lock file: {self.filename}.lock")

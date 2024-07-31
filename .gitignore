@@ -162,15 +162,20 @@ cython_debug/
 
 
 # Project specific directories
+data/*
+!data/.gitkeep
+!data/audio/.gitkeep
+!data/audio/robeau/.gitkeep
+!data/audio/robeau/voicelines/.gitkeep
+
 temp/*
 !temp/.gitkeep
 
 src/robeau/jsons/temp/*
-!src/robeau/jsons/temp/.gitkeep
+!src/robeau/jsons/temp/outputs_from_get_data/.gitkeep
+!src/robeau/jsons/temp/outputs_from_prompts_merge/.gitkeep
+!src/robeau/jsons/temp/outputs_from_responses_merge/.gitkeep
 
-
-# Project specific files
-data/slots.db
 
 # PyTorch state dictionary files
 **/*.pth

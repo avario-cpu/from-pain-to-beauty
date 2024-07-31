@@ -14,7 +14,7 @@ from src.config.initialize import setup_script
 from src.connection import socket_server, websocket
 from src.core import terminal_window_manager_v4 as twm
 from src.core.constants import (
-    SLOTS_DB_FILE_PATH,
+    TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
     STOP_SUBPROCESS_MESSAGE,
     STREAMERBOT_WS_URL,
     SUBPROCESSES_PORTS,
@@ -25,15 +25,12 @@ from src.utils.helpers import construct_script_name, print_countdown, setup_logg
 SCRIPT_NAME = construct_script_name(__file__)
 PORT = SUBPROCESSES_PORTS["shop_watcher"]
 STREAMERBOT_URL = STREAMERBOT_WS_URL
-SLOTS_DB = SLOTS_DB_FILE_PATH
+SLOTS_DB = TERMINAL_WINDOW_SLOTS_DB_FILE_PATH
 
 SECONDARY_WINDOWS = [SecondaryWindow("opencv_shop_scanner", 150, 100)]
 SCREEN_CAPTURE_AREA = {"left": 1853, "top": 50, "width": 30, "height": 35}
 
-SHOP_TEMPLATE_IMAGE_PATH = (
-    "C:\\Users\\ville\\MyMegaScript\\data\\opencv"
-    "\\shop_watch\\shop_top_right_icon.jpg"
-)
+SHOP_TEMPLATE_IMAGE_PATH = "src/apps/shop_watcher/opencv/shop_top_right_icon.jpg"
 
 logger = setup_logger(SCRIPT_NAME, logging.DEBUG)
 secondary_windows_spawned = asyncio.Event()
@@ -120,11 +117,11 @@ async def react_to_shop(status: str, ws: Optional[WebSocketClientProtocol] = Non
     print(f"Shop just {status}")
     if status == "opened" and ws:
         await websocket.send_json_requests(
-            ws, "data/ws_requests/shop_watch/dslr_hide.json", logger
+            ws, "src/apps/shop_watcher/ws_requests/dslr_hide.json", logger
         )
     elif status == "closed" and ws:
         await websocket.send_json_requests(
-            ws, "data/ws_requests/shop_watch/dslr_show.json", logger
+            ws, "src/apps/shop_watcher/ws_requests/dslr_show.json", logger
         )
     pass
 
@@ -136,13 +133,13 @@ async def react_to_shop_staying_open(
 ):
     async def react_to_short_shop_opening(ws: WebSocketClientProtocol):
         await websocket.send_json_requests(
-            ws, "data/ws_requests/shop_watch/brb_buying_milk_show.json", logger
+            ws, "src/apps/shop_watcher/ws_requests/brb_buying_milk_show.json", logger
         )
         pass
 
     async def react_to_long_shop_opening(ws: WebSocketClientProtocol):
         await websocket.send_json_requests(
-            ws, "data/ws_requests/shop_watch/brb_buying_milk_hide.json", logger
+            ws, "src/apps/shop_watcher/ws_requests/brb_buying_milk_hide.json", logger
         )
         start_time = time.time()
         while True:

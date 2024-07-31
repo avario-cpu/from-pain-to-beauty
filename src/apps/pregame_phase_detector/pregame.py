@@ -13,7 +13,7 @@ from src.config.initialize import setup_script
 from src.connection import socket_server, websocket
 from src.core import terminal_window_manager_v4 as twm
 from src.core.constants import (
-    SLOTS_DB_FILE_PATH,
+    TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
     STOP_SUBPROCESS_MESSAGE,
     STREAMERBOT_WS_URL,
     SUBPROCESSES_PORTS,
@@ -26,7 +26,7 @@ logger = setup_logger(SCRIPT_NAME, logging.DEBUG)
 
 PORT = SUBPROCESSES_PORTS["pregame_phase_detector"]
 STREAMERBOT_URL = STREAMERBOT_WS_URL
-SLOTS_DB = SLOTS_DB_FILE_PATH
+SLOTS_DB = TERMINAL_WINDOW_SLOTS_DB_FILE_PATH
 SECONDARY_WINDOWS = [
     SecondaryWindow("first_scanner", 150, 80),
     SecondaryWindow("second_scanner", 150, 80),
@@ -46,25 +46,31 @@ HERO_PICK_AREA = {"left": 1658, "top": 1028, "width": 62, "height": 38}
 NEW_CAPTURE_AREA = {"left": 0, "top": 0, "width": 0, "height": 0}
 
 DOTA_TAB_TEMPLATE = cv.imread(
-    "data/opencv/pregame/dota_menu_power_icon.jpg", cv.IMREAD_GRAYSCALE
+    "src/apps/pregame_phase_detector/opencv/dota_menu_power_icon.jpg",
+    cv.IMREAD_GRAYSCALE,
 )
 IN_GAME_TEMPLATE = cv.imread(
-    "data/opencv/pregame/dota_courier_deliver_items_icon.jpg", cv.IMREAD_GRAYSCALE
+    "src/apps/pregame_phase_detector/opencv/dota_courier_deliver_items_icon.jpg",
+    cv.IMREAD_GRAYSCALE,
 )
 STARTING_BUY_TEMPLATE = cv.imread(
-    "data/opencv/pregame/dota_strategy-load-out-world-guides.jpg", cv.IMREAD_GRAYSCALE
+    "src/apps/pregame_phase_detector/opencv/dota_strategy-load-out-world-guides.jpg",
+    cv.IMREAD_GRAYSCALE,
 )
 PLAY_DOTA_BUTTON_TEMPLATE = cv.imread(
-    "data/opencv/pregame/dota_play_dota_button.jpg", cv.IMREAD_GRAYSCALE
+    "src/apps/pregame_phase_detector/opencv/dota_play_dota_button.jpg",
+    cv.IMREAD_GRAYSCALE,
 )
 DESKTOP_TAB_TEMPLATE = cv.imread(
-    "data/opencv/pregame/windows_desktop_icons.jpg", cv.IMREAD_GRAYSCALE
+    "src/apps/pregame_phase_detector/opencv/windows_desktop_icons.jpg",
+    cv.IMREAD_GRAYSCALE,
 )
 SETTINGS_TEMPLATE = cv.imread(
-    "data/opencv/pregame/dota_settings_icon.jpg", cv.IMREAD_GRAYSCALE
+    "src/apps/pregame_phase_detector/opencv/dota_settings_icon.jpg", cv.IMREAD_GRAYSCALE
 )
 HERO_PICK_TEMPLATE = cv.imread(
-    "data/opencv/pregame/dota_hero_select_chat_icons.jpg", cv.IMREAD_GRAYSCALE
+    "src/apps/pregame_phase_detector/opencv/dota_hero_select_chat_icons.jpg",
+    cv.IMREAD_GRAYSCALE,
 )
 
 
@@ -353,7 +359,9 @@ async def set_state_game_found(
     print("\nFound a game !")
     if ws:
         await websocket.send_json_requests(
-            ws, "data/ws_requests/pregame/scene_change_in_game.json", logger
+            ws,
+            "src/apps/pregame_phase_detector/ws_requests/scene_change_in_game.json",
+            logger,
         )
     return tabbed, game_phase
 
@@ -366,7 +374,8 @@ async def set_state_hero_pick(
     print("\nBack to hero select !")
     if ws:
         await websocket.send_json_requests(
-            ws, "data/ws_requests/pregame/scene_change_dslr_move_hero_pick.json"
+            ws,
+            "src/apps/pregame_phase_detector/ws_requests/scene_change_dslr_move_hero_pick.json",
         )
     return tabbed, game_phase
 
@@ -379,7 +388,9 @@ async def set_state_starting_buy(
     print("\nStarting buy !")
     if ws:
         await websocket.send_json_requests(
-            ws, "data/ws_requests/pregame/dslr_move_starting_buy.json", logger
+            ws,
+            "src/apps/pregame_phase_detector/ws_requests/dslr_move_starting_buy.json",
+            logger,
         )
     return tabbed, game_phase
 
@@ -391,7 +402,9 @@ async def set_state_vs_screen(
     game_phase.versus_screen = True
     if ws:
         await websocket.send_json_requests(
-            ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger
+            ws,
+            "src/apps/pregame_phase_detector/ws_requests/dslr_hide_vs_screen.json",
+            logger,
         )
     print("\nWe are in vs screen !")
     return tabbed, game_phase
@@ -404,7 +417,9 @@ async def set_state_in_game(
     game_phase.in_game = True
     if ws:
         await websocket.send_json_requests(
-            ws, "data/ws_requests/pregame/scene_change_in_game.json", logger
+            ws,
+            "src/apps/pregame_phase_detector/ws_requests/scene_change_in_game.json",
+            logger,
         )
     print("\nWe are in now game !")
     return tabbed, game_phase
@@ -417,7 +432,9 @@ async def set_state_dota_menu(
     game_phase.unknown = True
     if ws:
         await websocket.send_json_requests(
-            ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger
+            ws,
+            "src/apps/pregame_phase_detector/ws_requests/dslr_hide_vs_screen.json",
+            logger,
         )
     print("\nWe are in Dota Menus !")
     return tabbed, game_phase
@@ -439,7 +456,9 @@ async def set_state_settings_screen(
     game_phase.unknown = True
     if ws:
         await websocket.send_json_requests(
-            ws, "data/ws_requests/pregame/dslr_hide_vs_screen.json", logger
+            ws,
+            "src/apps/pregame_phase_detector/ws_requests/dslr_hide_vs_screen.json",
+            logger,
         )
     print("\nWe are in settings !")
     return tabbed, game_phase
@@ -516,7 +535,9 @@ async def detect_pregame_phase(
     #  ----------- The code below is not part of the main logic ------------
     new_capture = False  # Set manually to capture new screen area
     while new_capture:
-        await capture_new_area(NEW_CAPTURE_AREA, "opencv/XXX.jpg")
+        await capture_new_area(
+            NEW_CAPTURE_AREA, "src/apps/pregame_phase_detector/opencv/XXX.jpg"
+        )
     #  ----------- The code above is not part of the main logic ------------
 
     tabbed, game_phase = await set_state_finding_game()

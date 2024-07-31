@@ -39,7 +39,7 @@ def setup_logger(script_name: str, level: int = logging.DEBUG, log_dir: str = LO
         common_fh = logging.FileHandler(common_log_file_path, encoding="utf-8")
         common_fh.setLevel(level)
         common_formatter = logging.Formatter(
-            "%(asctime)s - %(name)s:%(filename)s:%(lineno)d - %(levelname)s %(message)s"
+            "%(asctime)s - %(filename)s:%(lineno)d - %(levelname)s %(message)s"
         )
         common_fh.setFormatter(common_formatter)
         logger.addHandler(common_fh)

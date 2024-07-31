@@ -153,7 +153,7 @@ async def send_message_to_subprocess_socket(
 
 async def main():
     print("Welcome to the server, bro. You know what to do.")
-    conn = await sdh.create_connection(const.SLOTS_DB_FILE_PATH)
+    conn = await sdh.create_connection(const.TERMINAL_WINDOW_SLOTS_DB_FILE_PATH)
     await twm.manage_window(conn, twm.WinType.SERVER, "SERVER")
     if conn:
         websocket_server = await websockets.serve(
