@@ -1,0 +1,5 @@
+# Ignore all files in data and its subdirectories
+data/**
+
+# Do not ignore directories inside data
+!data/**/
