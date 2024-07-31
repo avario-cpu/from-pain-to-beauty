@@ -6,8 +6,7 @@
                 "Prompt"
             ],
             "properties": {
-                "text": "Hello",
-                "rudenessLevelIncrease": 12
+                "text": "Hello"
             }
         },
         {
@@ -1077,15 +1076,6 @@
             ],
             "properties": {
                 "text": "Ok listen: call me if you need me"
-            }
-        },
-        {
-            "id": 119,
-            "labels": [
-                "Prompt"
-            ],
-            "properties": {
-                "text": "NEWTESTPROMPT"
             }
         }
     ],

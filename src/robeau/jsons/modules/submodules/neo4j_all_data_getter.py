@@ -1,4 +1,5 @@
 import json
+
 from neo4j import GraphDatabase
 
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
@@ -19,7 +20,7 @@ class Neo4jToJson:
 
     @staticmethod
     def _get_all_nodes(tx):
-        query = "MATCH (n) RETURN id(n) AS id, labels(n) AS labels, properties(n) AS properties"
+        query = "MATCH (n) RETURN apoc.node.id(n) AS id, labels(n) AS labels, properties(n) AS properties"
         result = tx.run(query)
         nodes = []
         for record in result:
@@ -36,7 +37,7 @@ class Neo4jToJson:
     def _get_all_relationships(tx):
         query = """
         MATCH ()-[r]->()
-        RETURN id(r) AS id, type(r) AS type, properties(r) AS properties, id(startNode(r)) AS startNodeId, id(endNode(r)) AS endNodeId
+        RETURN apoc.rel.id(r) AS id, type(r) AS type, properties(r) AS properties, id(startNode(r)) AS startNodeId, id(endNode(r)) AS endNodeId
         """
         result = tx.run(query)
         relationships = []
@@ -54,7 +55,6 @@ class Neo4jToJson:
 
 
 def main():
-    # Replace with your own connection details
     uri = NEO4J_URI
     user = NEO4J_USER
     password = NEO4J_PASSWORD
@@ -65,11 +65,9 @@ def main():
 
     data = {"nodes": nodes, "relationships": relationships}
 
-    # Convert the data to JSON
     json_data = json.dumps(data, indent=4)
     print(json_data)
 
-    # Save the JSON data to a file
     with open("src/robeau/jsons/raw_from_neo4j/neo4j_all_data.json", "w") as f:
         f.write(json_data)
 

@@ -22,7 +22,6 @@
                     "weight": 1
                 }
             ]
-            
         },
         {
             "id": 2,
@@ -82,7 +81,6 @@
                     "file": "data/robeau/voicelines/sine.wav",
                     "weight": 1
                 }
-                
             ]
         },
         {

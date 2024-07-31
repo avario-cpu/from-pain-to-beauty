@@ -1,6 +1,5 @@
 import json
 from neo4j import GraphDatabase
-
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 
 
@@ -37,7 +36,6 @@ class Neo4jToJson:
 
 
 def main():
-    # Replace with your own connection details
     uri = NEO4J_URI
     user = NEO4J_USER
     password = NEO4J_PASSWORD
@@ -48,11 +46,9 @@ def main():
 
     data = {"nodes": nodes}
 
-    # Convert the data to JSON
     json_data = json.dumps(data, indent=4)
     print(json_data)
 
-    # Save the JSON data to a file
     with open("src/robeau/jsons/raw_from_neo4j/neo4j_responses.json", "w") as f:
         f.write(json_data)
 
