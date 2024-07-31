@@ -164,8 +164,11 @@ cython_debug/
 # Project specific directories
 data/*
 !data/.gitkeep
+data/audio/*
 !data/audio/.gitkeep
+data/audio/robeau/*
 !data/audio/robeau/.gitkeep
+data/audio/robeau/voicelines/*
 !data/audio/robeau/voicelines/.gitkeep
 
 temp/*
