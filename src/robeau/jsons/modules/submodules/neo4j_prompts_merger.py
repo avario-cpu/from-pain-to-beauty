@@ -19,7 +19,6 @@ def merge_json_with_synonyms(old, new):
     protected_subkeys = ["synonyms"]
     merged = {}
     additions = []
-    updates = []
     deletions = []
     log_entries = []
 
@@ -58,7 +57,6 @@ def merge_json_with_synonyms(old, new):
                             )
 
                     if changes:
-                        updates.append(merged_entry)
                         log_entries.append(
                             f"Updated entry for key '{key}', id '{node_id}': {', '.join(changes)}"
                         )
@@ -87,7 +85,7 @@ def merge_json_with_synonyms(old, new):
                 deletions.extend(old[key])
                 log_entries.append(f"Key '{key}' removed")
 
-    return merged, additions, updates, deletions, log_entries
+    return merged, additions, deletions, log_entries
 
 
 # Input file paths
@@ -99,7 +97,6 @@ log_file_path = "src/robeau/jsons/temp/outputs_from_prompts_merge/last_merge_log
 additions_file_path = (
     "src/robeau/jsons/temp/outputs_from_prompts_merge/last_additions.json"
 )
-updates_file_path = "src/robeau/jsons/temp/outputs_from_prompts_merge/last_updates.json"
 deletions_file_path = (
     "src/robeau/jsons/temp/outputs_from_prompts_merge/last_deletions.json"
 )
@@ -112,7 +109,7 @@ original_json = read_json(old_file_path)
 new_json = read_json(new_file_path)
 
 # Merging the JSON files
-merged_json, additions, updates, deletions, log_entries = merge_json_with_synonyms(
+merged_json, additions, deletions, log_entries = merge_json_with_synonyms(
     original_json, new_json
 )
 
@@ -122,7 +119,6 @@ write_json(backup_file_path, original_json)
 # Write the merged JSON to the original file path
 write_json(old_file_path, merged_json)
 write_json(additions_file_path, {"additions": additions})
-write_json(updates_file_path, {"updates": updates})
 write_json(deletions_file_path, {"deletions": deletions})
 
 # Save the log entries
@@ -133,6 +129,5 @@ with open(log_file_path, "w") as log_file:
 print(f"Old file backed up as {backup_file_path}")
 print(f"Merged file saved to {old_file_path}")
 print(f"Additions saved to {additions_file_path}")
-print(f"Updates saved to {updates_file_path}")
 print(f"Deletions saved to {deletions_file_path}")
 print(f"Log saved to {log_file_path}")

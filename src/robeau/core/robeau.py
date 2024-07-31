@@ -8,7 +8,7 @@ from neo4j import Session
 from src.config.initialize import setup_script
 from src.core.constants import SLOTS_DB_FILE_PATH
 from src.robeau.classes.sbert_matcher import SBERTMatcher  # type: ignore
-from src.robeau.core.constants import ROBEAU_PROMPTS
+from src.robeau.core.constants import ROBEAU_PROMPTS_JSON_FILE_PATH as ROBEAU_PROMPTS
 from src.robeau.core.graph_logic_network import (
     ConversationState,
     cleanup,
@@ -26,10 +26,8 @@ SCRIPT_NAME = construct_script_name(__file__)
 
 logger = setup_logger(SCRIPT_NAME)
 
-STRINGS_WITH_SYNS = ROBEAU_PROMPTS
 
-
-sbert_matcher = SBERTMatcher(file_path=STRINGS_WITH_SYNS, similarity_threshold=0.65)
+sbert_matcher = SBERTMatcher(file_path=ROBEAU_PROMPTS, similarity_threshold=0.65)
 
 
 def check_greeting_in_message(msg: str):

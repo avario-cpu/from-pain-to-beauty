@@ -10,18 +10,19 @@
             },
             "audio_files": [
                 {
-                    "file": "C:\\Users\\ville\\MyMegaScript\\data\\robeau\\voicelines\\greetings.mp3",
+                    "file": "data/robeau/voicelines/greetings.mp3",
                     "weight": 1
                 },
                 {
-                    "file": "C:\\Users\\ville\\MyMegaScript\\data\\robeau\\voicelines\\hello.mp3",
+                    "file": "data/robeau/voicelines/hello.mp3",
                     "weight": 2
                 },
                 {
-                    "file": "C:\\Users\\ville\\MyMegaScript\\data\\robeau\\voicelines\\hi_there.mp3",
+                    "file": "data/robeau/voicelines/hi_there.mp3",
                     "weight": 1
                 }
             ]
+            
         },
         {
             "id": 2,
@@ -63,7 +64,7 @@
             },
             "audio_files": [
                 {
-                    "file": "C:\\Users\\ville\\MyMegaScript\\data\\robeau\\voicelines\\sine.wav",
+                    "file": "data/robeau/voicelines/sine.wav",
                     "weight": 1
                 }
             ]
@@ -78,9 +79,10 @@
             },
             "audio_files": [
                 {
-                    "file": "C:\\Users\\ville\\MyMegaScript\\data\\robeau\\voicelines\\sine.wav",
+                    "file": "data/robeau/voicelines/sine.wav",
                     "weight": 1
                 }
+                
             ]
         },
         {
@@ -93,7 +95,7 @@
             },
             "audio_files": [
                 {
-                    "file": "C:\\Users\\ville\\MyMegaScript\\data\\robeau\\voicelines\\sine.wav",
+                    "file": "data/robeau/voicelines/sine.wav",
                     "weight": 1
                 }
             ]
