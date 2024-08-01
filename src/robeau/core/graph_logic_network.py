@@ -1701,8 +1701,12 @@ def create_prompt_session():
         return PromptSession()
     except Exception as e:
         print(f"Caught exception: {e}")
-        logger.exception("Failed to create PromptSession")
-        return None
+        print(
+            "Failed to create PromptSession: Expect weird behavior in the input prompt when typing while a thread "
+            "prints at the same time. Program is better off run from the terminal, everything should still work."
+        )
+        logger.exception(e)
+        return
 
 
 def main():
