@@ -111,7 +111,8 @@ class AudioPlayer:
             for stop_event in self.stop_events:
                 stop_event.set()  # Signal all threads to stop
 
-    def _select_weighted_random_file(self, audio_files):
+    @staticmethod
+    def _select_weighted_random_file(audio_files):
         total_weight = sum(file["weight"] for file in audio_files)
         random_choice = random.uniform(0, total_weight)
         current_weight = 0
@@ -138,7 +139,8 @@ class AudioPlayer:
             self.current_group_done_count += 1
 
             self.logger.info(
-                f"Thread done by: {termination_reason}. Active threads remaining: {self.active_threads}"
+                f"Thread done by: {termination_reason}. Active threads remaining:"
+                f" {self.active_threads}"
             )
 
             if self.current_group_done_count == self.group_count:

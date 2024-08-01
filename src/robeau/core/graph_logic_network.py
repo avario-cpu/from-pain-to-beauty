@@ -2,9 +2,9 @@ import random
 import threading
 import time
 from collections import defaultdict
-from logging import DEBUG, INFO, Logger
+from logging import DEBUG, Logger
 from threading import Thread
-from typing import Any, Literal, Optional, Union
+from typing import Literal, Optional
 
 import keyboard
 from neo4j import GraphDatabase, Result, Session
@@ -14,6 +14,7 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from src.robeau.classes.audio_player import AudioPlayer
 from src.robeau.classes.graph_logic_network_constants import (
+    ADMIN,
     ANY_MATCHING_PLEA,
     ANY_MATCHING_PROMPT,
     ANY_MATCHING_WHISPER,
@@ -23,9 +24,9 @@ from src.robeau.classes.graph_logic_network_constants import (
     EXPECTATIONS_SET,
     EXPECTATIONS_SUCCESS,
     GREETING,
-    ADMIN,
     NO_MATCHING_PROMPT,
     PROLONG_STUBBORN,
+    QuerySource,
     RESET_EXPECTATIONS,
     ROBEAU,
     ROBEAU_NO_MORE_STUBBORN,
@@ -34,20 +35,19 @@ from src.robeau.classes.graph_logic_network_constants import (
     STOP_LISTENING_FOR_WHISPERS,
     SYSTEM,
     USER,
-    QuerySource,
     transmission_output_nodes,
 )
 from src.robeau.core.constants import AUDIO_MAPPINGS_FILE_PATH
-from src.utils.helpers import construct_script_name, setup_logger, log_empty_lines
+from src.utils.helpers import construct_script_name, log_empty_lines, setup_logger
 
 SCRIPT_NAME = construct_script_name(__file__)
 logger = setup_logger(SCRIPT_NAME, level=DEBUG)
 
 
 class ConversationState:
-    def __init__(self, logger: Logger):
+    def __init__(self, logger_instance: Logger):
         self.test_value = False
-        self.logger = logger
+        self.logger = logger_instance
         self.lock = threading.Lock()
 
         # states
@@ -147,7 +147,10 @@ class ConversationState:
     def delay_item(
         self, node: str, labels: list[str], data: dict, duration: float | None
     ):
-        """Unused right now but may be used in the future, Logic wise just know that the difference between this and add_initiation is that this is for items that are already in the conversation state, which means a previously processed node wont be processed again if they are pointed to with a DELAY relationship"""
+        """Unused right now but may be used in the future, Logic wise just know that the difference between this and
+        add_initiation is that this is for items that are already in the conversation state, which means a previously
+        processed node won't be processed again if they are pointed to with a DELAY relationship
+        """
         for item_type, node_list in self.context.items():
             for item in node_list:
                 if item["node"] == node:
@@ -174,7 +177,8 @@ class ConversationState:
         else:
             logger.error(f"Invalid state name {state_name}")
 
-    def _update_time_left(self, item: dict):
+    @staticmethod
+    def _update_time_left(item: dict):
         current_time = time.time()
         start_time = item["start_time"]
         duration = item["duration"]
@@ -185,47 +189,53 @@ class ConversationState:
             remaining_time = max(0, duration - elapsed_time)
             item["time_left"] = remaining_time
 
-    def _remove_expired(
-        self,
-        items: list[dict],
-        log_messages: list[str],
-        session: Session,
-        key: str,
-    ) -> list[dict]:
+    def _filter_expired_items(self, items: list[dict]) -> tuple[list[dict], list[dict]]:
         valid_items = []
         expired_items = []
-        complete_initiations = []
 
         for item in items:
             self._update_time_left(item)
             time_left = item.get("time_left")
-            item_type = item.get("type")
-            node = item.get("node")
-            labels = item.get("labels", [])
 
             if time_left is None or time_left > 0:
                 valid_items.append(item)
-                if time_left is not None:
-                    log_messages.append(
-                        f"{item_type}: {labels}: <{node}> ({time_left:.2f}): {item}"
-                    )
             else:
                 expired_items.append(item)
-                if item_type == "initiates":
-                    complete_initiations.append(item)
-                    self.logger.info(f"Initiation complete: {item}")
-                else:
-                    self.logger.info(f"Item {item_type} has expired: {item}")
 
-        if complete_initiations:
-            for initiation in complete_initiations:
-                activate_connection_or_item(initiation, self, "item")
-                process_node(
-                    session, initiation["node"], self, source=ROBEAU, main_call=True
+        return valid_items, expired_items
+
+    def _handle_initiations(self, expired_items: list[dict], session: Session):
+        complete_initiations = [
+            item for item in expired_items if item["type"] == "initiates"
+        ]
+
+        for initiation in complete_initiations:
+            activate_connection_or_item(initiation, self, "item")
+            process_node(
+                session, initiation["node"], self, source=ROBEAU, main_call=True
+            )
+
+    def _remove_expired(
+        self, items: list[dict], log_messages: list[str], session: Session, key: str
+    ) -> list[dict]:
+        valid_items, expired_items = self._filter_expired_items(items)
+        self._handle_initiations(expired_items, session)
+
+        for item in valid_items:
+            item_type = item.get("type")
+            node = item.get("node")
+            labels = item.get("labels", [])
+            time_left = item.get("time_left")
+
+            if time_left is not None:
+                log_messages.append(
+                    f"{item_type}: {labels}: <{node}> ({time_left:.2f}): {item}"
                 )
 
-        items_after_inits = self.context[key]
-        valid_items = [item for item in items_after_inits if item not in expired_items]
+        items_after_initiations = self.context[key]
+        valid_items = [
+            item for item in items_after_initiations if item not in expired_items
+        ]
 
         return valid_items
 
@@ -398,12 +408,12 @@ def handle_transmission_output(
         conversation_state.set_state("stubborn", random.randint(15, 20))
 
     elif transmission_node == PROLONG_STUBBORN:
-        stub_time_left = conversation_state.stubborn["time_left"]
-        if stub_time_left and stub_time_left < 10:
+        stubborn = conversation_state.stubborn
+        if stubborn["state"] and stubborn.get("time_left", 0) < 10:
             conversation_state.set_state("stubborn", random.randint(10, 15))
         else:
             logger.info(
-                f"Did not prolong stubborn (time_left {stub_time_left:.2f} was long enough)"
+                f"Did not prolong stubborn (time_left {stubborn["time_left"]:.2f} was long enough)"
             )
     elif transmission_node == STOP_LISTENING_FOR_WHISPERS:
         conversation_state.context["listens"] = []
@@ -417,7 +427,7 @@ def reset_audio_events():
     robeau_is_talking.clear()
 
 
-def interrupt_robeau(stop_command: str, rudeness_points: int):
+def interrupt_robeau():
     audio_player.stop_audio()
     if node_thread:
         node_thread.join()
@@ -432,7 +442,8 @@ def wait_for_audio_management(response_nodes_reached: list[str]):
     if audio_started_event.is_set():
 
         logger.info(
-            f"Stopping to wait for audio to play for nodes: {response_nodes_reached}, state of audio finished event: {audio_finished_event}"
+            f"Stopping to wait for audio to play for nodes: {response_nodes_reached}, "
+            f"state of audio finished event: {audio_finished_event}"
         )
         audio_finished_event.wait()
         reset_audio_events()
@@ -501,6 +512,7 @@ def activate_connection_or_item(
     multiple_activations: Optional[int] = False,
 ):
     """Works for both activation connections (end_node) and dictionaries from the conversation state(node)."""
+
     if dict_type == "connection":
         node = node_dict.get("end_node", "")
         labels = node_dict.get("labels", {}).get("end", "")
@@ -622,7 +634,8 @@ def filter_logic_connections(
     formatted_then_conns = "\nThen: ".join([str(then_conn) for then_conn in then_conns])
 
     logger.info(
-        f"LogicGate <{logic_gate}> connections: \nInitial: {initial_conn} \nAnd: {formatted_and_conns} \nThen: {formatted_then_conns}"
+        f"LogicGate <{logic_gate}> connections: \nInitial: {initial_conn} "
+        f"\nAnd: {formatted_and_conns} \nThen: {formatted_then_conns}"
     )
     return initial_conn, and_conns, then_conns
 
@@ -669,6 +682,8 @@ def process_logic_relationships(
 ) -> list[str]:
     if not relations_map.get("IF"):
         return []
+
+    end_nodes_reached = []
 
     for if_connection in relations_map["IF"]:
         logic_gate = if_connection["end_node"]
@@ -860,7 +875,7 @@ def execute_attempt(
     return False
 
 
-def node_is_unaccessible(
+def node_is_inaccessible(
     node: str, connection: dict, conversation_state: ConversationState
 ) -> bool:
     connection_locked = any(
@@ -927,7 +942,7 @@ def process_activation_connections(
 
     for connection in connections:
         node = connection["end_node"]
-        if node_is_unaccessible(node, connection, conversation_state):
+        if node_is_inaccessible(node, connection, conversation_state):
             continue
 
         if connection_type == "EVALUATES" and not evaluation_meets_criteria(
@@ -995,7 +1010,8 @@ def process_activation_relationships(
                 end_nodes_reached.extend(
                     [item["end_node"] for item in activated_connections]
                 )
-                break  # Stop processing further as we've found the first activated connections
+                break  # Stop processing further as we've found the first activated
+                # connections
 
     return end_nodes_reached
 
@@ -1045,15 +1061,18 @@ def process_relationships(
         )
         if silent and conns_from_map:
             logger.info(
-                f"Processing SILENT connections {cutoff_status} (activation relationships were not applied) for node <{node}> ({source.name}):\n{formatted_silent_connections}"
+                f"Processing SILENT connections {cutoff_status} (activation relationships were not applied) "
+                f"for node <{node}> ({source.name}):\n{formatted_silent_connections}"
             )
         elif conns_from_map:
             logger.info(
-                f"Processing connections for node <{node}> from source {source.name} {cutoff_status}:\n{formatted_connections}"
+                f"Processing connections for node <{node}> from source "
+                f"{source.name} {cutoff_status}:\n{formatted_connections}"
             )
         elif not conns_from_map:
             logger.warning(
-                f"No connections found to process in: \n{formatted_connections}\n Must not be bound to a valid key in the relationships_map"
+                f"No connections found to process in: \n{formatted_connections}\n "
+                f"Must not be bound to a valid key in the relationships_map"
             )
 
     relationships_map: dict[str, list[dict]] = {
@@ -1132,8 +1151,8 @@ def query_database(
     session: Session,
     text: str,
     labels: list[str],
-    conversation_state: ConversationState,
-) -> Result | None:
+    conversation_state: "ConversationState",
+) -> Optional[Result]:
 
     queries = []
 
@@ -1145,7 +1164,8 @@ def query_database(
                 queries.append(
                     f"""
                     MATCH (x:{label})-[r]->(y)
-                    WHERE x.context = '{listening_context}' AND toLower(x.text) = toLower($text) 
+                    WHERE x.context = $listening_context 
+                    AND toLower(x.text) = toLower($text) 
                     RETURN x, r, y
                     """
                 )
@@ -1160,10 +1180,142 @@ def query_database(
                 """
             )
 
+    if not queries:
+        logger.warning("No queries were constructed. Check the labels or context.")
+        return None
+
     full_query = "\nUNION\n".join(queries)
-    result = session.run(full_query, text=text)
+    # noinspection PyTypeChecker
+    result = session.run(
+        full_query, text=text, listening_context=conversation_state.listening_context
+    )
 
     return result if result.peek() else None
+
+
+def prompt_matches_allows(
+    session: Session, text: str, conversation_state: ConversationState
+) -> bool:
+    if any(
+        text.lower() == item["node"].lower()
+        for item in conversation_state.context["allows"]
+    ):
+        handle_transmission_input(session, ANY_MATCHING_PROMPT, conversation_state)
+        return True
+    return False
+
+
+def prompt_matches_listens(
+    session: Session, text: str, conversation_state: ConversationState
+) -> bool:
+    if any(
+        text.lower() == item["node"].lower()
+        for item in conversation_state.context["listens"]
+    ):
+        handle_transmission_input(session, ANY_MATCHING_WHISPER, conversation_state)
+        return True
+    return False
+
+
+def prompt_matches_permits(
+    session: Session, text: str, conversation_state: ConversationState
+) -> bool:
+    if any(
+        text.lower() == item["node"].lower()
+        for item in conversation_state.context["permits"]
+    ):
+        handle_transmission_input(session, ANY_MATCHING_PLEA, conversation_state)
+        return True
+    return False
+
+
+def prompt_is_not_understood(session: Session, conversation_state: ConversationState):
+    handle_transmission_input(session, NO_MATCHING_PROMPT, conversation_state)
+
+
+def conduct_prompt_matching(
+    session: Session,
+    text: str,
+    conversation_state: ConversationState,
+    labels: list[str],
+) -> list[str]:
+    matched = False
+
+    if prompt_matches_listens(session, text, conversation_state):
+        labels.append("Whisper")
+        matched = True
+
+    if prompt_matches_permits(session, text, conversation_state):
+        labels.append("Plea")
+        matched = True
+
+    if prompt_matches_allows(session, text, conversation_state):
+        if conversation_state.stubborn["state"]:
+            pass  # no prompt matching when stubborn
+        else:
+            labels.append("Prompt")
+        matched = True
+
+    if not matched:
+        if conversation_state.stubborn["state"]:
+            logger.debug("Stubborn context: Did not understand")
+            prompt_is_not_understood(session, conversation_state)
+
+        elif conversation_state.context["allows"]:
+            logger.debug("Normal context: Did not understand")
+            prompt_is_not_understood(session, conversation_state)
+
+    return labels
+
+
+def prompt_meets_expectations(
+    session: Session, text: str, conversation_state: ConversationState
+) -> bool:
+    if any(
+        text.lower() == item["node"].lower()
+        for item in conversation_state.context["expects"]
+    ):
+        logger.info(f"<{text}> meets conversation expectations")
+        handle_transmission_input(session, EXPECTATIONS_SUCCESS, conversation_state)
+        return True
+    else:
+        logger.info(f"<{text}> does not meet conversation expectations")
+        handle_transmission_input(session, EXPECTATIONS_FAILURE, conversation_state)
+        return False
+
+
+def check_for_any_relevant_user_input(
+    session: Session, text: str, conversation_state: ConversationState
+):
+    def text_in_conversation_context() -> bool:
+        return any(
+            text.lower() == dictionary["node"].lower()
+            for list_of_dicts in conversation_state.context.values()
+            for dictionary in list_of_dicts
+        )
+
+    if text_in_conversation_context():
+        handle_transmission_input(session, ANY_RELEVANT_USER_INPUT, conversation_state)
+
+
+def handle_user_input_labelling(
+    session: Session,
+    text: str,
+    conversation_state: ConversationState,
+    labels: list[str],
+):
+    check_for_any_relevant_user_input(session, text, conversation_state)
+
+    if conversation_state.context["expects"] and prompt_meets_expectations(
+        session, text, conversation_state
+    ):
+        labels.append("Answer")
+        return labels
+
+    else:
+        labels = conduct_prompt_matching(session, text, conversation_state, labels)
+
+    return labels
 
 
 def define_labels(
@@ -1172,114 +1324,11 @@ def define_labels(
     conversation_state: ConversationState,
     source: QuerySource,
 ) -> list[str]:
-
-    def check_for_any_relevant_user_input():
-        def text_in_conversation_context() -> bool:
-            return any(
-                text.lower() == dictionary["node"].lower()
-                for list_of_dicts in conversation_state.context.values()
-                for dictionary in list_of_dicts
-            )
-
-        if text_in_conversation_context():
-            handle_transmission_input(
-                session, ANY_RELEVANT_USER_INPUT, conversation_state
-            )
-
-    def prompt_meets_expectations():
-        if any(
-            text.lower() == item["node"].lower()
-            for item in conversation_state.context["expects"]
-        ):
-            logger.info(f"<{text}> meets conversation expectations")
-            handle_transmission_input(session, EXPECTATIONS_SUCCESS, conversation_state)
-            return True
-        else:
-            logger.info(f"<{text}> does not meet conversation expectations")
-            handle_transmission_input(session, EXPECTATIONS_FAILURE, conversation_state)
-            return False
-
-    def prompt_matches_allows():
-        if any(
-            text.lower() == item["node"].lower()
-            for item in conversation_state.context["allows"]
-        ):
-            handle_transmission_input(session, ANY_MATCHING_PROMPT, conversation_state)
-            return True
-
-    def prompt_matches_listens():
-        if any(
-            text.lower() == item["node"].lower()
-            for item in conversation_state.context["listens"]
-        ):
-            handle_transmission_input(session, ANY_MATCHING_WHISPER, conversation_state)
-            return True
-
-    def prompt_matches_permits():
-        if any(
-            text.lower() == item["node"].lower()
-            for item in conversation_state.context["permits"]
-        ):
-            handle_transmission_input(session, ANY_MATCHING_PLEA, conversation_state)
-            return True
-
-    def prompt_is_not_understood():
-        handle_transmission_input(session, NO_MATCHING_PROMPT, conversation_state)
-
     labels = []
 
     if source == USER:
-
-        check_for_any_relevant_user_input()
-
-        # In answering context
-        if conversation_state.context["expects"] and prompt_meets_expectations():
-            labels.append("Answer")
-            return labels
-
-        # In stubborn context
-        elif conversation_state.stubborn["state"]:
-            matched = False
-
-            if prompt_matches_listens():
-                labels.append("Whisper")
-                matched = True
-
-            if prompt_matches_permits():
-                labels.append("Plea")
-                matched = True
-
-            if prompt_matches_allows():  # refuse access to prompt when stubborn
-                matched = True
-
-            if not matched:
-                logger.debug("Stubborn context: Did not understand")
-                prompt_is_not_understood()
-
-            return labels
-
-        else:  # In regular context
-
-            matched = False
-
-            if prompt_matches_listens():
-                labels.append("Whisper")
-                matched = True
-
-            if prompt_matches_permits():
-                labels.append("Plea")
-                matched = True
-
-            if prompt_matches_allows():
-                labels.append("Prompt")
-                matched = True
-
-            if not matched and conversation_state.context["allows"]:
-                # Only output a "Did not understand" message if a prompt is expected
-                logger.debug("Normal context: Did not understand ")
-                prompt_is_not_understood()
-
-            return labels
+        labels = handle_user_input_labelling(session, text, conversation_state, labels)
+        return labels
 
     elif source == GREETING:
         labels.append("Greeting")
@@ -1300,7 +1349,7 @@ def define_labels(
     elif source == SYSTEM:
         labels.append("Input")
 
-    elif source == ADMIN:  # has access to all labels
+    elif source == ADMIN:
         labels.extend(
             [
                 "Prompt",
@@ -1332,7 +1381,8 @@ def get_node_connections(
     if not labels:
         labels = [
             "None"
-        ]  # This will not return results from the database, but it will also not throw an error. We still want to call get_node_data (instead of making an early return) in order to call relevant nested functions inside.
+        ]  # This will not return results from the database, but it will also not throw an error. We still want to
+        # call get_node_data (instead of making an early return) in order to call relevant nested functions inside.
 
     logger.info(f"Labels for fetching <{text}> connection are {labels}")
 
@@ -1468,7 +1518,7 @@ def initialize():
     driver, session = establish_connection()
     if not driver or not session:
         raise Exception("Failed to establish connection to Neo4j database")
-    conversation_state = ConversationState(logger=logger)
+    conversation_state = ConversationState(logger_instance=logger)
     stop_event = threading.Event()
     pause_event = threading.Event()
     update_thread = threading.Thread(
@@ -1476,7 +1526,7 @@ def initialize():
         args=(conversation_state, session, stop_event, pause_event),
     )
     update_thread.start()
-    return (driver, session, conversation_state, stop_event, update_thread, pause_event)
+    return driver, session, conversation_state, stop_event, update_thread, pause_event
 
 
 def cleanup(driver, session, stop_event, update_thread):
@@ -1552,6 +1602,7 @@ class TypingDetector:
         self.pause_event = pause_event
         self.timer = None
 
+    # noinspection PyUnusedLocal
     def on_typing_event(self, event):
         self._set_pause_event()
         if self.timer:
@@ -1583,7 +1634,7 @@ def main():
     (driver, session, conversation_state, stop_event, update_thread, pause_event) = (
         initialize()
     )
-    prompt_session: PromptSession = PromptSession()
+    prompt_session = PromptSession()
 
     def launch_query(user_query, query_type, silent):
         launch_specified_query(
@@ -1599,6 +1650,7 @@ def main():
 
     try:
         while True:
+            # noinspection PyArgumentList
             with patch_stdout():
                 user_query = prompt_session.prompt("Query: ").strip().lower()
 
@@ -1607,13 +1659,13 @@ def main():
 
                 force, silent, user_query = check_for_particular_query(user_query)
 
-                if conversation_state.unresponsive["state"] == True:
+                if conversation_state.unresponsive["state"]:
                     time_left = conversation_state.unresponsive["time_left"]
                     print(f"Robeau does not listen... time left: {time_left}")
                     continue
 
                 if user_query == "stfu":
-                    interrupt_robeau(stop_command="StopCommand", rudeness_points=0)
+                    interrupt_robeau()
 
                 elif node_thread and node_thread.is_alive():
                     print(

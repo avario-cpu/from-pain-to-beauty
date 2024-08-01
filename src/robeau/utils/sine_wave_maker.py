@@ -11,7 +11,7 @@ sine_wave_3sec = sine_wave_3sec - 10  # decrease volume by 10 decibels
 
 # Save the sine wave as a WAV file
 sine_wave_3sec.export(
-    "C:\\Users\\ville\\MyMegaScript\\data\\robeau\\voicelines\\sine.wav", format="wav"
+    "C:\\Users\\ville\\MyMegaScript\\data\\robeau\\voice_lines\\sine.wav", format="wav"
 )
 
 print("3-second sine wave file created as 'sine_wave_3sec.wav'")
