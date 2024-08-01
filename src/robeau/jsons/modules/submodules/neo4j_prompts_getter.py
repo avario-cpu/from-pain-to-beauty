@@ -16,27 +16,42 @@ def clean_text(text):
     return " ".join(cleaned_words)
 
 
+def create_driver(uri, username, password):
+    if uri:
+        return GraphDatabase.driver(uri, auth=(username, password))
+    return None
+
+
+def run_query_for_label(session, label):
+    query = f"MATCH (n:{label}) RETURN apoc.node.id(n) AS id, n"
+    nodes = session.run(query)
+    return nodes
+
+
+def clean_node_data(node):
+    node_data = node["n"]
+    cleaned_node_data = {"id": node["id"]}
+    for key, value in node_data.items():
+        if isinstance(value, str):
+            cleaned_node_data[key] = clean_text(value)
+        else:
+            cleaned_node_data[key] = value
+    return cleaned_node_data
+
+
 def get_data_from_labels(labels):
     uri = NEO4J_URI
     username = NEO4J_USER
     password = NEO4J_PASSWORD
 
-    if uri:
-        driver = GraphDatabase.driver(uri, auth=(username, password))
+    driver = create_driver(uri, username, password)
 
     with driver.session() as session:
         results: dict = {}
         for label in labels:
-            query = f"MATCH (n:{label}) RETURN apoc.node.id(n) AS id, n"
-            nodes = session.run(query)
+            nodes = run_query_for_label(session, label)
             for node in nodes:
-                node_data = node["n"]
-                cleaned_node_data = {"id": node["id"]}
-                for key, value in node_data.items():
-                    if isinstance(value, str):
-                        cleaned_node_data[key] = clean_text(value)
-                    else:
-                        cleaned_node_data[key] = value
+                cleaned_node_data = clean_node_data(node)
                 if label not in results:
                     results[label] = []
                 results[label].append(cleaned_node_data)

@@ -80,7 +80,7 @@ class AudioPlayer:
             with self.lock:
                 self.current_group_start_count += 1
                 if self.current_group_start_count == self.group_count:
-                    self.logger.info(f"Calling on_start() callback.")
+                    self.logger.info("Calling on_start() callback.")
                     if self.on_start:
                         self.on_start()
                     self.current_group_start_count = 0
@@ -126,40 +126,43 @@ class AudioPlayer:
         self, stop_event, termination_reason: Literal["stop", "end", "error"]
     ):
         with self.lock:
-            try:
-                index = self.stop_events.index(stop_event)
-                thread = self.playing_threads.pop(index)
-                self.stop_events.pop(index)
-                self.threads_to_join.append(thread)  # Add thread to list to join later
-            except ValueError:
-                self.logger.error("Error removing thread or stop event.")
-                return
+            self._remove_thread_and_stop_event(stop_event)
+            self._update_counters()
+            self._handle_callbacks(termination_reason)
 
-            self.active_threads -= 1
-            self.current_group_done_count += 1
+    def _remove_thread_and_stop_event(self, stop_event):
+        try:
+            index = self.stop_events.index(stop_event)
+            thread = self.playing_threads.pop(index)
+            self.stop_events.pop(index)
+            self.threads_to_join.append(thread)  # Add thread to list to join later
+        except ValueError:
+            self.logger.error("Error removing thread or stop event.")
+            return
 
-            self.logger.info(
-                f"Thread done by: {termination_reason}. Active threads remaining:"
-                f" {self.active_threads}"
-            )
+    def _update_counters(self):
+        self.active_threads -= 1
+        self.current_group_done_count += 1
+        self.logger.info(f"Active threads remaining: {self.active_threads}")
 
-            if self.current_group_done_count == self.group_count:
-                self.current_group_done_count = 0
-                if termination_reason == "stop":
-                    self.logger.info(f"Calling on_stop() callback.")
-                    if self.on_stop:
-                        self.on_stop()
-                elif termination_reason == "end":
-                    self.logger.info(f"Calling on_end() callback.")
-                    if self.on_end:
-                        self.on_end()
-                elif termination_reason == "error":
-                    self.logger.info(f"Calling on_error() callback.")
-                    if self.on_error:
-                        self.on_error()
+    def _handle_callbacks(self, termination_reason: Literal["stop", "end", "error"]):
+        if self.current_group_done_count == self.group_count:
+            self.current_group_done_count = 0
+            if termination_reason == "stop":
+                self.logger.info("Calling on_stop() callback.")
+                if self.on_stop:
+                    self.on_stop()
+            elif termination_reason == "end":
+                self.logger.info("Calling on_end() callback.")
+                if self.on_end:
+                    self.on_end()
+            elif termination_reason == "error":
+                self.logger.info("Calling on_error() callback.")
+                if self.on_error:
+                    self.on_error()
 
-                self.playing_threads.clear()
-                self.stop_events.clear()
+            self.playing_threads.clear()
+            self.stop_events.clear()
 
     def join_threads(self):
         """Join threads that have finished their work."""

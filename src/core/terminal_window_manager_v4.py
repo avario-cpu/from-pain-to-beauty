@@ -259,7 +259,7 @@ async def search_for_vacant_slots(conn: aiosqlite.Connection) -> dict[int, int]:
     if pairs:
         logger.info(f"Vacant pairs found: {pairs}")
     else:
-        logger.info(f"No Vacant pairs found")
+        logger.info("No Vacant pairs found")
     return pairs
 
 
@@ -294,8 +294,8 @@ async def reset_windows_positions(conn: aiosqlite.Connection):
 async def refit_all_windows(conn: aiosqlite.Connection):
     """Rearrange windows to fill empty slots in a more compact way. Also
     makes them return back to their position and to the foreground"""
-    logger.info(f"Refitting all windows...")
-    pairs = await search_for_vacant_slots(conn) if not None else {}
+    logger.info("Refitting all windows...")
+    pairs = await search_for_vacant_slots(conn) or {}
     for slot, new_slot in pairs.items():
         data = await sdh.get_full_data(conn, slot)
         logger.info(f"Rearrangement data obtained: {data}")

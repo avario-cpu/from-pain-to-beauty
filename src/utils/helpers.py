@@ -61,8 +61,8 @@ def print_countdown(duration: int = 3):
 
 
 def main():
-    SCRIPT_NAME = construct_script_name(__file__)
-    setup_logger(SCRIPT_NAME, 2)
+    script_name = construct_script_name(__file__)
+    setup_logger(script_name, 2)
 
 
 if __name__ == "__main__":

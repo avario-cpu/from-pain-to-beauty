@@ -1,12 +1,12 @@
-from src.connection.socket_server import BaseHandler
-from typing import Optional
-from logging import Logger
-import json
 import asyncio
+import json
+import threading
+from logging import Logger
+from typing import Optional
+
 from src.core.constants import SUBPROCESSES_PORTS
 from src.robeau.core.constants import ROBEAU_PROMPTS_JSON_FILE_PATH as ROBEAU_PROMPTS
 from src.robeau.core.speech_recognition import recognize_speech
-import threading
 
 PORT = SUBPROCESSES_PORTS["synonym_adder"]
 
@@ -47,18 +47,19 @@ class SynonymHandler:
     def add_synonym(self, text: str, synonym: str):
         for category in self.data:
             for entry in self.data[category]:
-                if entry["text"] == text:
-                    if "synonyms" not in entry:
-                        entry["synonyms"] = []
-                    if synonym not in entry["synonyms"]:
-                        entry["synonyms"].append(synonym)
-                    else:
-                        print(f"Synonym {synonym} for {text} already exists.")
-                    return
-        # If the text is not found, add a new entry
-        self.data["NewCategory"] = self.data.get("NewCategory", []) + [
-            {"text": text, "synonyms": [synonym]}
-        ]
+
+                if entry["text"] != text:
+                    continue
+                if "synonyms" not in entry:
+                    entry["synonyms"] = []
+                if synonym not in entry["synonyms"]:
+                    entry["synonyms"].append(synonym)
+
+                else:
+                    print(f"Synonym {synonym} for {text} already exists.")
+                return
+
+        raise ValueError(f"Text '{text}' not found in any category.")
 
 
 async def main():

@@ -19,7 +19,6 @@ async def create_connection(db_file: str) -> aiosqlite.Connection | None:
     db_conn = None
     try:
         db_conn = await aiosqlite.connect(db_file)
-        return db_conn
     except aiosqlite.Error as e:
         print(e)
     return db_conn
@@ -51,9 +50,9 @@ async def delete_slots_table(conn: aiosqlite.Connection):
             sql = "DROP TABLE IF EXISTS slots"
             await cursor.execute(sql)
             await conn.commit()
-            logger.info(f"The table has been deleted successfully.")
+            logger.info("The table has been deleted successfully.")
     except aiosqlite.Error as e:
-        logger.info(f"The table has not been deleted successfully.")
+        logger.info("The table has not been deleted successfully.")
         print(e)
         await conn.rollback()
 
@@ -158,7 +157,7 @@ async def free_slot(conn: aiosqlite.Connection, slot_id: int):
                 await conn.commit()
                 logger.info(f"Slot {slot_id} is now free.")
             else:
-                logger.error(f"Slot {slot_id} is already free or does not " f"exist.")
+                logger.error(f"Slot {slot_id} is already free or does not exist.")
     except aiosqlite.Error as e:
         print(e)
         await conn.rollback()
@@ -323,7 +322,6 @@ async def get_all_occupied_slots(conn: aiosqlite.Connection) -> list[int]:
                 return slot_ids
             else:
                 logger.info("No occupied slots found")
-            pass
     except aiosqlite.Error as e:
         print(e)
         return []

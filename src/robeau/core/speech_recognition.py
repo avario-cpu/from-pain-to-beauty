@@ -91,6 +91,8 @@ async def listen_print_loop(
                 pause_event.set()
 
 
+# noinspection PyTypeChecker, PyArgumentList
+# Really no idea why there are so many type errors here, but it works totally fine
 async def recognize_speech(handler, pause_event: Optional[threading.Event] = None):
     client = speech.SpeechClient()
     config = speech.RecognitionConfig(

@@ -14,7 +14,14 @@ import aiosqlite
 import websockets
 from websockets import WebSocketServerProtocol
 
-from src.core import constants as const
+from src.config.settings import PROJECT_DIR_PATH, PYTHONPATH
+from src.core.constants import (
+    SUBPROCESSES_PORTS,
+    STOP_SUBPROCESS_MESSAGE,
+    APPS_DIR_PATH,
+    TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
+    LOCK_FILES_DIR_PATH,
+)
 from src.core import slots_db_handler as sdh
 from src.core import terminal_window_manager_v4 as twm
 from src.utils.helpers import construct_script_name, setup_logger
@@ -30,10 +37,9 @@ async def manage_subprocess(message: str):
 
         target = parts[0]
         instructions = parts[1].strip()
-        if target not in list(const.SUBPROCESSES_PORTS.keys()):
+        if target not in list(SUBPROCESSES_PORTS.keys()):
             raise ValueError(
-                f" Unknown target {target} not in"
-                f" {list(const.SUBPROCESSES_PORTS.keys())}"
+                f" Unknown target {target} not in {list(SUBPROCESSES_PORTS.keys())}"
             )
     else:
         raise ValueError(
@@ -47,10 +53,10 @@ async def manage_subprocess(message: str):
         # terminal window manager module.
 
         command = (
-            f'start /min cmd /c "cd /d {const.PROJECT_DIR_PATH}'
-            f"&& set PYTHONPATH={const.PYTHONPATH}"
+            f'start /min cmd /c "cd /d {PROJECT_DIR_PATH}'
+            f"&& set PYTHONPATH={PYTHONPATH}"
             f"&& .\\venv\\Scripts\\activate"
-            f"&& cd {const.APPS_DIR_PATH}"
+            f"&& cd {APPS_DIR_PATH}"
             f"&& py {target}.py"
         )
 
@@ -60,7 +66,7 @@ async def manage_subprocess(message: str):
 
     elif instructions == "stop":
         await send_message_to_subprocess_socket(
-            const.STOP_SUBPROCESS_MESSAGE, const.SUBPROCESSES_PORTS[target]
+            STOP_SUBPROCESS_MESSAGE, SUBPROCESSES_PORTS[target]
         )
 
     elif instructions == "unlock":
@@ -68,16 +74,16 @@ async def manage_subprocess(message: str):
         # it means the subprocess is running and should not be attempted to
         # be unlocked.
         answer = await send_message_to_subprocess_socket(
-            "Check for server ACK", const.SUBPROCESSES_PORTS[target]
+            "Check for server ACK", SUBPROCESSES_PORTS[target]
         )
         if not answer:
-            lock_path = os.path.join(const.LOCK_FILES_DIR_PATH, target)
+            lock_path = os.path.join(LOCK_FILES_DIR_PATH, target)
             print(f"Checking '{lock_path}' for lock file")
             if os.path.exists(f"{lock_path}.lock"):
                 os.remove(f"{lock_path}.lock")
                 print(f"Found and removed lock for {target}")
             else:
-                print(f"No lock found here, traveler.")
+                print("No lock found here, traveler.")
         else:
             print(f"{target} seems to be running, cannot unlock")
 
@@ -94,7 +100,7 @@ async def manage_windows(conn: aiosqlite.Connection, message: str):
     elif message == "restore":
         await twm.restore_all_windows(conn)
     else:
-        print(f"Invalid windows path message, does not fit any use case")
+        print("Invalid windows path message, does not fit any use case")
 
 
 async def manage_database(conn: aiosqlite.Connection, message: str):
@@ -102,7 +108,7 @@ async def manage_database(conn: aiosqlite.Connection, message: str):
         await sdh.free_all_slots(conn)
         await sdh.free_all_denied_slots(conn)
     else:
-        print(f"Invalid database path message, does not fit any use")
+        print("Invalid database path message, does not fit any use")
 
 
 def create_websocket_handler(conn: aiosqlite.Connection):
@@ -145,7 +151,7 @@ async def send_message_to_subprocess_socket(
         print("SOCK: closing connection")
         writer.close()
         await writer.wait_closed()
-        return msg
+
     except OSError as e:
         print(e)
     return msg
@@ -153,7 +159,7 @@ async def send_message_to_subprocess_socket(
 
 async def main():
     print("Welcome to the server, bro. You know what to do.")
-    conn = await sdh.create_connection(const.TERMINAL_WINDOW_SLOTS_DB_FILE_PATH)
+    conn = await sdh.create_connection(TERMINAL_WINDOW_SLOTS_DB_FILE_PATH)
     await twm.manage_window(conn, twm.WinType.SERVER, "SERVER")
     if conn:
         websocket_server = await websockets.serve(

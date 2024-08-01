@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import re
-from typing import Optional
 
 from neo4j import Session
 
@@ -93,7 +92,7 @@ class RobeauHandler:
             print("Robeau is talking.")
             stop_command, rudeness_points = check_for_stop_command(message)
             if stop_command:
-                interrupt_robeau(stop_command, rudeness_points)
+                interrupt_robeau()
                 print(f"interrupted robeau with {rudeness_points} rudeness points")
             else:
                 print("No stop command detected over robeau's speech")
@@ -172,15 +171,15 @@ class RobeauHandler:
 
 async def main():
     try:
-        db_conn, slot = await setup_script(
-            SCRIPT_NAME, TERMINAL_WINDOW_SLOTS_DB_FILE_PATH
-        )
+        db_conn, _ = await setup_script(SCRIPT_NAME, TERMINAL_WINDOW_SLOTS_DB_FILE_PATH)
         driver, session, conversation_state, stop_event, update_thread, pause_event = (
             initialize()
         )
         handler = RobeauHandler(session, conversation_state)
-        asyncio.create_task(recognize_speech(handler, pause_event))
+        recognize_task = asyncio.create_task(recognize_speech(handler, pause_event))
         await handler.stop_event.wait()
+        await recognize_task
+
     except Exception as e:
         logging.exception(f"Unexpected error: {e}")
         print(f"Unexpected error: {e}")

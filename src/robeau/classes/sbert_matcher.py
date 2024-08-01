@@ -39,7 +39,8 @@ class SBERTMatcher:
                     embeddings[section].append((main_text, text, embedding))
         return embeddings
 
-    def _load_metadata(self, file_path: str):
+    @staticmethod
+    def _load_metadata(file_path: str):
         with open(file_path, "r") as f:
             data = json.load(f)
 
@@ -54,7 +55,8 @@ class SBERTMatcher:
                 metadata[section][main_text] = meta
         return metadata
 
-    def _measure_similarity(self, embedding1, embedding2):
+    @staticmethod
+    def _measure_similarity(embedding1, embedding2):
         return util.pytorch_cos_sim(embedding1, embedding2).item()
 
     def check_for_best_matching_synonym(
@@ -91,7 +93,8 @@ class SBERTMatcher:
 
         if show_details:
             print(
-                f"Input: <{message}> has match value <{max_similarity:.3f}> from matching with <{best_synonym}> for original text: <{best_match}> with metadata {text_metadata} (exec.time: {inference_time:.4f})"
+                f"Input: <{message}> has match value <{max_similarity:.3f}> from matching with <{best_synonym}> for "
+                f"original text: <{best_match}> with metadata {text_metadata} (exec.time: {inference_time:.4f})"
             )
 
         if max_similarity < self.similarity_threshold:

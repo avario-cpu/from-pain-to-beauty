@@ -1,23 +1,19 @@
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
-
-# Env file paths
-PROJECT_DIR_PATH = os.getenv("PROJECT_DIR_PATH")
-VENV_PATH = os.getenv("VENV_PATH")
-PYTHONPATH = os.getenv("PYTHONPATH")
+from src.config.settings import PROJECT_DIR_PATH
 
 # General project paths
-TERMINAL_WINDOW_SLOTS_DB_FILE_PATH = "src/core/terminal_window_slots.db"
-APPS_DIR_PATH = "src/apps"
-ROBEAU_DIR_PATH = "src/robeau"
+TERMINAL_WINDOW_SLOTS_DB_FILE_PATH = os.path.join(
+    PROJECT_DIR_PATH, "src/core/terminal_window_slots.db"
+)
+APPS_DIR_PATH = os.path.join(PROJECT_DIR_PATH, "src/apps")
+ROBEAU_DIR_PATH = os.path.join(PROJECT_DIR_PATH, "src/robeau")
 
 # Temp project paths
-TEMP_DIR_PATH = "temp/"
-LOG_DIR_PATH = "temp/logs"
-LOCK_FILES_DIR_PATH = "temp/lock_files"
-COMMON_LOGS_FILE_PATH = "temp/logs/all_logs.log"
+TEMP_DIR_PATH = os.path.join(PROJECT_DIR_PATH, "temp")
+LOG_DIR_PATH = os.path.join(TEMP_DIR_PATH, "logs")
+LOCK_FILES_DIR_PATH = os.path.join(TEMP_DIR_PATH, "lock_files")
+COMMON_LOGS_FILE_PATH = os.path.join(LOG_DIR_PATH, "all_logs.log")
 
 # URLs
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"

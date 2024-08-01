@@ -44,6 +44,29 @@ SCRIPT_NAME = construct_script_name(__file__)
 logger = setup_logger(SCRIPT_NAME, level=DEBUG)
 
 
+class TypingDetector:
+    def __init__(self, pause_event):
+        self.pause_event = pause_event
+        self.timer = None
+
+    # noinspection PyUnusedLocal
+    def on_typing_event(self, event):
+        self._set_pause_event()
+        if self.timer:
+            self.timer.cancel()
+        self.timer = threading.Timer(0.7, self._clear_pause_event)
+        self.timer.start()
+
+    def _clear_pause_event(self):
+        self.pause_event.clear()
+        logger.info("Resumed thread updating because user is not typing anymore")
+
+    def _set_pause_event(self):
+        if not self.pause_event.is_set():
+            logger.info("Paused thread updating because user is typing")
+        self.pause_event.set()
+
+
 class ConversationState:
     def __init__(self, logger_instance: Logger):
         self.test_value = False
@@ -73,14 +96,14 @@ class ConversationState:
         # Context relationships
         self.context: dict[str, list[dict]] = {
             "allows": [],
-            "permits": [],
             "expects": [],
+            "initiates": [],
             "listens": [],
             "locks": [],
-            "unlocks": [],
+            "permits": [],
             "primes": [],
+            "unlocks": [],
             "unprimes": [],
-            "initiates": [],
         }
 
         self.listening_context = None
@@ -274,10 +297,9 @@ class ConversationState:
 
     def _update_attitude_levels(self, log_messages: list[str]):
         for attitude, level in self.attitude_levels.items():
-            if level > 0:
-                if random.randint(0, 9) == 0:
-                    level -= 1
-                    log_messages.append(f"{attitude}: level decreased to {level}")
+            if level > 0 and random.randint(0, 9) == 0:
+                level -= 1
+                log_messages.append(f"{attitude}: level decreased to {level}")
 
     def update_conversation_state(self, session: Session):
         log_messages: list[str] = []
@@ -434,10 +456,10 @@ def interrupt_robeau():
 
 
 def wait_for_audio_management(response_nodes_reached: list[str]):
-    logger.info(f"Waiting for initial callback from audio_player")
+    logger.info("Waiting for initial callback from audio_player")
     audio_player_first_callback.wait()
     audio_player_first_callback.clear()
-    logger.info(f"Callback received from audio_player, proceeding")
+    logger.info("Callback received from audio_player, proceeding")
 
     if audio_started_event.is_set():
 
@@ -914,6 +936,8 @@ def evaluation_meets_criteria(
             or assign_default_max()
         )
 
+        # ! important to note that the evaluation is inclusive
+
         if eval_min <= level <= eval_max:
             logger.info(
                 f"Connection meets criteria: {list(connection.values())[0:3]} "
@@ -1029,7 +1053,6 @@ def process_special_relationships(session, relationships_map, conversation_state
             conversation_state,
             source=ADMIN,  # assures access to the node after the context switch in between the two nodes activation
         )
-    pass
 
 
 def process_relationships(
@@ -1144,7 +1167,6 @@ def handle_transmission_input(
     process_node(
         session, transmission_node, conversation_state, SYSTEM, input_node=True
     )
-    pass
 
 
 def query_database(
@@ -1467,7 +1489,7 @@ def process_node(
             wait_for_audio_management(response_nodes_reached=response_nodes_reached)
 
         log_empty_lines(logger=logger, lines=1)
-        logger.info(f"Next node in the chain...\n")
+        logger.info("Next node in the chain...\n")
 
         process_node(
             session,
@@ -1500,6 +1522,16 @@ def run_update_conversation_state(
         time.sleep(0.5)
 
 
+def robeau_is_listening(conversation_state: ConversationState):
+    if (
+        conversation_state.context["allows"]
+        or conversation_state.context["permits"]
+        or conversation_state.context["expects"]
+        or conversation_state.context["listens"]
+    ):
+        return True
+
+
 def establish_connection():
     start_time = time.time()
     if NEO4J_URI:
@@ -1517,7 +1549,7 @@ def establish_connection():
 def initialize():
     driver, session = establish_connection()
     if not driver or not session:
-        raise Exception("Failed to establish connection to Neo4j database")
+        raise ConnectionError("Failed to establish connection to Neo4j database")
     conversation_state = ConversationState(logger_instance=logger)
     stop_event = threading.Event()
     pause_event = threading.Event()
@@ -1526,7 +1558,15 @@ def initialize():
         args=(conversation_state, session, stop_event, pause_event),
     )
     update_thread.start()
-    return driver, session, conversation_state, stop_event, update_thread, pause_event
+
+    return (
+        driver,
+        session,
+        conversation_state,
+        stop_event,
+        update_thread,
+        pause_event,
+    )
 
 
 def cleanup(driver, session, stop_event, update_thread):
@@ -1587,7 +1627,7 @@ def launch_specified_query(
         upper_node = str(thread_args["node"]).upper()
         if upper_node in transmission_output_nodes:
             logger.info(
-                f"treating node {upper_node} from forced as transmission output"
+                f"treating node {upper_node} from forced query as a transmission output"
             )
             handle_transmission_output(upper_node, conversation_state)
 
@@ -1597,93 +1637,83 @@ def launch_specified_query(
         node_thread.start()
 
 
-class TypingDetector:
-    def __init__(self, pause_event):
-        self.pause_event = pause_event
-        self.timer = None
-
-    # noinspection PyUnusedLocal
-    def on_typing_event(self, event):
-        self._set_pause_event()
-        if self.timer:
-            self.timer.cancel()
-        self.timer = threading.Timer(0.7, self._clear_pause_event)
-        self.timer.start()
-
-    def _clear_pause_event(self):
-        self.pause_event.clear()
-        logger.info(f"Resumed thread updating because user is not typing anymore")
-
-    def _set_pause_event(self):
-        if not self.pause_event.is_set():
-            logger.info(f"Paused thread updating because user is typing")
-        self.pause_event.set()
-
-
-def robeau_is_listening(conversation_state: ConversationState):
-    if (
-        conversation_state.context["allows"]
-        or conversation_state.context["permits"]
-        or conversation_state.context["expects"]
-        or conversation_state.context["listens"]
-    ):
-        return True
-
-
-def main():
-    (driver, session, conversation_state, stop_event, update_thread, pause_event) = (
-        initialize()
+def launch_query(user_query, query_type, silent, session, conversation_state):
+    launch_specified_query(
+        user_query=user_query,
+        query_type=query_type,
+        session=session,
+        conversation_state=conversation_state,
+        silent=silent,
     )
-    prompt_session = PromptSession()
 
-    def launch_query(user_query, query_type, silent):
-        launch_specified_query(
-            user_query=user_query,
-            query_type=query_type,
-            session=session,
-            conversation_state=conversation_state,
-            silent=silent,
-        )
 
-    typing_detector = TypingDetector(pause_event)
-    keyboard.on_press(typing_detector.on_typing_event)
+def handle_user_query(prompt_session, conversation_state, session):
+    if prompt_session:
+        # noinspection PyArgumentList
+        with patch_stdout():
+            user_query = prompt_session.prompt("Query: ").strip().lower()
+    else:
+        user_query = input("Query: ").strip().lower()
 
+    if user_query == "dict":
+        print(conversation_state.__dict__)
+
+    force, silent, user_query = check_for_particular_query(user_query)
+
+    if conversation_state.unresponsive["state"]:
+        time_left = conversation_state.unresponsive["time_left"]
+        print(f"Robeau does not listen... time left: {time_left}")
+        return
+
+    if user_query == "stfu":
+        interrupt_robeau()
+
+    elif node_thread and node_thread.is_alive():
+        print("Query refused, processing node: interrupt with <stfu> if needed")
+
+    elif force:
+        launch_query(user_query, "forced", silent, session, conversation_state)
+
+    elif robeau_is_listening(conversation_state):
+        launch_query(user_query, "regular", silent, session, conversation_state)
+
+    else:
+        launch_query(user_query, "greeting", silent, session, conversation_state)
+
+
+def main_loop(prompt_session, conversation_state, session):
     try:
         while True:
-            # noinspection PyArgumentList
-            with patch_stdout():
-                user_query = prompt_session.prompt("Query: ").strip().lower()
-
-                if user_query == "dict":
-                    print(conversation_state.__dict__)
-
-                force, silent, user_query = check_for_particular_query(user_query)
-
-                if conversation_state.unresponsive["state"]:
-                    time_left = conversation_state.unresponsive["time_left"]
-                    print(f"Robeau does not listen... time left: {time_left}")
-                    continue
-
-                if user_query == "stfu":
-                    interrupt_robeau()
-
-                elif node_thread and node_thread.is_alive():
-                    print(
-                        f"Query refused, processing node: interrupt with <stfu> if needed"
-                    )
-
-                elif force:
-                    launch_query(user_query, query_type="forced", silent=silent)
-
-                elif robeau_is_listening(conversation_state):
-                    launch_query(user_query, query_type="regular", silent=silent)
-
-                else:
-                    launch_query(user_query, query_type="greeting", silent=silent)
-
+            handle_user_query(prompt_session, conversation_state, session)
     except Exception as e:
         print(f"Error occurred: {e}")
         logger.exception(e)
+
+
+def setup_typing_detector(pause_event):
+    typing_detector = TypingDetector(pause_event)
+    keyboard.on_press(typing_detector.on_typing_event)
+    return typing_detector
+
+
+def create_prompt_session():
+    try:
+        return PromptSession()
+    except Exception as e:
+        print(f"Caught exception: {e}")
+        logger.exception("Failed to create PromptSession")
+        return None
+
+
+def main():
+    driver, session, conversation_state, stop_event, update_thread, pause_event = (
+        initialize()
+    )
+
+    try:
+        prompt_session = create_prompt_session()
+        setup_typing_detector(pause_event)
+        main_loop(prompt_session, conversation_state, session)
     finally:
         cleanup(driver, session, stop_event, update_thread)
         keyboard.unhook_all()

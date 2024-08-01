@@ -18,7 +18,8 @@ GREETING = QuerySource.GREETING
 ADMIN = QuerySource.ADMIN
 
 
-"""Below are a list of transmission nodes: They are nodes either triggered by code logic (input) or that will trigger particular code logic (output)"""
+"""Below are a list of transmission nodes: They are nodes either triggered by code logic (input) or that will trigger 
+particular code logic (output)"""
 
 # Inputs ------------------------------------
 
@@ -55,7 +56,7 @@ SET_ROBEAU_STUBBORN = "SET ROBEAU STUBBORN"
 PROLONG_STUBBORN = "PROLONG STUBBORN"
 
 
-# List used to check if a reached node is an output message we processing a node chain.
+# List used to check if a reached node is an output message when processing a node chain.
 transmission_output_nodes = [
     RESET_EXPECTATIONS,
     SET_ROBEAU_UNRESPONSIVE,

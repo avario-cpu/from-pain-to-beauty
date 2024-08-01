@@ -12,8 +12,8 @@ def write_json(file_path, content):
 
 
 def merge_json_with_synonyms(old, new):
-    preserved_keys = ["StopCommand", "StopCommandRude", "StopCommandPolite"]
-    protected_subkeys = ["synonyms"]
+    protected_keys = ["StopCommand", "StopCommandRude", "StopCommandPolite"]
+    protected_sub_keys = ["synonyms"]
     merged = {}
     additions = []
     deletions = []
@@ -23,60 +23,89 @@ def merge_json_with_synonyms(old, new):
         if key in old:
             original_nodes = {entry["id"]: entry for entry in old[key]}
             new_nodes = {entry["id"]: entry for entry in new[key]}
-
-            merged_list = []
-
-            for node_id, new_entry in new_nodes.items():
-                if node_id in original_nodes:
-                    original_entry = original_nodes[node_id]
-                    merged_entry = new_entry.copy()
-
-                    changes = []
-
-                    for subkey in protected_subkeys:
-                        if subkey in original_entry and subkey not in new_entry:
-                            merged_entry[subkey] = original_entry[subkey]
-
-                    for k, v in original_entry.items():
-                        if k == "id":
-                            continue
-                        if k not in new_entry and k not in protected_subkeys:
-                            changes.append(f"{k} removed")
-                        elif k in new_entry and original_entry[k] != new_entry[k]:
-                            merged_entry[k] = new_entry[k]
-                            changes.append(
-                                f"{k} changed from {original_entry[k]} to {new_entry[k]}"
-                            )
-
-                    if changes:
-                        log_entries.append(
-                            f"Updated entry for key '{key}', id '{node_id}': {', '.join(changes)}"
-                        )
-
-                    merged_list.append(merged_entry)
-                else:
-                    merged_list.append(new_entry)
-                    additions.append(new_entry)
-                    log_entries.append(
-                        f"Added new entry for key '{key}', id '{node_id}': {new_entry}"
-                    )
-
-            merged[key] = merged_list
+            merged[key], new_additions, new_log_entries = merge_entries(
+                key, original_nodes, new_nodes, protected_sub_keys
+            )
+            additions.extend(new_additions)
+            log_entries.extend(new_log_entries)
         else:
-            merged[key] = new[key]
-            additions.extend(new[key])
-            log_entries.append(f"Added all new entries for new key '{key}'")
+            merged[key], new_additions, new_log_entries = handle_additions(
+                key, new[key]
+            )
+            additions.extend(new_additions)
+            log_entries.extend(new_log_entries)
 
     for key in old.keys():
         if key not in new:
-            if key in preserved_keys:
+            if key in protected_keys:
                 merged[key] = old[key]
                 log_entries.append(f"Preserved key '{key}'")
             else:
-                deletions.extend(old[key])
-                log_entries.append(f"Key '{key}' removed")
+                new_deletions, new_log_entries = handle_deletions(key, old[key])
+                deletions.extend(new_deletions)
+                log_entries.extend(new_log_entries)
 
     return merged, additions, deletions, log_entries
+
+
+def merge_entries(key, original_nodes, new_nodes, protected_sub_keys):
+    merged_list = []
+    additions = []
+    log_entries = []
+
+    for node_id, new_entry in new_nodes.items():
+        if node_id in original_nodes:
+            merged_entry, changes = merge_single_entry(
+                original_nodes[node_id], new_entry, protected_sub_keys
+            )
+            if changes:
+                log_entries.append(
+                    f"Updated entry for key '{key}', id '{node_id}': {', '.join(changes)}"
+                )
+            merged_list.append(merged_entry)
+        else:
+            merged_list.append(new_entry)
+            additions.append(new_entry)
+            log_entries.append(
+                f"Added new entry for key '{key}', id '{node_id}': {new_entry}"
+            )
+
+    return merged_list, additions, log_entries
+
+
+def merge_single_entry(original_entry, new_entry, protected_sub_keys):
+    merged_entry = new_entry.copy()
+    changes = []
+
+    for sub_key in protected_sub_keys:
+        if sub_key in original_entry and sub_key not in new_entry:
+            merged_entry[sub_key] = original_entry[sub_key]
+
+    for k, v in original_entry.items():
+        if k == "id":
+            continue
+        if k not in new_entry and k not in protected_sub_keys:
+            changes.append(f"{k} removed")
+        elif k in new_entry and original_entry[k] != new_entry[k]:
+            merged_entry[k] = new_entry[k]
+            changes.append(f"{k} changed from {original_entry[k]} to {new_entry[k]}")
+
+    return merged_entry, changes
+
+
+def handle_additions(key, new_entries):
+    merged_list = new_entries
+    additions = new_entries
+    log_entries = [f"Added all new entries for new key '{key}'"]
+
+    return merged_list, additions, log_entries
+
+
+def handle_deletions(key, old_entries):
+    deletions = old_entries
+    log_entries = [f"Key '{key}' removed"]
+
+    return deletions, log_entries
 
 
 def main():

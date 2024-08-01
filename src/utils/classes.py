@@ -22,8 +22,8 @@ class LockFileManager:
     def create_lock_file(self):
         try:
             with open(self.lock_file_path, "x"):
-                pass
-            print(f"Created lock file: {self.filename}.lock")
+                print(f"Created lock file: {self.filename}.lock")
+
         except FileExistsError:
             print(f"Lock file path: {self.lock_file_path} already exists.")
 
