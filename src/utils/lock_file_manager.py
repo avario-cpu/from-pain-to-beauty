@@ -3,7 +3,8 @@ from logging import Logger
 from typing import Optional
 
 from src.core import constants as const
-from src.utils.logging_utils import construct_script_name, setup_logger
+from src.utils.helpers import construct_script_name
+from src.utils.logging_utils import setup_logger
 
 LOCK_DIR = const.LOCK_FILES_DIR_PATH
 SCRIPT_NAME = construct_script_name(__file__)
