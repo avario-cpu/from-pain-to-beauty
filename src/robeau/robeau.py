@@ -6,7 +6,6 @@ from neo4j import Session
 
 from src.core.constants import TERMINAL_WINDOW_SLOTS_DB_FILE_PATH
 from src.robeau.classes.sbert_matcher import SBERTMatcher  # type: ignore
-from src.robeau.core.constants import ROBEAU_PROMPTS_JSON_FILE_PATH as ROBEAU_PROMPTS
 from src.robeau.core.graph_logic_network import (
     ConversationState,
     cleanup,
@@ -15,6 +14,9 @@ from src.robeau.core.graph_logic_network import (
     launch_specified_query,
     robeau_is_listening,
     robeau_is_talking,
+)
+from src.robeau.core.robeau_constants import (
+    ROBEAU_PROMPTS_JSON_FILE_PATH as ROBEAU_PROMPTS,
 )
 from src.robeau.core.speech_recognition import recognize_speech
 from src.utils.helpers import construct_script_name

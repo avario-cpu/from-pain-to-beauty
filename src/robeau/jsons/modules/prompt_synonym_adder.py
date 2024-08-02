@@ -5,7 +5,9 @@ from logging import Logger
 from typing import Optional
 
 from src.core.constants import SUBPROCESSES_PORTS
-from src.robeau.core.constants import ROBEAU_PROMPTS_JSON_FILE_PATH as ROBEAU_PROMPTS
+from src.robeau.core.robeau_constants import (
+    ROBEAU_PROMPTS_JSON_FILE_PATH as ROBEAU_PROMPTS,
+)
 from src.robeau.core.speech_recognition import recognize_speech
 
 PORT = SUBPROCESSES_PORTS["synonym_adder"]

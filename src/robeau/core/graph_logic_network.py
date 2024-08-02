@@ -13,7 +13,7 @@ from prompt_toolkit.patch_stdout import patch_stdout
 
 from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 from src.robeau.classes.audio_player import AudioPlayer
-from src.robeau.classes.graph_logic_network_constants import (
+from src.robeau.core.graph_logic_network_constants import (
     ADMIN,
     ANY_MATCHING_PLEA,
     ANY_MATCHING_PROMPT,
@@ -37,7 +37,9 @@ from src.robeau.classes.graph_logic_network_constants import (
     QuerySource,
     transmission_output_nodes,
 )
-from src.robeau.core.constants import AUDIO_MAPPINGS_FILE_PATH
+from src.robeau.core.robeau_constants import (
+    ROBEAU_RESPONSES_JSON_FILE_PATH as ROBEAU_RESPONSES,
+)
 from src.utils.helpers import construct_script_name
 from src.utils.logging_utils import log_empty_lines, setup_logger
 
@@ -405,7 +407,7 @@ class ConversationState:
         self.logger.info("\n".join(log_message))
 
 
-audio_player = AudioPlayer(AUDIO_MAPPINGS_FILE_PATH, logger=logger)
+audio_player = AudioPlayer(ROBEAU_RESPONSES, logger=logger)
 
 processing_nodes_audio = threading.Event()
 audio_player_first_callback = threading.Event()

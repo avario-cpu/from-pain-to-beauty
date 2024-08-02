@@ -8,7 +8,7 @@ from typing import Literal, Optional
 
 import pygame
 
-from src.config.settings import PROJECT_DIR_PATH
+from src.robeau.core.robeau_constants import ROBEAU_DIR_PATH
 
 
 class AudioPlayer:
@@ -73,7 +73,7 @@ class AudioPlayer:
                 return
 
             audio_file_relative_path = self._select_weighted_random_file(audio_files)
-            audio_file = os.path.join(PROJECT_DIR_PATH, audio_file_relative_path)
+            audio_file = os.path.join(ROBEAU_DIR_PATH, audio_file_relative_path)
 
             if not audio_file_relative_path or not os.path.exists(audio_file):
                 self.logger.warning(f'Audio file "{audio_file}" not found.')

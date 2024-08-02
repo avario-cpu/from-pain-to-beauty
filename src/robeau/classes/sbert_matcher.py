@@ -1,9 +1,13 @@
 import json
+import time
+from typing import Optional
+
 import torch
 from sentence_transformers import SentenceTransformer, util
-import time
-from src.robeau.core.constants import ROBEAU_PROMPTS_JSON_FILE_PATH as ROBEAU_PROMPTS
-from typing import Optional
+
+from src.robeau.core.robeau_constants import (
+    ROBEAU_PROMPTS_JSON_FILE_PATH as ROBEAU_PROMPTS,
+)
 
 
 class SBERTMatcher:
