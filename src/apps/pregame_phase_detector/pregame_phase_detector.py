@@ -31,7 +31,7 @@ from src.apps.pregame_phase_detector.core.constants import (
 from src.apps.pregame_phase_detector.core.pick_phase import PickPhase
 from src.apps.pregame_phase_detector.core.socket_handler import PreGamePhaseHandler
 from src.apps.pregame_phase_detector.core.tabbed import Tabbed
-from src.connection import websocket
+from src.connection import websocket_client
 from src.core import terminal_window_manager_v4 as twm
 from src.core.constants import STREAMERBOT_WS_URL, SUBPROCESSES_PORTS
 from src.core.constants import TERMINAL_WINDOW_SLOTS_DB_FILE_PATH as SLOTS_DB
@@ -173,7 +173,7 @@ async def set_state_game_found(
     game_phase.hero_pick = True
     print("\nFound a game !")
     if ws:
-        await websocket.send_json_requests(ws, SCENE_CHANGE_IN_GAME, logger)
+        await websocket_client.send_json_requests(ws, SCENE_CHANGE_IN_GAME, logger)
     return tabbed, game_phase
 
 
@@ -184,7 +184,9 @@ async def set_state_hero_pick(
     game_phase.hero_pick = True
     print("\nBack to hero select !")
     if ws:
-        await websocket.send_json_requests(ws, SCENE_CHANGE_DSLR_MOVE_HERO_PICK, logger)
+        await websocket_client.send_json_requests(
+            ws, SCENE_CHANGE_DSLR_MOVE_HERO_PICK, logger
+        )
     return tabbed, game_phase
 
 
@@ -195,7 +197,7 @@ async def set_state_starting_buy(
     game_phase.starting_buy = True
     print("\nStarting buy !")
     if ws:
-        await websocket.send_json_requests(ws, DSLR_MOVE_STARTING_BUY, logger)
+        await websocket_client.send_json_requests(ws, DSLR_MOVE_STARTING_BUY, logger)
     return tabbed, game_phase
 
 
@@ -205,7 +207,7 @@ async def set_state_vs_screen(
     tabbed.in_game = True
     game_phase.versus_screen = True
     if ws:
-        await websocket.send_json_requests(ws, DSLR_HIDE_VS_SCREEN, logger)
+        await websocket_client.send_json_requests(ws, DSLR_HIDE_VS_SCREEN, logger)
     print("\nWe are in vs screen !")
     return tabbed, game_phase
 
@@ -216,7 +218,7 @@ async def set_state_in_game(
     tabbed.in_game = True
     game_phase.in_game = True
     if ws:
-        await websocket.send_json_requests(ws, SCENE_CHANGE_IN_GAME, logger)
+        await websocket_client.send_json_requests(ws, SCENE_CHANGE_IN_GAME, logger)
     print("\nWe are in now game !")
     return tabbed, game_phase
 
@@ -227,7 +229,7 @@ async def set_state_dota_menu(
     tabbed.to_dota_menu = True
     game_phase.unknown = True
     if ws:
-        await websocket.send_json_requests(ws, DSLR_HIDE_VS_SCREEN, logger)
+        await websocket_client.send_json_requests(ws, DSLR_HIDE_VS_SCREEN, logger)
     print("\nWe are in Dota Menus !")
     return tabbed, game_phase
 
@@ -247,7 +249,7 @@ async def set_state_settings_screen(
     tabbed.to_settings_screen = True
     game_phase.unknown = True
     if ws:
-        await websocket.send_json_requests(
+        await websocket_client.send_json_requests(
             ws,
             "src/apps/pregame_phase_detector/ws_requests/dslr_hide_vs_screen.json",
             logger,
@@ -431,7 +433,7 @@ async def main():
             socket_server_handler.run_socket_server()
         )
 
-        ws = await websocket.establish_ws_connection(STREAMERBOT_WS_URL, logger)
+        ws = await websocket_client.establish_ws_connection(STREAMERBOT_WS_URL, logger)
         await run_main_task(slot, socket_server_handler, ws)
 
     except Exception as e:
