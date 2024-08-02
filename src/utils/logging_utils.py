@@ -21,7 +21,9 @@ def setup_logger(
     script_log_file_path = os.path.join(LOG_DIR_PATH, f"{file_name}.log")
     common_log_file_path = COMMON_LOGS_FILE_PATH
 
-    # Initialize the logger
+    with open(script_log_file_path, "a", encoding="utf-8") as log_file:
+        log_file.write("<< New Log Entry >>\n")
+
     logger = logging.getLogger(file_name)
     if not logger.hasHandlers():
         logger.setLevel(LOG_LEVELS[level])

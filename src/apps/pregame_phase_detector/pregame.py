@@ -30,12 +30,12 @@ PORT = SUBPROCESSES_PORTS["pregame_phase_detector"]
 STREAMERBOT_URL = STREAMERBOT_WS_URL
 SLOTS_DB = TERMINAL_WINDOW_SLOTS_DB_FILE_PATH
 SECONDARY_WINDOWS = [
-    SecondaryWindow("first_scanner", 150, 80),
-    SecondaryWindow("second_scanner", 150, 80),
-    SecondaryWindow("third_scanner", 150, 80),
-    SecondaryWindow("fourth_scanner", 150, 80),
-    SecondaryWindow("fifth_scanner", 150, 80),
-    SecondaryWindow("sixth_scanner", 150, 100),
+    SecondaryWindow("hero_pick_scanner", 150, 80),
+    SecondaryWindow("starting_buy_scanner", 150, 80),
+    SecondaryWindow("dota_tab_scanner", 150, 80),
+    SecondaryWindow("desktop_tab_scanner", 150, 80),
+    SecondaryWindow("settings_scanner", 150, 80),
+    SecondaryWindow("in_game_scanner", 150, 100),
 ]
 
 DOTA_TAB_AREA = {"left": 1860, "top": 10, "width": 60, "height": 40}
@@ -248,98 +248,97 @@ async def compare_images(
     return ssim(image_a, image_b)
 
 
-async def capture_and_process_images(
-    *args: tuple[int, dict, cv.typing.MatLike]
-) -> dict[int, float]:
-    """Compares a set of screen areas and cv2 templates between them"""
-    match_values = {}
+async def capture_and_process_image(
+    alias: str, capture_area: dict, template: cv.typing.MatLike
+) -> float:
+    frame = await capture_window(capture_area)
+    gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
 
-    for arg in args:
-        index, capture_area, template = arg
+    match_value = await compare_images(gray_frame, template)
 
-        if capture_area is not None:
-            frame = await capture_window(capture_area)
-            gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+    window_name = next(
+        (window.name for window in SECONDARY_WINDOWS if alias in window.name), None
+    )
 
-            if template is not None:
-                match_value = await compare_images(gray_frame, template)
-            else:
-                match_value = 0.0
+    if window_name:
+        cv.imshow(window_name, gray_frame)
 
-            if index is not None:
-                window_name = SECONDARY_WINDOWS[index].name
-            else:
-                window_name = "Default Window"
+    if cv.waitKey(1) == ord("q"):
+        return 0.0
 
-            cv.imshow(window_name, gray_frame)
-
-            if cv.waitKey(1) == ord("q"):
-                break
-            match_values[index] = match_value
-
-    return match_values
+    return match_value
 
 
 async def detect_hero_pick():
-    return await capture_and_process_images((0, HERO_PICK_AREA, HERO_PICK_TEMPLATE))
+    return await capture_and_process_image(
+        "hero_pick_scanner", HERO_PICK_AREA, HERO_PICK_TEMPLATE
+    )
 
 
 async def detect_starting_buy():
-    return await capture_and_process_images(
-        (1, STARTING_BUY_AREA, STARTING_BUY_TEMPLATE)
+    return await capture_and_process_image(
+        "starting_buy_scanner", STARTING_BUY_AREA, STARTING_BUY_TEMPLATE
     )
 
 
 async def detect_dota_tab_out():
-    return await capture_and_process_images((2, DOTA_TAB_AREA, DOTA_TAB_TEMPLATE))
+    return await capture_and_process_image(
+        "dota_tab_scanner", DOTA_TAB_AREA, DOTA_TAB_TEMPLATE
+    )
 
 
 async def detect_desktop_tab_out():
-    return await capture_and_process_images((3, DESKTOP_TAB_AREA, DESKTOP_TAB_TEMPLATE))
+    return await capture_and_process_image(
+        "desktop_tab_scanner", DESKTOP_TAB_AREA, DESKTOP_TAB_TEMPLATE
+    )
 
 
 async def detect_settings_screen():
-    return await capture_and_process_images((4, SETTINGS_AREA, SETTINGS_TEMPLATE))
+    return await capture_and_process_image(
+        "settings_scanner", SETTINGS_AREA, SETTINGS_TEMPLATE
+    )
 
 
 async def detect_in_game():
-    return await capture_and_process_images((5, IN_GAME_AREA, IN_GAME_TEMPLATE))
+    return await capture_and_process_image(
+        "in_game_scanner", IN_GAME_AREA, IN_GAME_TEMPLATE
+    )
 
 
-async def scan_screen_for_matches() -> dict[int, float]:
+async def scan_screen_for_matches() -> dict[str, float]:
     (
         hero_pick_result,
         starting_buy_result,
-        dota_tab_out_results,
-        desktop_tab_out_results,
-        settings_screens_results,
-        in_game_results,
+        dota_tab_out_result,
+        desktop_tab_out_result,
+        settings_screen_result,
+        in_game_result,
     ) = await asyncio.gather(
-        detect_hero_pick(),  # index 0
-        detect_starting_buy(),  # index 1
-        detect_dota_tab_out(),  # index 2
-        detect_desktop_tab_out(),  # index 3
-        detect_settings_screen(),  # index 4
-        detect_in_game(),  # index 5
+        detect_hero_pick(),
+        detect_starting_buy(),
+        detect_dota_tab_out(),
+        detect_desktop_tab_out(),
+        detect_settings_screen(),
+        detect_in_game(),
     )
 
     secondary_windows_spawned.set()
 
     combined_results = {
-        **hero_pick_result,
-        **starting_buy_result,
-        **dota_tab_out_results,
-        **desktop_tab_out_results,
-        **settings_screens_results,
-        **in_game_results,
+        "hero_pick": hero_pick_result,
+        "starting_buy": starting_buy_result,
+        "dota_tab": dota_tab_out_result,
+        "desktop_tab": desktop_tab_out_result,
+        "settings": settings_screen_result,
+        "in_game": in_game_result,
     }
 
     formatted_combined_results = ", ".join(
-        [f"{index}:{value:.3f}" for index, value in combined_results.items()]
+        [f"{alias[:2]}:{value:.2f}" for alias, value in combined_results.items()]
     )
 
     if not mute_ssim_prints.is_set():
-        print(f"SSIMs: {formatted_combined_results}", end="\r")
+        print(f"SSMIs: {formatted_combined_results}", end="\r")
 
     return combined_results
 
@@ -523,14 +522,6 @@ async def wait_for_starting_buy_screen_fade_out(
     return game_phase
 
 
-async def capture_new_area(capture_area: dict[str, int], filename: str):
-    frame = await capture_window(capture_area)
-    gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-    cv.imshow("new_area_capture", gray_frame)
-    secondary_windows_spawned.set()
-    cv.imwrite(filename, gray_frame)
-
-
 async def detect_pregame_phase(
     ws: Optional[WebSocketClientProtocol], socket_handler: PreGamePhaseHandler
 ):
@@ -550,57 +541,57 @@ async def detect_pregame_phase(
 
         if (
             tabbed.to_settings_screen
-            and ssim_match[4] < target
-            and not ssim_match[3] >= target
+            and ssim_match["settings"] < target
+            and ssim_match["desktop_tab"] < target
         ):
             tabbed = await wait_for_settings_screen_fade_out(tabbed)
             continue
 
         if (
             game_phase.starting_buy
-            and ssim_match[1] < target
-            and not ssim_match[2] >= target
-            and not ssim_match[3] >= target
+            and ssim_match["starting_buy"] < target
+            and ssim_match["dota_tab"] < target
+            and ssim_match["desktop_tab"] < target
         ):
             game_phase = await wait_for_starting_buy_screen_fade_out(game_phase)
             continue
 
-        if ssim_match[0] >= target and game_phase.finding_game:
+        if ssim_match["hero_pick"] >= target and game_phase.finding_game:
             tabbed, game_phase = await set_state_game_found(tabbed, game_phase, ws)
             continue
 
         if not game_phase.finding_game:
 
-            if ssim_match[1] >= target and not game_phase.starting_buy:
+            if ssim_match["starting_buy"] >= target and not game_phase.starting_buy:
                 tabbed, game_phase = await set_state_starting_buy(
                     tabbed, game_phase, ws
                 )
                 continue
 
             if (
-                ssim_match[0] >= target > ssim_match[1]
-                and ssim_match[4] < target
-                and ssim_match[3] < target
+                ssim_match["hero_pick"] >= target > ssim_match["starting_buy"]
+                and ssim_match["settings"] < target
+                and ssim_match["desktop_tab"] < target
                 and not game_phase.hero_pick
             ):
                 tabbed, game_phase = await set_state_hero_pick(tabbed, game_phase, ws)
                 continue
 
-            if ssim_match[2] >= target and not tabbed.to_dota_menu:
+            if ssim_match["dota_tab"] >= target and not tabbed.to_dota_menu:
                 tabbed, game_phase = await set_state_dota_menu(tabbed, game_phase, ws)
                 continue
 
-            if ssim_match[3] >= target and not tabbed.to_desktop:
+            if ssim_match["desktop_tab"] >= target and not tabbed.to_desktop:
                 tabbed, game_phase = await set_state_desktop(tabbed, game_phase)
                 continue
 
-            if ssim_match[4] >= target and not tabbed.to_settings_screen:
+            if ssim_match["settings"] >= target and not tabbed.to_settings_screen:
                 tabbed, game_phase = await set_state_settings_screen(
                     tabbed, game_phase, ws
                 )
                 continue
 
-            if ssim_match[5] >= target and not game_phase.in_game:
+            if ssim_match["in_game"] >= target and not game_phase.in_game:
                 tabbed, game_phase = await set_state_in_game(tabbed, game_phase, ws)
                 continue
 
@@ -611,6 +602,14 @@ async def detect_pregame_phase(
                 continue
 
         await asyncio.sleep(0.01)
+
+
+async def capture_new_area(capture_area: dict[str, int], filename: str):
+    frame = await capture_window(capture_area)
+    gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+    cv.imshow("new_area_capture", gray_frame)
+    secondary_windows_spawned.set()
+    cv.imwrite(filename, gray_frame)
 
 
 async def run_main_task(
@@ -634,7 +633,7 @@ async def main():
             SCRIPT_NAME, SLOTS_DB, SECONDARY_WINDOWS
         )
         if slot is None:
-            logger.error("No slot available, exiting.")
+            logger.error("No terminal window slot available, exiting.")
             return
         socket_server_handler = PreGamePhaseHandler(PORT, logger)
         socket_server_task = asyncio.create_task(
