@@ -26,7 +26,6 @@ from src.robeau.classes.graph_logic_network_constants import (
     GREETING,
     NO_MATCHING_PROMPT,
     PROLONG_STUBBORN,
-    QuerySource,
     RESET_EXPECTATIONS,
     ROBEAU,
     ROBEAU_NO_MORE_STUBBORN,
@@ -35,6 +34,7 @@ from src.robeau.classes.graph_logic_network_constants import (
     STOP_LISTENING_FOR_WHISPERS,
     SYSTEM,
     USER,
+    QuerySource,
     transmission_output_nodes,
 )
 from src.robeau.core.constants import AUDIO_MAPPINGS_FILE_PATH
@@ -69,24 +69,23 @@ class TypingDetector:
 
 class ConversationState:
     def __init__(self, logger_instance: Logger):
-        self.test_value = False
         self.logger = logger_instance
         self.lock = threading.Lock()
 
-        # states
+        # interrupted state
         self.cutoff = False
 
         # time-bound states
         self.stubborn = {
             "state": False,
             "duration": 0.0,
-            "time_left": None,
+            "time_left": 0.0,
             "start_time": 0.0,
         }
         self.unresponsive = {
             "state": False,
             "duration": 0.0,
-            "time_left": None,
+            "time_left": 0.0,
             "start_time": 0.0,
         }
 
@@ -431,7 +430,7 @@ def handle_transmission_output(
 
     elif transmission_node == PROLONG_STUBBORN:
         stubborn = conversation_state.stubborn
-        if stubborn["state"] and stubborn.get("time_left", 0) < 10:
+        if stubborn["state"] and stubborn["time_left"] < 10:
             conversation_state.set_state("stubborn", random.randint(10, 15))
         else:
             logger.info(
@@ -500,6 +499,7 @@ def play_audio(
 
     def on_error():
         audio_player_first_callback.set()
+        audio_finished_event.set()
         conversation_state.cutoff = False
 
     audio_player.set_callbacks(
@@ -1346,7 +1346,8 @@ def define_labels(
     conversation_state: ConversationState,
     source: QuerySource,
 ) -> list[str]:
-    labels = []
+
+    labels:list[str] = []
 
     if source == USER:
         labels = handle_user_input_labelling(session, text, conversation_state, labels)
@@ -1702,10 +1703,11 @@ def create_prompt_session():
     except Exception as e:
         print(f"Caught exception: {e}")
         print(
-            "Failed to create PromptSession: Expect weird behavior in the input prompt when typing while a thread "
-            "prints at the same time. Program is better off run from the terminal, everything should still work."
+            """
+            Failed to create PromptSession: Running from an IDE ?\n
+            Expect weird behavior in the input prompt when typing while a thread prints at the same time.\n Program is better off run from the terminal, everything should still work though."""
         )
-        logger.exception(e)
+        logger.warning(e)
         return
 
 

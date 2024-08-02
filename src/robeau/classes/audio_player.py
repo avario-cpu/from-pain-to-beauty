@@ -2,10 +2,13 @@ import json
 import os
 import random
 import threading
-import pygame
 from logging import Logger
 from threading import Event, Thread
 from typing import Literal, Optional
+
+import pygame
+
+from src.config.settings import PROJECT_DIR_PATH
 
 
 class AudioPlayer:
@@ -69,8 +72,10 @@ class AudioPlayer:
                 self._thread_done(stop_event, termination_reason="error")
                 return
 
-            audio_file = self._select_weighted_random_file(audio_files)
-            if not audio_file or not os.path.exists(audio_file):
+            audio_file_relative_path = self._select_weighted_random_file(audio_files)
+            audio_file = os.path.join(PROJECT_DIR_PATH, audio_file_relative_path)
+
+            if not audio_file_relative_path or not os.path.exists(audio_file):
                 self.logger.warning(f'Audio file "{audio_file}" not found.')
                 self._thread_done(stop_event, termination_reason="error")
                 return
@@ -112,7 +117,7 @@ class AudioPlayer:
                 stop_event.set()  # Signal all threads to stop
 
     @staticmethod
-    def _select_weighted_random_file(audio_files):
+    def _select_weighted_random_file(audio_files) -> str:
         total_weight = sum(file["weight"] for file in audio_files)
         random_choice = random.uniform(0, total_weight)
         current_weight = 0
@@ -121,6 +126,8 @@ class AudioPlayer:
             current_weight += file["weight"]
             if current_weight >= random_choice:
                 return file["file"]
+
+        return "N/A"
 
     def _thread_done(
         self, stop_event, termination_reason: Literal["stop", "end", "error"]
