@@ -9,17 +9,18 @@ import numpy as np
 from skimage.metrics import structural_similarity as ssim
 from websockets import WebSocketClientProtocol
 
-from src.config.initialize import setup_script
 from src.connection import socket_server, websocket
 from src.core import terminal_window_manager_v4 as twm
 from src.core.constants import (
-    TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
     STOP_SUBPROCESS_MESSAGE,
     STREAMERBOT_WS_URL,
     SUBPROCESSES_PORTS,
+    TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
 )
 from src.core.terminal_window_manager_v4 import SecondaryWindow
-from src.utils.helpers import construct_script_name, print_countdown, setup_logger
+from src.utils.initialize import setup_script
+from src.utils.logging_utils import construct_script_name, setup_logger
+from src.utils.misc_utils import print_countdown
 
 SCRIPT_NAME = construct_script_name(__file__)
 logger = setup_logger(SCRIPT_NAME, logging.DEBUG)

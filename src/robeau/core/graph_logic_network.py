@@ -38,7 +38,7 @@ from src.robeau.classes.graph_logic_network_constants import (
     transmission_output_nodes,
 )
 from src.robeau.core.constants import AUDIO_MAPPINGS_FILE_PATH
-from src.utils.helpers import construct_script_name, log_empty_lines, setup_logger
+from src.utils.logging_utils import construct_script_name, log_empty_lines, setup_logger
 
 SCRIPT_NAME = construct_script_name(__file__)
 logger = setup_logger(SCRIPT_NAME, level=DEBUG)
@@ -49,8 +49,7 @@ class TypingDetector:
         self.pause_event = pause_event
         self.timer = None
 
-    # noinspection PyUnusedLocal
-    def on_typing_event(self, event):
+    def on_typing_event(self, _event):
         self._set_pause_event()
         if self.timer:
             self.timer.cancel()

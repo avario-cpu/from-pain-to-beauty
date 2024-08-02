@@ -1,15 +1,15 @@
-import asyncio
 import atexit
 import signal
 import sys
 from typing import Optional
+
 import aiosqlite
 
 from src.core import slots_db_handler as sdh
 from src.core import terminal_window_manager_v4 as twm
-from src.core.terminal_window_manager_v4 import WinType, SecondaryWindow
-from src.utils.classes import LockFileManager
-from src.utils.helpers import setup_logger, construct_script_name
+from src.core.terminal_window_manager_v4 import SecondaryWindow, WinType
+from src.utils.lock_file_manager import LockFileManager
+from src.utils.logging_utils import construct_script_name, setup_logger
 
 SCRIPT_NAME = construct_script_name(__file__)
 logger = setup_logger(SCRIPT_NAME)
@@ -50,7 +50,7 @@ def signal_handler(sig, _frame):
 
 
 def setup_signal_handlers():
-    logger.debug(f"Signal handlers are set up.")
+    logger.debug("Signal handlers are set up.")
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
 

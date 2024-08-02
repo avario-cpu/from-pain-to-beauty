@@ -10,17 +10,18 @@ import numpy as np
 from skimage.metrics import structural_similarity as ssim
 from websockets import WebSocketClientProtocol
 
-from src.config.initialize import setup_script
 from src.connection import socket_server, websocket
 from src.core import terminal_window_manager_v4 as twm
 from src.core.constants import (
-    TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
     STOP_SUBPROCESS_MESSAGE,
     STREAMERBOT_WS_URL,
     SUBPROCESSES_PORTS,
+    TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
 )
 from src.core.terminal_window_manager_v4 import SecondaryWindow
-from src.utils.helpers import construct_script_name, print_countdown, setup_logger
+from src.utils.initialize import setup_script
+from src.utils.logging_utils import construct_script_name, setup_logger
+from src.utils.misc_utils import print_countdown
 
 SCRIPT_NAME = construct_script_name(__file__)
 PORT = SUBPROCESSES_PORTS["shop_watcher"]
@@ -47,7 +48,6 @@ class ShopTracker:
     async def reset_flags(self):
         for key in self.flags:
             self.flags[key] = False
-        pass
 
     async def track_shop_open_duration(
         self, ws: Optional[WebSocketClientProtocol] = None
@@ -123,7 +123,6 @@ async def react_to_shop(status: str, ws: Optional[WebSocketClientProtocol] = Non
         await websocket.send_json_requests(
             ws, "src/apps/shop_watcher/ws_requests/dslr_show.json", logger
         )
-    pass
 
 
 async def react_to_shop_staying_open(
@@ -135,7 +134,6 @@ async def react_to_shop_staying_open(
         await websocket.send_json_requests(
             ws, "src/apps/shop_watcher/ws_requests/brb_buying_milk_show.json", logger
         )
-        pass
 
     async def react_to_long_shop_opening(ws: WebSocketClientProtocol):
         await websocket.send_json_requests(

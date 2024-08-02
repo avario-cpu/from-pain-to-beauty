@@ -15,16 +15,16 @@ import websockets
 from websockets import WebSocketServerProtocol
 
 from src.config.settings import PROJECT_DIR_PATH, PYTHONPATH
-from src.core.constants import (
-    SUBPROCESSES_PORTS,
-    STOP_SUBPROCESS_MESSAGE,
-    APPS_DIR_PATH,
-    TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
-    LOCK_FILES_DIR_PATH,
-)
 from src.core import slots_db_handler as sdh
 from src.core import terminal_window_manager_v4 as twm
-from src.utils.helpers import construct_script_name, setup_logger
+from src.core.constants import (
+    APPS_DIR_PATH,
+    LOCK_FILES_DIR_PATH,
+    STOP_SUBPROCESS_MESSAGE,
+    SUBPROCESSES_PORTS,
+    TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
+)
+from src.utils.logging_utils import construct_script_name, setup_logger
 
 SCRIPT_NAME = construct_script_name(__file__)
 
