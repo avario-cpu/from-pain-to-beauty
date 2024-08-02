@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import os
 import time
 from enum import Enum, auto
@@ -12,7 +11,8 @@ import win32gui
 
 from src.core import slots_db_handler as sdh
 from src.core.constants import SERVER_WINDOW_NAME
-from src.utils.logging_utils import construct_script_name, setup_logger
+from src.utils.helpers import construct_script_name
+from src.utils.logging_utils import setup_logger
 
 MAIN_WINDOW_WIDTH = 600
 MAIN_WINDOW_HEIGHT = 260
@@ -21,7 +21,7 @@ MAX_WINDOWS_PER_COLUMN = 1040 // MAIN_WINDOW_HEIGHT  # So currently 4
 SCRIPT_NAME = construct_script_name(__file__)
 WINDOW_NAME_SUFFIX = "twm_"
 
-logger = setup_logger(SCRIPT_NAME, logging.DEBUG)
+logger = setup_logger(SCRIPT_NAME, "DEBUG")
 
 
 class WinType(Enum):

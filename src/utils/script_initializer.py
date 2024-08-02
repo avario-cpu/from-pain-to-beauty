@@ -8,8 +8,9 @@ import aiosqlite
 from src.core import slots_db_handler as sdh
 from src.core import terminal_window_manager_v4 as twm
 from src.core.terminal_window_manager_v4 import SecondaryWindow, WinType
+from src.utils.helpers import construct_script_name
 from src.utils.lock_file_manager import LockFileManager
-from src.utils.logging_utils import construct_script_name, setup_logger
+from src.utils.logging_utils import setup_logger
 
 SCRIPT_NAME = construct_script_name(__file__)
 logger = setup_logger(SCRIPT_NAME)

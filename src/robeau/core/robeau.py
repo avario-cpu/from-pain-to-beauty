@@ -17,8 +17,9 @@ from src.robeau.core.graph_logic_network import (
     robeau_is_talking,
 )
 from src.robeau.core.speech_recognition import recognize_speech
-from src.utils.initialize import setup_script
-from src.utils.logging_utils import construct_script_name, setup_logger
+from src.utils.helpers import construct_script_name
+from src.utils.logging_utils import setup_logger
+from src.utils.script_initializer import setup_script
 
 SCRIPT_NAME = construct_script_name(__file__)
 

@@ -2,7 +2,8 @@ import asyncio
 from logging import Logger
 from typing import Optional
 
-from src.utils.logging_utils import construct_script_name, setup_logger
+from src.utils.helpers import construct_script_name
+from src.utils.logging_utils import setup_logger
 
 SCRIPT_NAME = construct_script_name(__file__)
 
@@ -62,6 +63,6 @@ class BaseHandler:
 
 
 def assign_default_logger():
-    logger = setup_logger(SCRIPT_NAME)
+    logger = setup_logger(SCRIPT_NAME, "DEBUG")
 
     return logger

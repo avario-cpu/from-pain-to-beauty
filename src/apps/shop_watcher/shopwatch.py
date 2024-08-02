@@ -19,11 +19,10 @@ from src.core.constants import (
     TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
 )
 from src.core.terminal_window_manager_v4 import SecondaryWindow
-from src.utils.initialize import setup_script
-from src.utils.logging_utils import construct_script_name, setup_logger
-from src.utils.misc_utils import print_countdown
+from src.utils.helpers import construct_script_name, print_countdown
+from src.utils.logging_utils import setup_logger
+from src.utils.script_initializer import setup_script
 
-SCRIPT_NAME = construct_script_name(__file__)
 PORT = SUBPROCESSES_PORTS["shop_watcher"]
 STREAMERBOT_URL = STREAMERBOT_WS_URL
 SLOTS_DB = TERMINAL_WINDOW_SLOTS_DB_FILE_PATH
@@ -33,7 +32,11 @@ SCREEN_CAPTURE_AREA = {"left": 1853, "top": 50, "width": 30, "height": 35}
 
 SHOP_TEMPLATE_IMAGE_PATH = "src/apps/shop_watcher/opencv/shop_top_right_icon.jpg"
 
-logger = setup_logger(SCRIPT_NAME, logging.DEBUG)
+
+SCRIPT_NAME = construct_script_name(__file__)
+logger = setup_logger(SCRIPT_NAME, "DEBUG")
+
+
 secondary_windows_spawned = asyncio.Event()
 mute_ssim_prints = asyncio.Event()
 

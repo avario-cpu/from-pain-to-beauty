@@ -6,7 +6,6 @@ about later.
 """
 
 import asyncio
-import logging
 import os
 import subprocess
 
@@ -24,11 +23,12 @@ from src.core.constants import (
     SUBPROCESSES_PORTS,
     TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
 )
-from src.utils.logging_utils import construct_script_name, setup_logger
+from src.utils.helpers import construct_script_name
+from src.utils.logging_utils import setup_logger
 
 SCRIPT_NAME = construct_script_name(__file__)
 
-logger = setup_logger(SCRIPT_NAME, logging.DEBUG)
+logger = setup_logger(SCRIPT_NAME, "DEBUG")
 
 
 async def manage_subprocess(message: str):

@@ -8,7 +8,8 @@ from websockets import (
     WebSocketException,
 )
 
-from src.utils.logging_utils import construct_script_name, setup_logger
+from src.utils.helpers import construct_script_name
+from src.utils.logging_utils import setup_logger
 
 SCRIPT_NAME = construct_script_name(__file__)
 
@@ -17,7 +18,7 @@ async def establish_ws_connection(
     url: str, logger: Optional[Logger] = None
 ) -> WebSocketClientProtocol | None:
     logger = logger if logger is not None else assign_default_logger()
-    logger.debug(f"Establishing websocket connection")
+    logger.debug("Establishing websocket connection")
     try:
         ws = await websockets.connect(url)
         logger.info(f"Established websocket connection: {ws}")
@@ -38,7 +39,7 @@ async def send_json_requests(
     if isinstance(json_file_paths, str):
         json_file_paths = [json_file_paths]
     else:
-        raise TypeError(f"json_file_path must be of type 'str'")
+        raise TypeError("json_file_path must be of type 'str'")
 
     for json_file in json_file_paths:
         try:
@@ -55,10 +56,10 @@ async def send_json_requests(
         except AttributeError as e:
             logger.error(f"Caught exception: {e} with ws: {ws}")
         finally:
-            print(f"Failed JSON request send")
+            print("Failed JSON request send")
 
 
 def assign_default_logger():
-    logger = setup_logger(SCRIPT_NAME)
+    logger = setup_logger(SCRIPT_NAME, "DEBUG")
 
     return logger

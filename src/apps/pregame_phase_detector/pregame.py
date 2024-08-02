@@ -18,12 +18,13 @@ from src.core.constants import (
     TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
 )
 from src.core.terminal_window_manager_v4 import SecondaryWindow
-from src.utils.initialize import setup_script
-from src.utils.logging_utils import construct_script_name, setup_logger
-from src.utils.misc_utils import print_countdown
+from src.utils.helpers import construct_script_name, print_countdown
+from src.utils.logging_utils import setup_logger
+from src.utils.script_initializer import setup_script
 
 SCRIPT_NAME = construct_script_name(__file__)
-logger = setup_logger(SCRIPT_NAME, logging.DEBUG)
+logger = setup_logger(SCRIPT_NAME, "DEBUG")
+
 
 PORT = SUBPROCESSES_PORTS["pregame_phase_detector"]
 STREAMERBOT_URL = STREAMERBOT_WS_URL

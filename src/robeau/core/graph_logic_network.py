@@ -2,7 +2,7 @@ import random
 import threading
 import time
 from collections import defaultdict
-from logging import DEBUG, Logger
+from logging import Logger
 from threading import Thread
 from typing import Literal, Optional
 
@@ -38,10 +38,11 @@ from src.robeau.classes.graph_logic_network_constants import (
     transmission_output_nodes,
 )
 from src.robeau.core.constants import AUDIO_MAPPINGS_FILE_PATH
-from src.utils.logging_utils import construct_script_name, log_empty_lines, setup_logger
+from src.utils.helpers import construct_script_name
+from src.utils.logging_utils import log_empty_lines, setup_logger
 
 SCRIPT_NAME = construct_script_name(__file__)
-logger = setup_logger(SCRIPT_NAME, level=DEBUG)
+logger = setup_logger(SCRIPT_NAME, "DEBUG")
 
 
 class TypingDetector:
@@ -1346,7 +1347,7 @@ def define_labels(
     source: QuerySource,
 ) -> list[str]:
 
-    labels:list[str] = []
+    labels: list[str] = []
 
     if source == USER:
         labels = handle_user_input_labelling(session, text, conversation_state, labels)
