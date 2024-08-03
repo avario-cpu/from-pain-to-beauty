@@ -107,8 +107,8 @@ async def main():
         if socket_server_task:
             socket_server_task.cancel()
             await socket_server_task
-        if shop_tracker and shop_tracker.ws_client:
-            await shop_tracker.ws_client.close()
+        if shop_tracker and shop_tracker.ws:
+            await shop_tracker.ws.close()
         if slots_db_conn:
             await slots_db_conn.close()
         cv.destroyAllWindows()

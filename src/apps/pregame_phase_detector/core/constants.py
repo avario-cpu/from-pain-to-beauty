@@ -57,14 +57,12 @@ HERO_PICK_TEMPLATE = cv.imread(
 
 # Paths to JSON request files for scene changes
 SCENE_CHANGE_IN_GAME = (
-    "src/apps/pregame_phase_detector/ws_requests/scene_change_in_game.json"
+    "src/apps/pregame_phase_detector/data/ws_requests/scene_change_in_game.json"
 )
-SCENE_CHANGE_DSLR_MOVE_HERO_PICK = (
-    "src/apps/pregame_phase_detector/ws_requests/scene_change_dslr_move_hero_pick.json"
-)
+SCENE_CHANGE_DSLR_MOVE_HERO_PICK = "src/apps/pregame_phase_detector/data/ws_requests/scene_change_dslr_move_hero_pick.json"
 DSLR_MOVE_STARTING_BUY = (
-    "src/apps/pregame_phase_detector/ws_requests/dslr_move_starting_buy.json"
+    "src/apps/pregame_phase_detector/data/ws_requests/dslr_move_starting_buy.json"
 )
 DSLR_HIDE_VS_SCREEN = (
-    "src/apps/pregame_phase_detector/ws_requests/dslr_hide_vs_screen.json"
+    "src/apps/pregame_phase_detector/data/ws_requests/dslr_hide_vs_screen.json"
 )

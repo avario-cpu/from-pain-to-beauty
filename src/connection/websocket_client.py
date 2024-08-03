@@ -21,7 +21,7 @@ class WebSocketClient:
         self.ws: Optional[WebSocketClientProtocol] = None
 
     async def establish_connection(self) -> Optional[WebSocketClientProtocol]:
-        self.logger.debug("Establishing websocket connection")
+        self.logger.info("Establishing websocket connection")
         try:
             self.ws = await websockets.connect(self.url)
             self.logger.info(f"Established websocket connection: {self.ws}")
