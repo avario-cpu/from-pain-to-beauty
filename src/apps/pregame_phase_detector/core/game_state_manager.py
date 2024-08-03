@@ -104,7 +104,7 @@ class GameStateManager:
                 break
         mute_ssim_prints.clear()
 
-    async def wait_for_settings_screen_fade_out(self):
+    async def wait_for_settings_screen_exiting_fade_out(self):
         self.tabbed.to_settings_screen = False
         await asyncio.sleep(0.25)
 
