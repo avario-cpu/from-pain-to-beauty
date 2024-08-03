@@ -36,8 +36,9 @@ class PreGamePhaseDetector:
                 and ssim_match["starting_buy"] < target
                 and ssim_match["dota_tab"] < target
                 and ssim_match["desktop_tab"] < target
+                and ssim_match["hero_pick"] > target
             ):
-                await self.state_manager.wait_for_starting_buy_screen_fade_out()
+                await self.state_manager.wait_for_starting_buy_screen_transition_out()
                 continue
 
             if (
@@ -62,7 +63,7 @@ class PreGamePhaseDetector:
                     and ssim_match["desktop_tab"] < target
                     and not self.state_manager.game_phase.hero_pick
                 ):
-                    await self.state_manager.set_state_hero_pick()
+                    await self.state_manager.set_back_state_hero_pick()
                     continue
 
                 if (

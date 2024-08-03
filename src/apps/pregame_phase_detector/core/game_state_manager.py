@@ -3,8 +3,9 @@ import time
 
 from src.apps.pregame_phase_detector.core.constants import (
     DSLR_HIDE_VS_SCREEN,
+    DSLR_MOVE_FOR_HERO_PICK,
     DSLR_MOVE_STARTING_BUY,
-    SCENE_CHANGE_DSLR_MOVE_HERO_PICK,
+    SCENE_CHANGE_FOR_PREGAME,
     SCENE_CHANGE_IN_GAME,
 )
 from src.apps.pregame_phase_detector.core.image_processor import ImageProcessor
@@ -32,14 +33,14 @@ class GameStateManager:
         self.game_phase.hero_pick = True
         print("\nFound a game")
         if self.ws:
-            await self.ws.send_json_requests(SCENE_CHANGE_IN_GAME)
+            await self.ws.send_json_requests(SCENE_CHANGE_FOR_PREGAME)
 
-    async def set_state_hero_pick(self):
+    async def set_back_state_hero_pick(self):
         self.tabbed.in_game = True
         self.game_phase.hero_pick = True
         print("\nBack to hero select")
         if self.ws:
-            await self.ws.send_json_requests(SCENE_CHANGE_DSLR_MOVE_HERO_PICK)
+            await self.ws.send_json_requests(DSLR_MOVE_FOR_HERO_PICK)
 
     async def set_state_starting_buy(self):
         self.tabbed.in_game = True
@@ -107,6 +108,6 @@ class GameStateManager:
         self.tabbed.to_settings_screen = False
         await asyncio.sleep(0.25)
 
-    async def wait_for_starting_buy_screen_fade_out(self):
+    async def wait_for_starting_buy_screen_transition_out(self):
         self.game_phase.starting_buy = False
-        await asyncio.sleep(0.25)
+        await asyncio.sleep(0.6)
