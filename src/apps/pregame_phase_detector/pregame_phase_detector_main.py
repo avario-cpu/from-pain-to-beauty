@@ -28,6 +28,8 @@ logger = setup_logger(SCRIPT_NAME, "DEBUG")
 
 PORT = SUBPROCESSES_PORTS["pregame_phase_detector"]
 
+# Making a test change to see if it is staged
+
 
 async def setup_new_capture_area(new_capture: bool, image_processor: ImageProcessor):
     """Only used for development purposes."""
@@ -72,7 +74,7 @@ async def main():
         await ws_client.establish_connection()
 
         detector = PreGamePhaseDetector(socket_server_handler, ws_client)
-        setup_new_capture_area(False, detector.image_processor)
+        await setup_new_capture_area(False, detector.image_processor)
         await run_main_task(slot, detector)
 
     except Exception as e:

@@ -57,10 +57,11 @@ async def manage_subprocess(message: str):
             f"&& set PYTHONPATH={PYTHONPATH}"
             f"&& .\\venv\\Scripts\\activate"
             f"&& cd {APPS_DIR_PATH}"
-            f"&& py {target}.py"
+            f"&& cd {target}"
+            f"&& py {target}_main.py"
         )
 
-        print(f"Starting {target}")
+        print(f"Attempting to start {target}")
 
         subprocess.Popen(command, shell=True)
 
