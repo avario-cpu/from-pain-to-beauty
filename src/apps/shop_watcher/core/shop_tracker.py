@@ -3,6 +3,14 @@ import random
 import time
 from typing import Optional
 
+from src.apps.shop_watcher.core.constants import (
+    BRB_BUYING_MILK_HIDE,
+    BRB_BUYING_MILK_SHOW,
+    DISPLAY_TIME_SINCE_SHOP_OPENED,
+    DSLR_HIDE,
+    DSLR_SHOW,
+    TIME_SINCE_SHOP_OPENED_TXT,
+)
 from src.connection.websocket_client import WebSocketClient
 from src.core.constants import STREAMERBOT_WS_URL
 
@@ -28,11 +36,11 @@ class ShopTracker:
             elapsed_time = round(time.time() - self.shop_opening_time)
             print(f"Shop has been open for {elapsed_time} seconds")
 
-            if elapsed_time >= 5 and not self.flags["reacted_to_open_short"]:
+            if elapsed_time >= 3 and not self.flags["reacted_to_open_short"]:
                 await self.react_to_shop_staying_open("short")
                 self.flags["reacted_to_open_short"] = True
 
-            if elapsed_time >= 15 and not self.flags["reacted_to_open_long"]:
+            if elapsed_time >= 5 and not self.flags["reacted_to_open_long"]:
                 await self.react_to_shop_staying_open("long", seconds=elapsed_time)
                 self.flags["reacted_to_open_long"] = True
             await asyncio.sleep(1)
@@ -59,26 +67,20 @@ class ShopTracker:
             await self.reset_flags()
 
     async def react_to_short_shop_opening(self):
-        await self.ws_client.send_json_requests(
-            "src/apps/shop_watcher/ws_requests/brb_buying_milk_show.json"
-        )
+        await self.ws_client.send_json_requests(BRB_BUYING_MILK_SHOW)
 
     async def react_to_long_shop_opening(self, seconds):
-        await self.ws_client.send_json_requests(
-            "src/apps/shop_watcher/ws_requests/brb_buying_milk_hide.json"
-        )
+        await self.ws_client.send_json_requests(BRB_BUYING_MILK_HIDE)
         start_time = time.time()
         while True:
-            elapsed_time = (
-                time.time() - start_time + seconds if seconds is not None else 0
-            )
+            elapsed_time = time.time() - start_time + seconds
             seconds_only = int(round(elapsed_time))
             formatted_time = f"{seconds_only:02d}"
-            with open("data/streamerbot_watched/time_with_shop_open.txt", "w") as file:
+            with open(TIME_SINCE_SHOP_OPENED_TXT, "w") as file:
                 file.write(
                     f"Bro you've been in the shop for {formatted_time} seconds, just buy something..."
                 )
-
+            await self.ws_client.send_json_requests(DISPLAY_TIME_SINCE_SHOP_OPENED)
             await asyncio.sleep(1)
 
     async def react_to_shop_staying_open(
@@ -91,10 +93,9 @@ class ShopTracker:
                 await self.react_to_short_shop_opening()
             else:
                 print("not reacting !")
-
         elif duration == "long":
             print("rolling for a reaction to shop staying open for a long while...")
-            if random.randint(1, 3) == 1:
+            if random.randint(1, 1) == 1:
                 print("reacting !")
                 await self.react_to_long_shop_opening(seconds)
             else:
@@ -103,10 +104,6 @@ class ShopTracker:
     async def react_to_shop(self, status: str):
         print(f"Shop just {status}")
         if status == "opened":
-            await self.ws_client.send_json_requests(
-                "src/apps/shop_watcher/ws_requests/dslr_hide.json"
-            )
+            await self.ws_client.send_json_requests(DSLR_HIDE)
         elif status == "closed":
-            await self.ws_client.send_json_requests(
-                "src/apps/shop_watcher/ws_requests/dslr_show.json"
-            )
+            await self.ws_client.send_json_requests(DSLR_SHOW)
