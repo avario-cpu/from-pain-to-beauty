@@ -36,11 +36,11 @@ class ShopTracker:
             elapsed_time = round(time.time() - self.shop_opening_time)
             print(f"Shop has been open for {elapsed_time} seconds")
 
-            if elapsed_time >= 3 and not self.flags["reacted_to_open_short"]:
+            if elapsed_time >= 5 and not self.flags["reacted_to_open_short"]:
                 await self.react_to_shop_staying_open("short")
                 self.flags["reacted_to_open_short"] = True
 
-            if elapsed_time >= 5 and not self.flags["reacted_to_open_long"]:
+            if elapsed_time >= 15 and not self.flags["reacted_to_open_long"]:
                 await self.react_to_shop_staying_open("long", seconds=elapsed_time)
                 self.flags["reacted_to_open_long"] = True
             await asyncio.sleep(1)
@@ -95,7 +95,7 @@ class ShopTracker:
                 print("not reacting !")
         elif duration == "long":
             print("rolling for a reaction to shop staying open for a long while...")
-            if random.randint(1, 1) == 1:
+            if random.randint(1, 3) == 1:
                 print("reacting !")
                 await self.react_to_long_shop_opening(seconds)
             else:

@@ -1,1 +1,1 @@
-Remember to change the filepath for [time_since_shop_opened.txt](time_since_shop_opened.txt) in Streamer.bot
+Remember to adjust the filepath for [time_since_shop_opened](time_since_shop_opened.txt) in Streamer.bot if changes are made
