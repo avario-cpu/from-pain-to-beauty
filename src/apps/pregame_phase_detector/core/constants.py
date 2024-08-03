@@ -1,5 +1,8 @@
+import os
+
 import cv2 as cv
 
+from src.config.settings import PROJECT_DIR_PATH
 from src.core.terminal_window_manager_v4 import SecondaryWindow
 
 # Opencv windows parameters, for resizing and moving using terminal_window_manager_v4
@@ -12,6 +15,8 @@ SECONDARY_WINDOWS = [
     SecondaryWindow("in_game_scanner", 150, 100),
 ]
 
+
+# but stage this ! (test, to be deleted)
 
 # Screen areas
 DOTA_TAB_AREA = {"left": 1860, "top": 10, "width": 60, "height": 40}
@@ -26,43 +31,76 @@ NEW_CAPTURE_AREA = {"left": 0, "top": 0, "width": 0, "height": 0}
 
 # Path to open CV templates
 DOTA_TAB_TEMPLATE = cv.imread(
-    "src/apps/pregame_phase_detector/data/opencv/dota_menu_power_icon.jpg",
+    os.path.join(
+        PROJECT_DIR_PATH,
+        "src/apps/pregame_phase_detector/data/opencv/dota_menu_power_icon.jpg",
+    ),
     cv.IMREAD_GRAYSCALE,
 )
+
 IN_GAME_TEMPLATE = cv.imread(
-    "src/apps/pregame_phase_detector/data/opencv/dota_courier_deliver_items_icon.jpg",
+    os.path.join(
+        PROJECT_DIR_PATH,
+        "src/apps/pregame_phase_detector/data/opencv/dota_courier_deliver_items_icon.jpg",
+    ),
     cv.IMREAD_GRAYSCALE,
 )
+
 STARTING_BUY_TEMPLATE = cv.imread(
-    "src/apps/pregame_phase_detector/data/opencv/dota_strategy-load-out-world-guides.jpg",
+    os.path.join(
+        PROJECT_DIR_PATH,
+        "src/apps/pregame_phase_detector/data/opencv/dota_strategy-load-out-world-guides.jpg",
+    ),
     cv.IMREAD_GRAYSCALE,
 )
+
 PLAY_DOTA_BUTTON_TEMPLATE = cv.imread(
-    "src/apps/pregame_phase_detector/data/opencv/dota_play_dota_button.jpg",
+    os.path.join(
+        PROJECT_DIR_PATH,
+        "src/apps/pregame_phase_detector/data/opencv/dota_play_dota_button.jpg",
+    ),
     cv.IMREAD_GRAYSCALE,
 )
+
 DESKTOP_TAB_TEMPLATE = cv.imread(
-    "src/apps/pregame_phase_detector/data/opencv/windows_desktop_icons.jpg",
+    os.path.join(
+        PROJECT_DIR_PATH,
+        "src/apps/pregame_phase_detector/data/opencv/windows_desktop_icons.jpg",
+    ),
     cv.IMREAD_GRAYSCALE,
 )
+
 SETTINGS_TEMPLATE = cv.imread(
-    "src/apps/pregame_phase_detector/data/opencv/dota_settings_icon.jpg",
+    os.path.join(
+        PROJECT_DIR_PATH,
+        "src/apps/pregame_phase_detector/data/opencv/dota_settings_icon.jpg",
+    ),
     cv.IMREAD_GRAYSCALE,
 )
+
 HERO_PICK_TEMPLATE = cv.imread(
-    "src/apps/pregame_phase_detector/data/opencv/dota_hero_select_chat_icons.jpg",
+    os.path.join(
+        PROJECT_DIR_PATH,
+        "src/apps/pregame_phase_detector/data/opencv/dota_hero_select_chat_icons.jpg",
+    ),
     cv.IMREAD_GRAYSCALE,
 )
 
 
 # Paths to JSON request files for scene changes
-SCENE_CHANGE_IN_GAME = (
-    "src/apps/pregame_phase_detector/data/ws_requests/scene_change_in_game.json"
+SCENE_CHANGE_IN_GAME = os.path.join(
+    PROJECT_DIR_PATH,
+    "src/apps/pregame_phase_detector/data/ws_requests/scene_change_in_game.json",
 )
-SCENE_CHANGE_DSLR_MOVE_HERO_PICK = "src/apps/pregame_phase_detector/data/ws_requests/scene_change_dslr_move_hero_pick.json"
-DSLR_MOVE_STARTING_BUY = (
-    "src/apps/pregame_phase_detector/data/ws_requests/dslr_move_starting_buy.json"
+SCENE_CHANGE_DSLR_MOVE_HERO_PICK = os.path.join(
+    PROJECT_DIR_PATH,
+    "src/apps/pregame_phase_detector/data/ws_requests/scene_change_dslr_move_hero_pick.json",
 )
-DSLR_HIDE_VS_SCREEN = (
-    "src/apps/pregame_phase_detector/data/ws_requests/dslr_hide_vs_screen.json"
+DSLR_MOVE_STARTING_BUY = os.path.join(
+    PROJECT_DIR_PATH,
+    "src/apps/pregame_phase_detector/data/ws_requests/dslr_move_starting_buy.json",
+)
+DSLR_HIDE_VS_SCREEN = os.path.join(
+    PROJECT_DIR_PATH,
+    "src/apps/pregame_phase_detector/data/ws_requests/dslr_hide_vs_screen.json",
 )
