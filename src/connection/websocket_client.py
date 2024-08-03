@@ -63,9 +63,3 @@ class WebSocketClient:
     @staticmethod
     def assign_default_logger() -> Logger:
         return setup_logger(SCRIPT_NAME, "DEBUG")
-
-
-# Usage example:
-# client = WebSocketClient(url="ws://example.com")
-# await client.establish_connection()
-# await client.send_json_requests(["path/to/json1", "path/to/json2"])
