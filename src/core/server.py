@@ -90,16 +90,10 @@ async def manage_subprocess(message: str):
 
 
 async def manage_windows(conn: aiosqlite.Connection, message: str):
-    if message == "bring to top":
-        await twm.bring_windows_to_foreground(conn)
-    elif message == "set topmost":
-        await twm.set_windows_to_topmost(conn)
-    elif message == "unset topmost":
-        await twm.unset_windows_to_topmost(conn)
-    elif message == "refit":
+    if message == "refit":
         await twm.refit_all_windows(conn)
-    elif message == "restore":
-        await twm.restore_all_windows(conn)
+    elif message == "refit_server":
+        await twm.restore_all_windows(conn, server=True)
     else:
         print("Invalid windows path message, does not fit any use case")
 

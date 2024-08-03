@@ -48,13 +48,20 @@ async def get_all_windows_names(conn: aiosqlite.Connection) -> list[str]:
     return names
 
 
-async def set_windows_to_topmost(conn: aiosqlite.Connection):
+async def set_windows_to_topmost(
+    conn: aiosqlite.Connection, server: Optional[bool] = False
+):
     """Set the scripts windows to be on top of the screen."""
-    windows_names = await get_all_windows_names(conn)
+    print("reached")
+    windows_names = (
+        await get_all_windows_names(conn) if not server else [SERVER_WINDOW_NAME]
+    )
+    print(windows_names)
     windows_names.reverse()  # helps with having secondary windows (who spawn
     # later) on top of the main terminal.
     for name in windows_names:
         window = win32gui.FindWindow(None, name)
+        print(window)
         if window:
             win32gui.SetWindowPos(
                 window,
@@ -67,9 +74,13 @@ async def set_windows_to_topmost(conn: aiosqlite.Connection):
             )
 
 
-async def unset_windows_to_topmost(conn: aiosqlite.Connection):
+async def unset_windows_to_topmost(
+    conn: aiosqlite.Connection, server: Optional[bool] = False
+):
     """Set the scripts windows fore/background behavior back to normal."""
-    windows_names = await get_all_windows_names(conn)
+    windows_names = (
+        await get_all_windows_names(conn) if not server else [SERVER_WINDOW_NAME]
+    )
     for name in windows_names:
         window = win32gui.FindWindow(None, name)
         if window:
@@ -84,9 +95,13 @@ async def unset_windows_to_topmost(conn: aiosqlite.Connection):
             )
 
 
-async def restore_all_windows(conn: aiosqlite.Connection):
+async def restore_all_windows(
+    conn: aiosqlite.Connection, server: Optional[bool] = False
+):
     """Restore to normal size all windows who have been minimized/maximized"""
-    windows_names = await get_all_windows_names(conn)
+    windows_names = (
+        await get_all_windows_names(conn) if not server else [SERVER_WINDOW_NAME]
+    )
     for name in windows_names:
         window = gw.getWindowsWithTitle(name)
         if window:
@@ -94,11 +109,13 @@ async def restore_all_windows(conn: aiosqlite.Connection):
             window.restore()
 
 
-async def bring_windows_to_foreground(conn: aiosqlite.Connection):
+async def bring_windows_to_foreground(
+    conn: aiosqlite.Connection, server: Optional[bool] = False
+):
     """Bring the script windows to the foreground"""
-    await restore_all_windows(conn)
-    await set_windows_to_topmost(conn)
-    await unset_windows_to_topmost(conn)
+    await restore_all_windows(conn, server)
+    await set_windows_to_topmost(conn, server)
+    await unset_windows_to_topmost(conn, server)
 
 
 def set_window_title(title: str):
@@ -162,8 +179,6 @@ def calculate_main_window_properties(window_type: WinType, slot: int):
         x_pos = -1920
         y_pos = 640
         return width, height, x_pos, y_pos
-
-    return None
 
 
 def calculate_secondary_window_properties(
