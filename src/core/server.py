@@ -93,7 +93,7 @@ async def manage_windows(conn: aiosqlite.Connection, message: str):
     if message == "refit":
         await twm.refit_all_windows(conn)
     elif message == "refit_server":
-        await twm.restore_all_windows(conn, server=True)
+        await twm.bring_windows_to_foreground(conn, server=True)
     else:
         print("Invalid windows path message, does not fit any use case")
 

@@ -52,7 +52,6 @@ async def set_windows_to_topmost(
     conn: aiosqlite.Connection, server: Optional[bool] = False
 ):
     """Set the scripts windows to be on top of the screen."""
-    print("reached")
     windows_names = (
         await get_all_windows_names(conn) if not server else [SERVER_WINDOW_NAME]
     )
@@ -61,7 +60,6 @@ async def set_windows_to_topmost(
     # later) on top of the main terminal.
     for name in windows_names:
         window = win32gui.FindWindow(None, name)
-        print(window)
         if window:
             win32gui.SetWindowPos(
                 window,
@@ -301,6 +299,7 @@ async def reset_windows_positions(conn: aiosqlite.Connection):
     for slot in occupied_slots:
         data = await sdh.get_full_data(conn, slot)
         logger.info(f"Rearrangement data obtained for slot {slot}: {data}")
+
         if data is not None and len(data) > 0 and len(data[0]) > 0:
             await readjust_main_window(slot, data[0][0])
             await readjust_secondary_windows(slot, data)
@@ -311,14 +310,17 @@ async def refit_all_windows(conn: aiosqlite.Connection):
     makes them return back to their position and to the foreground"""
     logger.info("Refitting all windows...")
     pairs = await search_for_vacant_slots(conn) or {}
+
     for slot, new_slot in pairs.items():
         data = await sdh.get_full_data(conn, slot)
         logger.info(f"Rearrangement data obtained: {data}")
+
         if data is not None and len(data) > 0 and len(data[0]) > 0:
             await sdh.free_slot(conn, slot)
             await sdh.occupy_slot_with_data(conn, new_slot, data)
             await readjust_main_window(new_slot, data[0][0])
             await readjust_secondary_windows(new_slot, data)
+
     await reset_windows_positions(conn)
     await bring_windows_to_foreground(conn)
 
