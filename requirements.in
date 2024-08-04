@@ -6,6 +6,7 @@ mss
 numpy
 black
 opencv-python
+opencv-python-headless
 pip-tools
 pyaudio
 neo4j
