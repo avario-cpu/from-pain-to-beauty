@@ -11,7 +11,11 @@ from src.apps.shop_watcher.core.shop_watcher import ShopWatcher
 from src.apps.shop_watcher.core.socket_handler import ShopWatcherHandler
 from src.connection.websocket_client import WebSocketClient
 from src.core import terminal_window_manager_v4 as twm
-from src.core.constants import STREAMERBOT_WS_URL, SUBPROCESSES_PORTS
+from src.core.constants import (
+    STOP_SUBPROCESS_MESSAGE,
+    STREAMERBOT_WS_URL,
+    SUBPROCESSES_PORTS,
+)
 from src.core.constants import TERMINAL_WINDOW_SLOTS_DB_FILE_PATH as SLOTS_DB
 from src.utils.helpers import construct_script_name, print_countdown
 from src.utils.logging_utils import setup_logger
@@ -45,7 +49,9 @@ async def main():
             logger.error("No slot available, exiting.")
             return
 
-        socket_server_handler = ShopWatcherHandler(PORT, logger)
+        socket_server_handler = ShopWatcherHandler(
+            port=PORT, stop_message=STOP_SUBPROCESS_MESSAGE, logger=logger
+        )
         socket_server_task = asyncio.create_task(
             socket_server_handler.run_socket_server()
         )

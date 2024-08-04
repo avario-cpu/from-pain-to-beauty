@@ -16,8 +16,6 @@ SECONDARY_WINDOWS = [
 ]
 
 
-# but stage this ! (test, to be deleted)
-
 # Screen areas
 DOTA_TAB_AREA = {"left": 1860, "top": 10, "width": 60, "height": 40}
 STARTING_BUY_AREA = {"left": 860, "top": 120, "width": 400, "height": 30}
