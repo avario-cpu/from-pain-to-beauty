@@ -98,10 +98,6 @@ async def manage_windows(conn: aiosqlite.Connection, message: str):
         print("Invalid windows path message, does not fit any use case")
 
 
-# Added a comment to test git (to be    removed)
-test_value = 0
-
-
 async def manage_database(conn: aiosqlite.Connection, message: str):
     if message == "free all slots":
         await sdh.free_all_slots(conn)
