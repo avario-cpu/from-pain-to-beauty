@@ -1188,8 +1188,8 @@ def query_database(
                 queries.append(
                     f"""
                     MATCH (x:{label})-[r]->(y)
-                    WHERE x.context = $listening_context 
-                    AND toLower(x.text) = toLower($text) 
+                    WHERE x.context = $listening_context
+                    AND toLower(x.text) = toLower($text)
                     RETURN x, r, y
                     """
                 )
@@ -1199,7 +1199,7 @@ def query_database(
             queries.append(
                 f"""
                 MATCH (x:{label})-[r]->(y)
-                WHERE toLower(x.text) = toLower($text) 
+                WHERE toLower(x.text) = toLower($text)
                 RETURN x, r, y
                 """
             )
@@ -1539,6 +1539,9 @@ def establish_connection():
     start_time = time.time()
     if NEO4J_URI:
         driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+    else:
+        raise ConnectionError("Failed to establish connection to Neo4j database")
+
     session = driver.session()
 
     session.run("RETURN 1").consume()  # Warmup query
@@ -1626,7 +1629,7 @@ def launch_specified_query(
         node_thread.start()
 
     elif query_type == "forced":
-        """Used for testing to trigger any node without any restrictions"""
+        # Used for testing to trigger any node without any restrictions
         upper_node = str(thread_args["node"]).upper()
         if upper_node in transmission_output_nodes:
             logger.info(
@@ -1707,7 +1710,8 @@ def create_prompt_session():
         print(
             """
             Failed to create PromptSession: Running from an IDE ?\n
-            Expect weird behavior in the input prompt when typing while a thread prints at the same time.\n Program is better off run from the terminal, everything should still work though."""
+            Expect weird behavior in the input prompt when typing while a thread prints at the same time.\n
+            Program is better off run from the terminal, everything should still work though."""
         )
         logger.warning(e)
         return
