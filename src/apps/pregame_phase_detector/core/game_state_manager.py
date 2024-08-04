@@ -32,42 +32,36 @@ class GameStateManager:
         self.tabbed.in_game = True
         self.game_phase.hero_pick = True
         print("\nFound a game")
-        if self.ws:
-            await self.ws.send_json_requests(SCENE_CHANGE_FOR_PREGAME)
+        await self.ws.send_json_requests(SCENE_CHANGE_FOR_PREGAME)
 
     async def set_back_state_hero_pick(self):
         self.tabbed.in_game = True
         self.game_phase.hero_pick = True
         print("\nBack to hero select")
-        if self.ws:
-            await self.ws.send_json_requests(DSLR_MOVE_FOR_HERO_PICK)
+        await self.ws.send_json_requests(DSLR_MOVE_FOR_HERO_PICK)
 
     async def set_state_starting_buy(self):
         self.tabbed.in_game = True
         self.game_phase.starting_buy = True
         print("\nStarting buy")
-        if self.ws:
-            await self.ws.send_json_requests(DSLR_MOVE_STARTING_BUY)
+        await self.ws.send_json_requests(DSLR_MOVE_STARTING_BUY)
 
     async def set_state_vs_screen(self):
         self.tabbed.in_game = True
         self.game_phase.versus_screen = True
-        if self.ws:
-            await self.ws.send_json_requests(DSLR_HIDE_VS_SCREEN)
+        await self.ws.send_json_requests(DSLR_HIDE_VS_SCREEN)
         print("\nWe are in vs screen")
 
     async def set_state_in_game(self):
         self.tabbed.in_game = True
         self.game_phase.in_game = True
-        if self.ws:
-            await self.ws.send_json_requests(SCENE_CHANGE_IN_GAME)
+        await self.ws.send_json_requests(SCENE_CHANGE_IN_GAME)
         print("\nWe are in now game")
 
     async def set_state_dota_menu(self):
         self.tabbed.to_dota_menu = True
         self.game_phase.unknown = True
-        if self.ws:
-            await self.ws.send_json_requests(DSLR_HIDE_VS_SCREEN)
+        await self.ws.send_json_requests(DSLR_HIDE_VS_SCREEN)
         print("\nWe are in Dota Menus")
 
     async def set_state_desktop(self):
@@ -78,8 +72,7 @@ class GameStateManager:
     async def set_state_settings_screen(self):
         self.tabbed.to_settings_screen = True
         self.game_phase.unknown = True
-        if self.ws:
-            await self.ws.send_json_requests(DSLR_HIDE_VS_SCREEN)
+        await self.ws.send_json_requests(DSLR_HIDE_VS_SCREEN)
         print("\nWe are in settings")
 
     async def confirm_transition_to_vs_screen(self, target_value: float):

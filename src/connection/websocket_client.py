@@ -37,7 +37,7 @@ class WebSocketClient:
             json_file_paths = [json_file_paths]
 
         if not self.ws:
-            self.logger.error("No websocket connection established")
+            self.logger.warning("No websocket connection established")
             return
 
         for json_file in json_file_paths:
