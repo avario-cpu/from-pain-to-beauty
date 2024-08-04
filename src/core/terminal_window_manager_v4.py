@@ -188,9 +188,9 @@ def calculate_secondary_window_properties(
     y_pos_offset = 0
     logger.debug(f"Calculating secondary properties for slot {slot}")
 
-    for i in range(len(secondary_windows)):
-        width = secondary_windows[i].width
-        height = secondary_windows[i].height
+    for window in secondary_windows:
+        width = window.width
+        height = window.height
 
         if x_pos_offset - width < 0:
             # move to the next line
@@ -204,13 +204,13 @@ def calculate_secondary_window_properties(
         )
         y_pos = y_pos_offset + (MAIN_WINDOW_HEIGHT * (slot % MAX_WINDOWS_PER_COLUMN))
 
-        props = width, height, x_pos, y_pos
+        props = (width, height, x_pos, y_pos)
         properties.append(props)
 
         x_pos_offset -= width  # decrement x_pos_offset for the next window
 
     logger.info(
-        f"Secondary properties for {[win.name for win in secondary_windows]} "
+        f"Secondary properties for {[window.name for window in secondary_windows]} "
         f"calculated are {properties}"
     )
 
@@ -240,9 +240,8 @@ def generate_window_data(
 ):
     data = [(title, MAIN_WINDOW_WIDTH, MAIN_WINDOW_HEIGHT)]
     if secondary_windows:
-        sw = secondary_windows
-        for i in range(len(sw)):
-            sw_tuple = sw[i].name, sw[i].width, sw[i].height
+        for window in secondary_windows:
+            sw_tuple = (window.name, window.width, window.height)
             data.append(sw_tuple)
     return data
 
@@ -287,10 +286,10 @@ async def readjust_secondary_windows(free_slot: int, data: list[tuple[str, int, 
         SecondaryWindow(data[i][0], data[i][1], data[i][2]) for i in range(1, len(data))
     ]
 
-    props = calculate_secondary_window_properties(free_slot, secondary_windows)
+    properties = calculate_secondary_window_properties(free_slot, secondary_windows)
 
-    for i in range(len(secondary_windows)):
-        await adjust_window(secondary_windows[i].name, props[i])
+    for window, props in zip(secondary_windows, properties):
+        await adjust_window(window.name, props)
 
 
 async def reset_windows_positions(conn: aiosqlite.Connection):
@@ -328,8 +327,8 @@ async def refit_all_windows(conn: aiosqlite.Connection):
 async def manage_secondary_windows(slot: int, secondary_windows: list[SecondaryWindow]):
     """Fit secondary windows next to main one"""
     properties = calculate_secondary_window_properties(slot, secondary_windows)
-    for i in range(0, len(secondary_windows)):
-        await adjust_window(secondary_windows[i].name, properties[i])
+    for window, props in zip(secondary_windows, properties):
+        await adjust_window(window.name, props)
 
 
 async def manage_window(
