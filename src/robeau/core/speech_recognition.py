@@ -27,7 +27,9 @@ class MicrophoneStream:
         self._chunk = chunk
         self._buff: queue.Queue = queue.Queue()
         self.closed = True
-        self.pause_event = pause_event  # Add this line
+        self.pause_event = pause_event
+        self._audio_interface = None
+        self._audio_stream = None
 
     def __enter__(self):
         self._audio_interface = pyaudio.PyAudio()
@@ -113,6 +115,7 @@ async def recognize_speech(handler, pause_event: Optional[threading.Event] = Non
             for content in audio_generator
         )
 
+        # pylint: disable=E1123
         responses = client.streaming_recognize(
             config=streaming_config,
             requests=requests,

@@ -61,7 +61,7 @@ async def delete_slots_table(conn: aiosqlite.Connection):
 async def initialize_slots(conn: aiosqlite.Connection):
     """populate the table with slots id and their "is_open" bool value"""
     try:
-        sql = """INSERT INTO slots (id, is_open) 
+        sql = """INSERT INTO slots (id, is_open)
         VALUES (?, ?)"""
         for i in range(0, AMOUNT_OF_SLOTS):
             await conn.execute(sql, (i, True))

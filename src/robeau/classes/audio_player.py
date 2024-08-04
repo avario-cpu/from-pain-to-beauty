@@ -107,7 +107,7 @@ class AudioPlayer:
             self._thread_done(stop_event, termination_reason="end")
 
         except Exception as e:
-            self.logger.exception(f"Exception in _play_audio: {str(e)}")
+            self.logger.exception(f"Exception in _play_audio: {e}")
             self._thread_done(stop_event, termination_reason="error")
 
     def stop_audio(self):

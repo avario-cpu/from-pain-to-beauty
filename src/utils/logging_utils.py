@@ -54,11 +54,3 @@ def log_empty_lines(logger: Logger, lines: int = 1):
         if isinstance(handler, logging.FileHandler):
             handler.stream.write(lines * "\n")
             handler.flush()
-
-
-# Usage example
-if __name__ == "__main__":
-    logger = setup_logger("my_script", "DEBUG")
-    logger.info("This is an info message.")
-    log_empty_lines(logger, 2)
-    logger.info("This message is after two empty lines.")

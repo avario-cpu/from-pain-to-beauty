@@ -18,7 +18,7 @@ GREETING = QuerySource.GREETING
 ADMIN = QuerySource.ADMIN
 
 
-"""Below are a list of transmission nodes: They are nodes either triggered by code logic (input) or that will trigger 
+"""Below are a list of transmission nodes: They are nodes either triggered by code logic (input) or that will trigger
 particular code logic (output)"""
 
 # Inputs ------------------------------------

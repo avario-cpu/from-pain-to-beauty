@@ -4,7 +4,7 @@ from logging import Logger
 import cv2 as cv
 import mss
 import numpy as np
-from skimage.metrics import structural_similarity as ssim
+from skimage.metrics import structural_similarity as ssim  # pylint: disable-msg=E0611
 
 from src.apps.shop_watcher.core.constants import (
     SCREEN_CAPTURE_AREA,
@@ -18,9 +18,6 @@ from src.apps.shop_watcher.core.shared_events import (
 from src.apps.shop_watcher.core.shop_tracker import ShopTracker
 from src.apps.shop_watcher.core.socket_handler import ShopWatcherHandler
 from src.connection.websocket_client import WebSocketClient
-from src.utils.logging_utils import setup_logger
-
-logger = setup_logger("shop_watcher", "DEBUG")
 
 
 class ShopWatcher:

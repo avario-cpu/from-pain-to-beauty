@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import List, Optional, Union
+from typing import Optional
 
 import websockets
 from websockets import (

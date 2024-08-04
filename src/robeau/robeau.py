@@ -173,6 +173,11 @@ class RobeauHandler:
 
 
 async def main():
+    db_conn = None
+    driver = None
+    stop_event = None
+    update_thread = None
+
     try:
         db_conn, _ = await setup_script(SCRIPT_NAME, TERMINAL_WINDOW_SLOTS_DB_FILE_PATH)
         driver, session, conversation_state, stop_event, update_thread, pause_event = (
