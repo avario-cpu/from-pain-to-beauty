@@ -1,6 +1,7 @@
 import asyncio
 import random
 import time
+from logging import Logger
 from typing import Optional
 
 from src.apps.shop_watcher.core.constants import (
@@ -12,20 +13,16 @@ from src.apps.shop_watcher.core.constants import (
     TIME_SINCE_SHOP_OPENED_TXT,
 )
 from src.connection.websocket_client import WebSocketClient
-from src.core.constants import STREAMERBOT_WS_URL
 
 
 class ShopTracker:
-    def __init__(self, logger):
+    def __init__(self, logger: Logger, ws_client: WebSocketClient):
         self.shop_is_currently_open = False
         self.shop_opening_time = 0.0
         self.shop_open_duration_task = None
         self.flags = {"reacted_to_open_short": False, "reacted_to_open_long": False}
         self.logger = logger
-        self.ws_client = WebSocketClient(STREAMERBOT_WS_URL, logger)
-
-    async def initialize_ws_client(self):
-        await self.ws_client.establish_connection()
+        self.ws = ws_client
 
     async def reset_flags(self):
         for key in self.flags:
@@ -67,10 +64,10 @@ class ShopTracker:
             await self.reset_flags()
 
     async def react_to_short_shop_opening(self):
-        await self.ws_client.send_json_requests(BRB_BUYING_MILK_SHOW)
+        await self.ws.send_json_requests(BRB_BUYING_MILK_SHOW)
 
     async def react_to_long_shop_opening(self, seconds):
-        await self.ws_client.send_json_requests(BRB_BUYING_MILK_HIDE)
+        await self.ws.send_json_requests(BRB_BUYING_MILK_HIDE)
         start_time = time.time()
         while True:
             elapsed_time = time.time() - start_time + seconds
@@ -80,7 +77,7 @@ class ShopTracker:
                 file.write(
                     f"Bro you've been in the shop for {formatted_time} seconds, just buy something..."
                 )
-            await self.ws_client.send_json_requests(DISPLAY_TIME_SINCE_SHOP_OPENED)
+            await self.ws.send_json_requests(DISPLAY_TIME_SINCE_SHOP_OPENED)
             await asyncio.sleep(1)
 
     async def react_to_shop_staying_open(
@@ -104,6 +101,6 @@ class ShopTracker:
     async def react_to_shop(self, status: str):
         print(f"Shop just {status}")
         if status == "opened":
-            await self.ws_client.send_json_requests(DSLR_HIDE)
+            await self.ws.send_json_requests(DSLR_HIDE)
         elif status == "closed":
-            await self.ws_client.send_json_requests(DSLR_SHOW)
+            await self.ws.send_json_requests(DSLR_SHOW)
