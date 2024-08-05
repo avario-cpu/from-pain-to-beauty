@@ -4,7 +4,7 @@ from typing import Dict
 import cv2 as cv
 import mss
 import numpy as np
-from skimage.metrics import structural_similarity as ssim
+from skimage.metrics import structural_similarity as ssim  # pylint: disable=E0611
 
 from src.apps.pregame_phase_detector.core.constants import (
     DESKTOP_TAB_AREA,
