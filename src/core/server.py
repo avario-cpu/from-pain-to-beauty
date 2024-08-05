@@ -15,7 +15,7 @@ from websockets import WebSocketServerProtocol
 
 from src.config.settings import PROJECT_DIR_PATH, PYTHONPATH
 from src.core import slots_db_handler as sdh
-from src.core import terminal_window_manager_v4 as twm
+from src.core import terminal_window_manager_v4_old as twm
 from src.core.constants import (
     APPS_DIR_PATH,
     LOCK_FILES_DIR_PATH,
@@ -100,7 +100,7 @@ async def manage_windows(conn: aiosqlite.Connection, message: str):
 
 async def manage_database(conn: aiosqlite.Connection, message: str):
     if message == "free all slots":
-        await sdh.free_all_slots(conn)
+        await sdh.free_all_slots(conn, verbose=True)
         await sdh.free_all_denied_slots(conn)
     else:
         print("Invalid database path message, does not fit any use")

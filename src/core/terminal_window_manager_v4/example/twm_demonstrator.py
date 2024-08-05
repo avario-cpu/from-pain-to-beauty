@@ -6,18 +6,19 @@ from src.core.constants import PROJECT_DIR_PATH
 
 
 def launch_main_script():
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    target = "twm_v4.py"
+    """Simulate the launching of an application using the terminal window manager."""
+    example_dir = os.path.dirname(os.path.realpath(__file__))
+    example_main_script = "twm_demonstrator.py"
 
     command = (
         f'start cmd /k "cd /d {PROJECT_DIR_PATH}'
         f"&& set PYTHONPATH={PYTHONPATH}"
         f"&& .\\venv\\Scripts\\activate"
-        f"&& cd {script_dir}"
-        f"&& py {target}"
+        f"&& cd {example_dir}"
+        f"&& py {example_main_script}"
     )
 
-    print(f"Attempting to start {target}")
+    print(f"Attempting to start {example_main_script}")
 
     subprocess.Popen(command, shell=True)
 

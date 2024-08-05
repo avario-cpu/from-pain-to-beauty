@@ -220,7 +220,7 @@ def free_slot_sync(conn: sqlite3.Connection, slot_id: int):
             cursor.close()
 
 
-async def free_all_slots(conn: aiosqlite.Connection):
+async def free_all_slots(conn: aiosqlite.Connection, verbose: bool = False):
     """Free all slots and remove all their data"""
     try:
         async with conn.cursor() as cur:
@@ -237,6 +237,8 @@ async def free_all_slots(conn: aiosqlite.Connection):
                 )
 
             await conn.commit()
+            if verbose:
+                print("All slots are now free.")
 
     except aiosqlite.Error as e:
         print(e)
