@@ -400,6 +400,9 @@ class MainManager:
 
 
 async def main() -> None:
+    """Either to demonstrate the repositionement when running this script from a separate terminal window or
+    to demonstrate for multiple windows when this script is run as an individual subprocess.
+    """
     script_dir = os.path.dirname(os.path.realpath(__file__))
 
     # Paths to the batch files
