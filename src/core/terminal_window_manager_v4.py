@@ -10,7 +10,7 @@ import win32con
 import win32gui
 
 from src.core import slots_db_handler as sdh
-from src.core.constants import SERVER_WINDOW_NAME
+from src.core.constants import SERVER_WINDOW_NAME, TERMINAL_WINDOW_SLOTS_DB_FILE_PATH
 from src.utils.helpers import construct_script_name
 from src.utils.logging_utils import setup_logger
 
@@ -350,10 +350,11 @@ async def manage_window(
 
 async def main():
     # Example usage
-    conn = await sdh.create_connection("../../data/slots.db")
+    conn = await sdh.create_connection(TERMINAL_WINDOW_SLOTS_DB_FILE_PATH)
     await manage_window(conn, WinType.ACCEPTED, "Example Script")
     if conn:
         await sdh.free_all_slots(conn)
+    print("Done")
 
 
 if __name__ == "__main__":
