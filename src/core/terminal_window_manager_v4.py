@@ -263,11 +263,6 @@ async def search_for_vacant_slots(conn: aiosqlite.Connection) -> dict[int, int]:
             new_slot = free_slots[i]
             if current_slot > free_slots[i]:
                 pairs[current_slot] = new_slot
-            else:
-                logger.debug(
-                    f"Slot {new_slot} is free but comes later "
-                    f"than latest occupied slot {current_slot}"
-                )
     if pairs:
         logger.info(f"Vacant pairs found: {pairs}")
     else:
