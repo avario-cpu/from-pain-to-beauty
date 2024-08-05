@@ -1,6 +1,5 @@
 import asyncio
 import os
-import subprocess
 import time
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple
@@ -11,7 +10,7 @@ import win32con
 import win32gui
 
 from src.core import slots_db_handler as sdh
-from src.core.constants import SERVER_WINDOW_NAME, TERMINAL_WINDOW_SLOTS_DB_FILE_PATH
+from src.core.constants import SERVER_WINDOW_NAME
 from src.utils.helpers import construct_script_name
 from src.utils.logging_utils import setup_logger
 
@@ -397,49 +396,3 @@ class MainManager:
     async def refit_all_windows(self, conn: aiosqlite.Connection) -> None:
         await self.manager.refit_all_windows(conn)
         logger.info("Refitted all windows.")
-
-
-async def main(free_slots=False) -> None:
-    """Either to demonstrate the repositionement when running this script from a separate terminal window or
-    to demonstrate for multiple windows when this script is run as an individual subprocess.
-
-    Args: free_slots (bool, optional): Whether to free all DB slots after adjusting.
-    """
-
-    def spawn_secondary_window(
-        title: str = "Secondary Window", width: str = "200", height: str = "200"
-    ) -> None:
-        subprocess.Popen(["python", script_file, title, width, height])
-
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    script_file = os.path.join(script_dir, "secondary_window.py")
-
-    conn = await sdh.create_connection(TERMINAL_WINDOW_SLOTS_DB_FILE_PATH)
-    if conn:
-        main_manager = MainManager()
-        slot, _ = await main_manager.adjust_window(
-            conn, WinType.ACCEPTED, "Example Script"
-        )
-        if slot is not None:
-            secondary_windows = [
-                SecondaryWindow(name="Secondary Window 1", width=150, height=150),
-                SecondaryWindow(name="Secondary Window 2", width=150, height=150),
-            ]
-            for window in secondary_windows:
-                spawn_secondary_window(
-                    window.name, str(window.width), str(window.height)
-                )
-
-            await asyncio.sleep(1)  # Give some time for the windows to appear
-            await main_manager.adjust_secondary_windows(slot, secondary_windows)
-
-        if free_slots:
-            await sdh.free_all_slots(conn)
-
-        print("Adjusted.")
-    else:
-        print("Connection with DB failed to be established.")
-
-
-if __name__ == "__main__":
-    asyncio.run(main(free_slots=False))
