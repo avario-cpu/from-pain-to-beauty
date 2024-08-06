@@ -14,8 +14,8 @@ import websockets
 from websockets import WebSocketServerProtocol
 
 from src.config.settings import PROJECT_DIR_PATH, PYTHONPATH
+from src.core import old as twm
 from src.core import slots_db_handler as sdh
-from src.core import terminal_window_manager_v4_old as twm
 from src.core.constants import (
     APPS_DIR_PATH,
     LOCK_FILES_DIR_PATH,

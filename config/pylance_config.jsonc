@@ -1,0 +1,18 @@
+{
+    "python.analysis.typeCheckingMode": "basic",  // Use basic type checking to complement mypy, avoiding redundancy
+    "python.analysis.diagnosticMode": "workspace",  // Analyze the entire workspace for comprehensive error detection
+    "python.analysis.useLibraryCodeForTypes": true,  // Enhance type information from external libraries for better analysis
+    "python.analysis.autoSearchPaths": true,  // Automatically detect and add necessary search paths to reduce configuration overhead
+    "python.analysis.extraPaths": ["./src"],  // Ensure Pylance can find modules in the specified additional paths
+    "python.analysis.completeFunctionParens": true,  // Improve coding efficiency by auto-completing function parentheses
+    "python.analysis.logLevel": "Error",  // Focus on errors to reduce noise from less critical issues
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportGeneralTypeIssues": "none",  // Avoid duplication with mypy's type checking
+        "reportUnusedImport": "none",       // Prevent duplication with pylint's unused import checks
+        "reportUndefinedVariable": "warning",  // Change to warning to keep quickfix but reduce prominence (allows to jump across errors without duplicates (alt f8))
+        "reportMissingTypeStubs": "none",   // Reduce noise from missing type stubs, managed manually if necessary
+        "reportPrivateUsage": "none",       // Minimize false positives from accessing private members
+        "reportOptionalSubscript": "none",  // Avoid redundancy with other type checks
+        "reportOptionalMemberAccess": "none" // Avoid redundancy with other type checks
+    }
+}

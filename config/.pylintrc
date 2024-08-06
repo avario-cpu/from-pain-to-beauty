@@ -1,0 +1,20 @@
+
+[MESSAGES CONTROL]
+# Disable specific messages to avoid overlap with flake8 and to reduce annoyance
+disable = 
+    C0114,  # missing-module-docstring (to avoid annoyance, might change)
+    C0115,  # missing-class-docstring (to avoid annoyance, might change)
+    C0116,  # missing-function-docstring (to avoid annoyance, might change)
+    W1203,  # logging-fstring-interpolation (f-strings are handy even if less optimal)
+    W1201,  # logging-not-lazy (f-strings are handy even if less optimal)
+    E1101,  # no-member (often handled by mypy)
+    W1514,  # unsupported-builtin-appeal (specific scenario handling)
+    W0718   # broad-except (may be acceptable in specific cases)
+
+[BASIC]
+# Set a standard line length limit
+max-line-length = 110 # might reduce to 100, but should really only concern comments, fstrings and docstrings
+
+[MASTER]
+# Allow extensions from certain packages
+extension-pkg-allow-list = cv2, win32gui

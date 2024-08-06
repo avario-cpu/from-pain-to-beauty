@@ -48,7 +48,7 @@ async def setup_optional_new_capture_area(
 async def run_main_task(
     slot: int,
     detector: PreGamePhaseDetector,
-):
+) -> None:
     mute_ssim_prints.set()
     main_task = asyncio.create_task(detector.detect_pregame_phase())
 
@@ -56,7 +56,6 @@ async def run_main_task(
     await twm.manage_secondary_windows(slot, SECONDARY_WINDOWS)
     mute_ssim_prints.clear()
     await main_task
-    return None
 
 
 async def main():

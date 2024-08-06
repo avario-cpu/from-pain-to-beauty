@@ -5,8 +5,8 @@ import subprocess
 from src.core import slots_db_handler as sdh
 from src.core.constants import TERMINAL_WINDOW_SLOTS_DB_FILE_PATH
 from src.core.terminal_window_manager_v4.twm_v4 import (
-    MainManager,
     SecondaryWindow,
+    TerminalWindowManager,
     WinType,
 )
 
@@ -28,7 +28,7 @@ async def main(free_slots=False) -> None:
 
     conn = await sdh.create_connection(TERMINAL_WINDOW_SLOTS_DB_FILE_PATH)
     if conn:
-        main_manager = MainManager()
+        main_manager = TerminalWindowManager()
         slot, _ = await main_manager.adjust_window(
             conn, WinType.ACCEPTED, "Example Script"
         )
