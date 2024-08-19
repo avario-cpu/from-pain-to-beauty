@@ -32,8 +32,6 @@ logger = setup_logger(SCRIPT_NAME, "DEBUG")
 
 PORT = SUBPROCESSES_PORTS["pregame_phase_detector"]
 
-# Making a test change to see if it is staged
-
 
 async def setup_optional_new_capture_area(
     new_capture: bool, image_processor: ImageProcessor
