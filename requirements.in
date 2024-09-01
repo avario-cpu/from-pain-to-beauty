@@ -13,7 +13,7 @@ neo4j
 python-dotenv
 pygetwindow
 pywin32
-gtts  
+gtts
 prompt_toolkit
 pydub
 pydub-stubs
@@ -26,6 +26,7 @@ simpleaudio
 pygame
 keyboard
 types-keyboard
+rope
 --index-url https://download.pytorch.org/whl/cu121
 
 torch

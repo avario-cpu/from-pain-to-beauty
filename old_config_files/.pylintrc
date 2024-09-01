@@ -1,7 +1,7 @@
 
 [MESSAGES CONTROL]
 # Disable specific messages to avoid overlap with flake8 and to reduce annoyance
-disable = 
+disable =
     C0114,  # missing-module-docstring (to avoid annoyance, might change)
     C0115,  # missing-class-docstring (to avoid annoyance, might change)
     C0116,  # missing-function-docstring (to avoid annoyance, might change)
