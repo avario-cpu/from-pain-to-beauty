@@ -1,3 +1,7 @@
+[tool.pyright]
+executionEnvironments = [{ root = "src" }]
+reportUndefinedVariable = false
+
 [tool.pylint.messages_control]
 disable = [
     "C0114",  # missing-module-docstring
@@ -13,10 +17,6 @@ disable = [
     "import-error",
 
 ]
-
-[tool.pyright]
-reportUndefinedVariable = false
-include = ["src"]
 
 [tool.pylint.master]
 extension-pkg-allow-list = ["cv2", "win32gui"]
