@@ -70,6 +70,15 @@ target-version = "py312"
 [tool.ruff.mccabe]
 max-complexity = 10
 
+[tool.ruff.isort]
+# Use parentheses for imports that span multiple lines
+force-wrap-aliases = true
+
+# Prefer vertical hanging indent style, like Black
+combine-as-imports = true
+force-sort-within-sections = true
+split-on-trailing-comma = true
+
 [tool.black]
 line-length = 88
 target-version = ['py312']

@@ -30,7 +30,6 @@ logger = setup_logger(SCRIPT_NAME, "DEBUG")
 async def run_main_task(slot: int, shop_watcher: ShopWatcher):
     mute_ssim_prints.set()
     main_task = asyncio.create_task(shop_watcher.scan_for_shop_and_notify())
-
     await secondary_windows_spawned.wait()
     await twm.manage_secondary_windows(slot, SECONDARY_WINDOWS)
     mute_ssim_prints.clear()
