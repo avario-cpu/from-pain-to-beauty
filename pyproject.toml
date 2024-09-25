@@ -1,20 +1,23 @@
 [tool.pyright]
 executionEnvironments = [{ root = "src" }]
 reportUndefinedVariable = false
+reportUnusedImport = false
+
 
 [tool.pylint.messages_control]
 disable = [
-    "C0114",  # missing-module-docstring
-    "C0115",  # missing-class-docstring
-    "C0116",  # missing-function-docstring
-    "W1203",  # logging-fstring-interpolation
-    "W1201",  # logging-not-lazy
-    "E1101",  # no-member
-    "W1514",  # unsupported-builtin-appeal
-    "W0718",  # broad-except
-    "C0301",  # line-too-long
-    "undefined-variable",
-    "import-error",
+  "C0114",              # missing-module-docstring
+  "C0115",              # missing-class-docstring
+  "C0116",              # missing-function-docstring
+  "W1203",              # logging-fstring-interpolation
+  "W1201",              # logging-not-lazy
+  "E1101",              # no-member
+  "W1514",              # unsupported-builtin-appeal
+  "W0718",              # broad-except
+  "C0301",              # line-too-long
+  "undefined-variable",
+  "import-error",
+  "unused-import",
 
 ]
 
@@ -32,37 +35,37 @@ disable_error_code = "name-defined"
 [tool.ruff]
 line-length = 88
 select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "C",  # flake8-comprehensions
-    "B",  # flake8-bugbear
+  "E", # pycodestyle errors
+  "W", # pycodestyle warnings
+  "F", # pyflakes
+  "I", # isort
+  "C", # flake8-comprehensions
+  "B", # flake8-bugbear
 ]
 ignore = []
 fixable = ["A", "B", "C", "D", "E", "F", "I"]
 unfixable = []
 exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".hg",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
+  ".bzr",
+  ".direnv",
+  ".eggs",
+  ".git",
+  ".hg",
+  ".mypy_cache",
+  ".nox",
+  ".pants.d",
+  ".pytype",
+  ".ruff_cache",
+  ".svn",
+  ".tox",
+  ".venv",
+  "__pypackages__",
+  "_build",
+  "buck-out",
+  "build",
+  "dist",
+  "node_modules",
+  "venv",
 ]
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 target-version = "py312"
