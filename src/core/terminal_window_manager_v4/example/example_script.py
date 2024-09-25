@@ -1,10 +1,11 @@
 import asyncio
 import os
 import subprocess
+import sys
 
 from src.core import slots_db_handler as sdh
 from src.core.constants import TERMINAL_WINDOW_SLOTS_DB_FILE_PATH
-from src.core.terminal_window_manager_v4.twm_v4 import (
+from src.core.terminal_window_manager_v4 import (
     SecondaryWindow,
     TerminalWindowManager,
     WinType,
@@ -12,19 +13,24 @@ from src.core.terminal_window_manager_v4.twm_v4 import (
 
 
 async def main(free_slots=False) -> None:
-    """Simulates the main script of an application that uses the terminal window manager
-    at startup.
+    """
+    Simulates the main script of an application that uses the terminal window manager at
+    startup.
 
     Args: free_slots (bool, optional): Whether to free all DB slots after adjusting.
+
+    Usage : this script is meant to be run from the twm_demonstrator.py script and will
+    simulate the cli windnow of a script being repositioned and resized.
+
     """
 
     def spawn_secondary_window(
         title: str = "Secondary Window", width: str = "200", height: str = "200"
     ) -> None:
-        subprocess.Popen(["python", script_file, title, width, height])
+        subprocess.run("python", script_file, title, width, height)
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    script_file = os.path.join(script_dir, "secondary_window.py")
+    script_file = os.path.join(script_dir, "example_secondary_window.py")
 
     conn = await sdh.create_connection(TERMINAL_WINDOW_SLOTS_DB_FILE_PATH)
     if conn:
@@ -47,6 +53,7 @@ async def main(free_slots=False) -> None:
 
         if free_slots:
             await sdh.free_all_slots(conn)
+            print("Freed slots.")
 
         print("Adjusted.")
     else:
