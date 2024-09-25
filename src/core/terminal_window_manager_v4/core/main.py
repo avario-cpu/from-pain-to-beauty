@@ -1,35 +1,22 @@
-from enum import Enum, auto
 from typing import List, Optional
 
 import aiosqlite
 
-from core.terminal_window_manager_v4.helpers.window_foreground_manager import (
+from src.core.terminal_window_manager_v4.core.types import SecondaryWindow, WinType
+from src.core.terminal_window_manager_v4.helpers.window_adjuster import WindowAdjuster
+from src.core.terminal_window_manager_v4.helpers.window_foreground_manager import (
     WindowForegroundManager,
 )
-from core.terminal_window_manager_v4.helpers.window_properties_calculator import (
+from src.core.terminal_window_manager_v4.helpers.window_manager import WindowManager
+from src.core.terminal_window_manager_v4.helpers.window_properties_calculator import (
     WindowPropertiesCalculator,
 )
-from core.terminal_window_manager_v4.helpers.window_refitter import WindowRefitter
-from src.core.terminal_window_manager_v4.helpers.window_adjuster import WindowAdjuster
-from src.core.terminal_window_manager_v4.helpers.window_manager import WindowManager
+from src.core.terminal_window_manager_v4.helpers.window_refitter import WindowRefitter
 from src.utils.helpers import construct_script_name
 from src.utils.logging_utils import setup_logger
 
 SCRIPT_NAME = construct_script_name(__file__)
 logger = setup_logger(SCRIPT_NAME, "DEBUG")
-
-
-class WinType(Enum):
-    DENIED = auto()
-    ACCEPTED = auto()
-    SERVER = auto()
-
-
-class SecondaryWindow:
-    def __init__(self, name: str, width: int, height: int) -> None:
-        self.name = name
-        self.width = width
-        self.height = height
 
 
 class TerminalWindowManager:

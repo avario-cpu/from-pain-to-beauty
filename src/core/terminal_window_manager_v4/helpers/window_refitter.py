@@ -2,14 +2,14 @@ from logging import Logger
 
 import aiosqlite
 
-from core.terminal_window_manager_v4.helpers.window_adjuster import WindowAdjuster
-from core.terminal_window_manager_v4.helpers.window_foreground_manager import (
+from src.core.terminal_window_manager_v4.helpers.window_adjuster import WindowAdjuster
+from src.core.terminal_window_manager_v4.helpers.window_foreground_manager import (
     WindowForegroundManager,
 )
-from core.terminal_window_manager_v4.helpers.window_properties_calculator import (
+from src.core.terminal_window_manager_v4.helpers.window_properties_calculator import (
     WindowPropertiesCalculator,
 )
-from core.terminal_window_manager_v4.twm_v4 import SecondaryWindow, WinType
+from src.core.terminal_window_manager_v4.core.types import SecondaryWindow, WinType
 from src.core import slots_db_handler as sdh
 
 

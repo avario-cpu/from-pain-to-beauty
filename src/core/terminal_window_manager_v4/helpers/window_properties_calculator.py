@@ -6,7 +6,7 @@ from src.core.terminal_window_manager_v4.core.constants import (
     MAIN_WINDOW_WIDTH,
     MAX_WINDOWS_PER_COLUMN,
 )
-from src.core.terminal_window_manager_v4.twm_v4 import SecondaryWindow, WinType
+from src.core.terminal_window_manager_v4.core.types import SecondaryWindow, WinType
 
 
 class WindowPropertiesCalculator:
