@@ -112,7 +112,11 @@ async def occupy_slot_with_data(
 
 
 async def get_first_free_slot(conn: Optional[aiosqlite.Connection]) -> int | None:
-    """Populate the first free open slot in the database and return it"""
+    """
+    Populate the first free open slot in the database and return it. If no free slots
+    are found, return None.
+    """
+
     if conn:
         try:
             async with conn.cursor() as cur:
