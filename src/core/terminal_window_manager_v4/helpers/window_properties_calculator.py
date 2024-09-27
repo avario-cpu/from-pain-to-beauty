@@ -16,9 +16,16 @@ class WindowPropertiesCalculator:
     def calculate_main_window_properties(
         self, window_type: WinType, slot: Optional[int] = None
     ) -> tuple[int, int, int, int]:
-        if slot is not None and window_type in (WinType.ACCEPTED, WinType.DENIED):
-            width = MAIN_WINDOW_WIDTH
-            height = MAIN_WINDOW_HEIGHT
+        width = MAIN_WINDOW_WIDTH
+        height = MAIN_WINDOW_HEIGHT
+        x_pos = None
+        y_pos = None
+
+        if window_type in (WinType.ACCEPTED, WinType.DENIED):
+            if slot is None:
+                raise ValueError(
+                    "Slot number must be provided for ACCEPTED and DENIED windows."
+                )
 
             if window_type == WinType.ACCEPTED:
                 x_pos = -width * (1 + slot // MAX_WINDOWS_PER_COLUMN)
@@ -27,15 +34,15 @@ class WindowPropertiesCalculator:
 
             y_pos = height * (slot % MAX_WINDOWS_PER_COLUMN)
 
-        elif window_type is WinType.SERVER:
+        elif window_type == WinType.SERVER:
             width = 700
             height = 400
             x_pos = -1920
             y_pos = 640
 
         self.logger.info(
-            f"Calculated properties for {window_type.name} window at slot {slot}: "
-            f"({width}, {height}, {x_pos}, {y_pos})."
+            f"Calculated properties for {window_type.name} window at slot number {slot}"
+            f": ({width}, {height}, {x_pos}, {y_pos})."
         )
 
         return width, height, x_pos, y_pos
