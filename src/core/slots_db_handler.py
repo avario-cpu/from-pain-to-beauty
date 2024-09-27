@@ -165,8 +165,11 @@ async def free_slot(conn: aiosqlite.Connection, slot_id: int):
 
 
 def free_slot_by_name_sync(name: str):
-    """Free a slot using the main name as an identifier, rather than the
-    slot_id integer. Is synchronous as to be used with atexit.register()"""
+    """
+    Free a slot using the main name as an identifier, rather than the slot_id integer.
+    Is synchronous as to be used with atexit.register()
+
+    """
     conn = None
     cursor = None
     try:
