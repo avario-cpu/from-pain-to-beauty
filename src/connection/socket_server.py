@@ -46,7 +46,7 @@ class BaseHandler:
         print("Socket received stop message")
         await self.send_ack()
 
-    async def process_message(self, _message: str):
+    async def process_message(self, _: str):
         raise NotImplementedError(
             "process_message method must be implemented by subclasses"
         )
