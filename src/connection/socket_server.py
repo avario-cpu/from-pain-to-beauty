@@ -10,7 +10,6 @@ SCRIPT_NAME = construct_script_name(__file__)
 
 
 class BaseHandler:
-
     def __init__(self, port: int, stop_message: str, logger: Optional[Logger] = None):
         self.port = port
         self.stop_message = stop_message
@@ -24,6 +23,12 @@ class BaseHandler:
             print("Please use a port between 59000 and 59999")
 
     async def handle_client(self):
+        if self.reader is None or self.writer is None:
+            self.logger.error(
+                f"Reader or writer is None: reader {self.reader}, writer {self.writer}"
+            )
+            return
+
         while True:
             data = await self.reader.read(1024)
             if not data:
@@ -46,12 +51,14 @@ class BaseHandler:
         print("Socket received stop message")
         await self.send_ack()
 
-    async def process_message(self, _: str):
-        raise NotImplementedError(
-            "process_message method must be implemented by subclasses"
-        )
+    async def process_message(self, message: str):
+        self.logger.info(f"Socket received: {message}")
+        await self.send_ack()
 
     async def send_ack(self):
+        if self.writer is None:
+            self.logger.error("Writer is None")
+            return
         self.writer.write(b"ACK from Socket server")
         await self.writer.drain()
 
