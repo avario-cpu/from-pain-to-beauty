@@ -2,7 +2,7 @@
 executionEnvironments = [{ root = "src" }]
 reportUndefinedVariable = false
 reportUnusedImport = false
-
+reportUnusedVariable = false
 
 [tool.pylint.messages_control]
 disable = [
@@ -20,6 +20,7 @@ disable = [
   "unused-import",
   "trailing-whitespace",
   "trailing-newlines",   # tends to trigger in empty __init__.py files
+  "no-name-in-module",   # covered by pyright
 
 ]
 
@@ -44,7 +45,9 @@ select = [
   "C", # flake8-comprehensions
   "B", # flake8-bugbear
 ]
-ignore = []
+ignore = [
+  "F401", # unused imports, would rather disable this in pyright but seems impossible
+]
 fixable = ["A", "B", "C", "D", "E", "F", "I"]
 unfixable = []
 exclude = [
