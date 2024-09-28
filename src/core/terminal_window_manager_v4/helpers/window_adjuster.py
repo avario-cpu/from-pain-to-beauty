@@ -1,7 +1,7 @@
 import asyncio
+from logging import Logger
 import os
 import time
-from logging import Logger
 from typing import Optional
 
 import pygetwindow  # type: ignore

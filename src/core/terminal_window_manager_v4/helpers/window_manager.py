@@ -55,6 +55,8 @@ class WindowManager:
         window_name: str,
         secondary_windows: Optional[list[SecondaryWindow]] = None,
     ) -> tuple[Optional[int], str]:
+        """Main method to manage the main window of the script."""
+
         window_name = WINDOW_NAME_SUFFIX + window_name
         slot, title = await self.assign_slot_and_name_window(
             conn, window_type, window_name

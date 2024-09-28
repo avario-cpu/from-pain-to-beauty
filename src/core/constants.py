@@ -18,7 +18,8 @@ COMMON_LOGS_FILE_PATH = os.path.join(LOG_DIR_PATH, "all_logs.log")
 STREAMERBOT_WS_URL = "ws://127.0.0.1:50001/"
 
 # Subprocesses
-STOP_SUBPROCESS_MESSAGE = "stop$subprocess"  # $ character is used to avoid accidental trigger from speech to text.
+STOP_SUBPROCESS_MESSAGE = "stop$subprocess"  # $ character is used to avoid accidental
+# trigger from speech to text.
 SUBPROCESSES_PORTS = {
     # list of subprocesses name and their socket server ports
     "shop_watcher": 59000,
