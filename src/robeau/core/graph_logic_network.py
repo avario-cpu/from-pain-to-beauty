@@ -463,7 +463,6 @@ def wait_for_audio_management(response_nodes_reached: list[str]):
     logger.info("Callback received from audio_player, proceeding")
 
     if audio_started_event.is_set():
-
         logger.info(
             f"Stopping to wait for audio to play for nodes: {response_nodes_reached}, "
             f"state of audio finished event: {audio_finished_event}"
@@ -615,7 +614,6 @@ def initial_condition_is_true(
 def filter_logic_connections(
     attribute_map: dict, connections: list[dict], logic_gate: str
 ) -> tuple[tuple[dict, bool, str] | None, list[tuple[dict, bool, str]], list[dict]]:
-
     is_conditions = {"IS_" + key: attr for key, attr in attribute_map.items()}
     and_is_conditions = {"AND_IS_" + key: attr for key, attr in attribute_map.items()}
 
@@ -1066,7 +1064,6 @@ def process_relationships(
     silent: Optional[bool] = False,
     cutoff: Optional[bool] = False,
 ) -> list[str]:
-
     def log_formatted_connections(relationships_map: dict[str, list[dict]]):
         conns_from_map = []
         cutoff_status = "(cutoff)" if cutoff else ""
@@ -1177,7 +1174,6 @@ def query_database(
     labels: list[str],
     conversation_state: "ConversationState",
 ) -> Optional[Result]:
-
     queries = []
 
     for label in labels:
@@ -1348,7 +1344,6 @@ def define_labels(
     conversation_state: ConversationState,
     source: QuerySource,
 ) -> list[str]:
-
     labels: list[str] = []
 
     if source == USER:
@@ -1400,14 +1395,14 @@ def get_node_connections(
     conversation_state: ConversationState,
     source: QuerySource,
 ) -> list[dict] | None:
-
     labels = define_labels(session, text, conversation_state, source)
 
     if not labels:
         labels = [
             "None"
-        ]  # This will not return results from the database, but it will also not throw an error. We still want to
-        # call get_node_data (instead of making an early return) in order to call relevant nested functions inside.
+        ]  # This will not return results from the database, but it will also not throw
+        # an error. We still want to call get_node_data (instead of making an early
+        # return) in order to call relevant nested functions inside.
 
     logger.info(f"Labels for fetching <{text}> connection are {labels}")
 
@@ -1448,7 +1443,6 @@ def process_node(
     initiated: Optional[bool] = False,
     input_node: Optional[bool] = False,
 ):
-
     log_empty_lines(logger=logger, lines=7 if main_call else 0)
 
     if input_node:
@@ -1605,7 +1599,6 @@ def launch_specified_query(
     conversation_state: ConversationState,
     silent: bool,
 ):
-
     global node_thread
 
     thread_args = {
