@@ -39,10 +39,9 @@ logger = setup_logger(SCRIPT_NAME, "DEBUG")
 async def manage_subprocess(message: str):
     parts = message.split(maxsplit=1)
     if len(parts) >= 2:
-
         target = parts[0]
         instructions = parts[1].strip()
-        if target not in list(SUBPROCESSES_PORTS.keys()):
+        if target not in SUBPROCESSES_PORTS:
             raise ValueError(
                 f" Unknown target {target} not in {list(SUBPROCESSES_PORTS.keys())}"
             )
@@ -67,7 +66,6 @@ async def manage_subprocess(message: str):
         )
 
         print(f"Attempting to start {target}")
-
         subprocess.Popen(command, shell=True)
 
     elif instructions == "stop":
@@ -153,6 +151,7 @@ async def send_message_to_subprocess_socket(
         await writer.wait_closed()
 
     except OSError as e:
+        msg = f"SOCK: Could not connect to {host}:{port}"
         print(e)
     return msg
 
