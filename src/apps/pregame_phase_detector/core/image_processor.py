@@ -28,7 +28,6 @@ from src.apps.pregame_phase_detector.core.shared_events import (
 
 
 class ImageProcessor:
-
     async def capture_new_area(self, capture_area: dict[str, int], filename: str):
         while True:
             frame = await self.capture_window(capture_area)
@@ -127,8 +126,20 @@ class ImageProcessor:
             "in_game": in_game_result,
         }
 
+        key_aliases = {
+            "hero_pick": "HP",
+            "starting_buy": "SB",
+            "dota_tab": "DT",
+            "desktop_tab": "DKT",
+            "settings": "SET",
+            "in_game": "IG",
+        }
+
         formatted_combined_results = ", ".join(
-            [f"{alias[:2]}:{value:.2f}" for alias, value in combined_results.items()]
+            [
+                f"{key_aliases[key]}:{value:.2f}"
+                for key, value in combined_results.items()
+            ]
         )
 
         if not mute_ssim_prints.is_set():
