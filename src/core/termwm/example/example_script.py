@@ -19,7 +19,7 @@ async def main(clear_db_slots=False) -> None:
 
     Args: clear_db_slots: Whether to free all DB slots after adjusting.
 
-    Usage : this script is meant to be run from the twm_demonstrator.py script and will
+    Usage : this script is meant to be run from the demonstrator.py script and will
     simulate the cli windnow of a script being repositioned and resized.
 
     """
