@@ -15,7 +15,7 @@ from src.core.constants import (
     STREAMERBOT_WS_URL,
     SUBPROCESSES_PORTS,
 )
-from src.core.terminal_window_manager_v4 import TerminalWindowManager
+from src.core.termwm import TerminalWindowManager
 from src.utils.helpers import construct_script_name, print_countdown
 from src.utils.logging_utils import setup_logger
 from src.utils.script_initializer import setup_script

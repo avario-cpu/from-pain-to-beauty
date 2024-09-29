@@ -3,16 +3,16 @@ from typing import Optional
 
 import aiosqlite
 
-from src.core.terminal_window_manager_v4 import slots_db_handler as sdh
-from src.core.terminal_window_manager_v4.core.constants import (
+from src.core.termwm import slots_db_handler as sdh
+from src.core.termwm.core.constants import (
     MAIN_WINDOW_HEIGHT,
     MAIN_WINDOW_WIDTH,
     SERVER_WINDOW_NAME,
     WINDOW_NAME_SUFFIX,
 )
-from src.core.terminal_window_manager_v4.core.types import SecondaryWindow, WinType
-from src.core.terminal_window_manager_v4.helpers.window_adjuster import WindowAdjuster
-from src.core.terminal_window_manager_v4.helpers.window_properties_calculator import (
+from src.core.termwm.core.types import SecondaryWindow, WinType
+from src.core.termwm.helpers.window_adjuster import WindowAdjuster
+from src.core.termwm.helpers.window_properties_calculator import (
     WindowPropertiesCalculator,
 )
 

@@ -1,12 +1,12 @@
 from logging import Logger
 from typing import Optional
 
-from src.core.terminal_window_manager_v4.core.constants import (
+from src.core.termwm.core.constants import (
     MAIN_WINDOW_HEIGHT,
     MAIN_WINDOW_WIDTH,
     MAX_WINDOWS_PER_COLUMN,
 )
-from src.core.terminal_window_manager_v4.core.types import SecondaryWindow, WinType
+from src.core.termwm.core.types import SecondaryWindow, WinType
 
 
 class WindowPropertiesCalculator:

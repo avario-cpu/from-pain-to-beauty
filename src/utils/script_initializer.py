@@ -5,7 +5,7 @@ from typing import Optional
 
 import aiosqlite
 
-from src.core.terminal_window_manager_v4 import (
+from src.core.termwm import (
     TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
     TerminalWindowManager,
     WinType,

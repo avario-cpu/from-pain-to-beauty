@@ -3,9 +3,9 @@ import os
 import cv2 as cv
 
 from src.config.settings import PROJECT_DIR_PATH
-from src.core.terminal_window_manager_v4 import SecondaryWindow
+from src.core.termwm import SecondaryWindow
 
-# Opencv windows parameters, for resizing and moving using terminal_window_manager_v4
+# Opencv windows parameters, for resizing and moving using termwm
 SECONDARY_WINDOWS = [
     SecondaryWindow("hero_pick_scanner", 150, 80),
     SecondaryWindow("starting_buy_scanner", 150, 80),

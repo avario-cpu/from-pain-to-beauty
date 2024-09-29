@@ -3,7 +3,7 @@ import asyncio
 import os
 import subprocess
 
-from src.core.terminal_window_manager_v4 import (
+from src.core.termwm import (
     TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
     SecondaryWindow,
     TerminalWindowManager,

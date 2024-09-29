@@ -20,7 +20,7 @@ from src.core.constants import (
     STOP_SUBPROCESS_MESSAGE,
     SUBPROCESSES_PORTS,
 )
-from src.core.terminal_window_manager_v4 import (
+from src.core.termwm import (
     TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
     TerminalWindowManager,
     WinType,

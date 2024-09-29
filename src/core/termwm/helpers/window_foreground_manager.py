@@ -6,9 +6,9 @@ import pygetwindow
 import win32con
 import win32gui
 
-from src.core.terminal_window_manager_v4 import slots_db_handler as sdh
-from src.core.terminal_window_manager_v4.core.constants import SERVER_WINDOW_NAME
-from src.core.terminal_window_manager_v4.helpers.window_adjuster import WindowAdjuster
+from src.core.termwm import slots_db_handler as sdh
+from src.core.termwm.core.constants import SERVER_WINDOW_NAME
+from src.core.termwm.helpers.window_adjuster import WindowAdjuster
 
 
 class WindowForegroundManager:
