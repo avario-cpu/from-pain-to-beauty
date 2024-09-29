@@ -24,8 +24,13 @@ disable = [
 
 ]
 
+enable = [
+  "no-self-use", # enable this to enforce no self use
+]
+
 [tool.pylint.master]
 extension-pkg-allow-list = ["cv2", "win32gui"]
+load-plugins = ["pylint.extensions.no_self_use"]
 
 [tool.mypy]
 disallow_untyped_defs = true
