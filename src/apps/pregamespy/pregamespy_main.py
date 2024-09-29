@@ -2,19 +2,19 @@ import asyncio
 
 import cv2 as cv
 
-from src.apps.pregame_phase_detector.core.constants import (
+from src.apps.pregamespy.core.constants import (
     NEW_CAPTURE_AREA,
     SECONDARY_WINDOWS,
 )
-from src.apps.pregame_phase_detector.core.image_processor import ImageProcessor
-from src.apps.pregame_phase_detector.core.pregame_phase_detector import (
+from src.apps.pregamespy.core.image_processor import ImageProcessor
+from src.apps.pregamespy.core.pregame_phase_detector import (
     PreGamePhaseDetector,
 )
-from src.apps.pregame_phase_detector.core.shared_events import (
+from src.apps.pregamespy.core.shared_events import (
     mute_ssim_prints,
     secondary_windows_spawned,
 )
-from src.apps.pregame_phase_detector.core.socket_handler import PreGamePhaseHandler
+from src.apps.pregamespy.core.socket_handler import PreGamePhaseHandler
 from src.connection.websocket_client import WebSocketClient
 from src.core.constants import (
     STOP_SUBPROCESS_MESSAGE,
@@ -29,7 +29,7 @@ from src.utils.script_initializer import setup_script
 SCRIPT_NAME = construct_script_name(__file__)
 logger = setup_logger(SCRIPT_NAME, "DEBUG")
 
-PORT = SUBPROCESSES_PORTS["pregame_phase_detector"]
+PORT = SUBPROCESSES_PORTS["pregamespy"]
 twm = TerminalWindowManager()
 
 
@@ -39,7 +39,7 @@ async def setup_optional_new_capture_area(
     """Only used for development purposes."""
     if new_capture:
         capture_area = NEW_CAPTURE_AREA
-        filename = "src/apps/pregame_phase_detector/data/opencv/new_capture.jpg"
+        filename = "src/apps/pregamespy/data/opencv/new_capture.jpg"
         await image_processor.capture_new_area(capture_area, filename)
 
 

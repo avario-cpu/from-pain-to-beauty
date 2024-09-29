@@ -1,17 +1,17 @@
 import asyncio
 import time
 
-from src.apps.pregame_phase_detector.core.constants import (
+from src.apps.pregamespy.core.constants import (
     DSLR_HIDE_VS_SCREEN,
     DSLR_MOVE_FOR_HERO_PICK,
     DSLR_MOVE_STARTING_BUY,
     SCENE_CHANGE_FOR_PREGAME,
     SCENE_CHANGE_IN_GAME,
 )
-from src.apps.pregame_phase_detector.core.image_processor import ImageProcessor
-from src.apps.pregame_phase_detector.core.pick_phase import PickPhase
-from src.apps.pregame_phase_detector.core.shared_events import mute_ssim_prints
-from src.apps.pregame_phase_detector.core.tabbed import Tabbed
+from src.apps.pregamespy.core.image_processor import ImageProcessor
+from src.apps.pregamespy.core.pick_phase import PickPhase
+from src.apps.pregamespy.core.shared_events import mute_ssim_prints
+from src.apps.pregamespy.core.tabbed import Tabbed
 from src.connection.websocket_client import WebSocketClient
 
 

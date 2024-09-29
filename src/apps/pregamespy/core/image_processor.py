@@ -6,7 +6,7 @@ import mss
 import numpy as np
 from skimage.metrics import structural_similarity as ssim  # pylint: disable=E0611
 
-from src.apps.pregame_phase_detector.core.constants import (
+from src.apps.pregamespy.core.constants import (
     DESKTOP_TAB_AREA,
     DESKTOP_TAB_TEMPLATE,
     DOTA_TAB_AREA,
@@ -21,7 +21,7 @@ from src.apps.pregame_phase_detector.core.constants import (
     STARTING_BUY_AREA,
     STARTING_BUY_TEMPLATE,
 )
-from src.apps.pregame_phase_detector.core.shared_events import (
+from src.apps.pregamespy.core.shared_events import (
     mute_ssim_prints,
     secondary_windows_spawned,
 )

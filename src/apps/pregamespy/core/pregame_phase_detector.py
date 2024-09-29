@@ -1,8 +1,8 @@
 import asyncio
 
-from src.apps.pregame_phase_detector.core.game_state_manager import GameStateManager
-from src.apps.pregame_phase_detector.core.image_processor import ImageProcessor
-from src.apps.pregame_phase_detector.core.socket_handler import PreGamePhaseHandler
+from src.apps.pregamespy.core.game_state_manager import GameStateManager
+from src.apps.pregamespy.core.image_processor import ImageProcessor
+from src.apps.pregamespy.core.socket_handler import PreGamePhaseHandler
 from src.connection.websocket_client import WebSocketClient
 
 

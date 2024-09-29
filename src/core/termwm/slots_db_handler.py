@@ -536,7 +536,7 @@ async def main():
 
 
 async def test():
-    free_slot_by_name_sync("my_pregame_phase_detector")
+    free_slot_by_name_sync("my_pregamespy")
 
 
 if __name__ == "__main__":

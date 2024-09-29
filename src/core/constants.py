@@ -20,7 +20,7 @@ STOP_SUBPROCESS_MESSAGE = "stop$subprocess"  # $ character is used to avoid acci
 SUBPROCESSES_PORTS = {
     # list of subprocesses name and their socket server ports
     "shop_watcher": 59000,
-    "pregame_phase_detector": 59001,
+    "pregamespy": 59001,
     "robeau": 59002,
     "synonym_adder": 59003,
 }
