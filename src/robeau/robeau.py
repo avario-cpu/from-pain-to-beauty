@@ -4,7 +4,6 @@ import re
 
 from neo4j import Session
 
-from src.core.constants import TERMINAL_WINDOW_SLOTS_DB_FILE_PATH
 from src.robeau.classes.sbert_matcher import SBERTMatcher  # type: ignore
 from src.robeau.core.graph_logic_network import (
     ConversationState,
@@ -62,7 +61,8 @@ def extract_remaining_message(message: str, greeting_segment: str):
 
     if remaining_message:
         logger.info(
-            f'Greeting "{greeting_segment}" and prompt "{remaining_message}" received in one message.'
+            f'Greeting "{greeting_segment}" and prompt "{remaining_message}" '
+            f"received in one message."
         )
     else:
         logger.info(
@@ -191,6 +191,7 @@ async def main():
         logging.exception(f"Unexpected error: {e}")
         print(f"Unexpected error: {e}")
         raise
+
     finally:
         if db_conn:
             await db_conn.close()
