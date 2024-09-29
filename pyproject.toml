@@ -6,21 +6,21 @@ reportUnusedVariable = false
 
 [tool.pylint.messages_control]
 disable = [
-  "C0114",               # missing-module-docstring
-  "C0115",               # missing-class-docstring
-  "C0116",               # missing-function-docstring
-  "W1203",               # logging-fstring-interpolation
-  "W1201",               # logging-not-lazy
-  "E1101",               # no-member
-  "W1514",               # unsupported-builtin-appeal
-  "W0718",               # broad-except
-  "C0301",               # line-too-long
-  "undefined-variable",
-  "import-error",
-  "unused-import",
-  "trailing-whitespace",
-  "trailing-newlines",   # tends to trigger in empty __init__.py files
-  "no-name-in-module",   # covered by pyright
+  "C0114",               # missing-module-docstring (annoying)
+  "C0115",               # missing-class-docstring (annoying)
+  "C0116",               # missing-function-docstring (annoying)
+  "W1203",               # logging-fstring-interpolation (not enough performance gain)
+  "W1201",               # logging-not-lazy (not enough performance gain)
+  "E1101",               # no-member (handled by other linters = HBOL)
+  "W1514",               # unsupported-builtin-appeal (HBOL)
+  "W0718",               # broad-except (might need to re-enable this)
+  "C0301",               # line-too-long (HBOL)
+  "undefined-variable",  # (HBOL)
+  "import-error",        # (HBOL)
+  "unused-import",       # (HBOL)
+  "trailing-whitespace", # (HBOL)
+  "trailing-newlines",   # (tends to trigger in empty __init__.py files)
+  "no-name-in-module",   # (HBOL)
 
 ]
 
@@ -104,12 +104,3 @@ extend-exclude = '''
   | dist
 )/
 '''
-
-[tool.docformatter]
-recursive = true
-wrap-summaries = 88
-wrap-descriptions = 88
-blank = true
-pre-summary-newline = true
-make-summary-multi-line = true
-force-wrap = true
