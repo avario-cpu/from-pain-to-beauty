@@ -4,7 +4,7 @@ import time
 from logging import Logger
 from typing import Optional
 
-from src.apps.shop_watcher.core.constants import (
+from src.apps.shopwatcher.core.constants import (
     BRB_BUYING_MILK_HIDE,
     BRB_BUYING_MILK_SHOW,
     DISPLAY_TIME_SINCE_SHOP_OPENED,

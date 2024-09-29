@@ -2,13 +2,13 @@ import asyncio
 
 import cv2 as cv
 
-from src.apps.shop_watcher.core.constants import SECONDARY_WINDOWS
-from src.apps.shop_watcher.core.shared_events import (
+from src.apps.shopwatcher.core.constants import SECONDARY_WINDOWS
+from src.apps.shopwatcher.core.shared_events import (
     mute_ssim_prints,
     secondary_windows_spawned,
 )
-from src.apps.shop_watcher.core.shop_watcher import ShopWatcher
-from src.apps.shop_watcher.core.socket_handler import ShopWatcherHandler
+from src.apps.shopwatcher.core.shop_watcher import ShopWatcher
+from src.apps.shopwatcher.core.socket_handler import ShopWatcherHandler
 from src.connection.websocket_client import WebSocketClient
 from src.core.constants import (
     STOP_SUBPROCESS_MESSAGE,
@@ -20,16 +20,16 @@ from src.utils.helpers import construct_script_name, print_countdown
 from src.utils.logging_utils import setup_logger
 from src.utils.script_initializer import setup_script
 
-PORT = SUBPROCESSES_PORTS["shop_watcher"]
+PORT = SUBPROCESSES_PORTS["shopwatcher"]
 SCRIPT_NAME = construct_script_name(__file__)
 
 logger = setup_logger(SCRIPT_NAME, "DEBUG")
 twm = TerminalWindowManager()
 
 
-async def run_main_task(slot: int, shop_watcher: ShopWatcher):
+async def run_main_task(slot: int, shopwatcher: ShopWatcher):
     mute_ssim_prints.set()
-    main_task = asyncio.create_task(shop_watcher.scan_for_shop_and_notify())
+    main_task = asyncio.create_task(shopwatcher.scan_for_shop_and_notify())
     await secondary_windows_spawned.wait()
     await twm.adjust_secondary_windows(slot, SECONDARY_WINDOWS)
     mute_ssim_prints.clear()
@@ -56,9 +56,9 @@ async def main():
         ws_client = WebSocketClient(STREAMERBOT_WS_URL, logger)
         await ws_client.establish_connection()
 
-        shop_watcher = ShopWatcher(logger, socket_server_handler, ws_client)
+        shopwatcher = ShopWatcher(logger, socket_server_handler, ws_client)
 
-        await run_main_task(slot, shop_watcher)
+        await run_main_task(slot, shopwatcher)
 
     except Exception as e:
         print(f"Unexpected error of type: {type(e).__name__}: {e}")

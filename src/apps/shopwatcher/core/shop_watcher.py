@@ -6,17 +6,17 @@ import mss
 import numpy as np
 from skimage.metrics import structural_similarity as ssim  # pylint: disable-msg=E0611
 
-from src.apps.shop_watcher.core.constants import (
+from src.apps.shopwatcher.core.constants import (
     SCREEN_CAPTURE_AREA,
     SECONDARY_WINDOWS,
     SHOP_TEMPLATE_IMAGE_PATH,
 )
-from src.apps.shop_watcher.core.shared_events import (
+from src.apps.shopwatcher.core.shared_events import (
     mute_ssim_prints,
     secondary_windows_spawned,
 )
-from src.apps.shop_watcher.core.shop_tracker import ShopTracker
-from src.apps.shop_watcher.core.socket_handler import ShopWatcherHandler
+from src.apps.shopwatcher.core.shop_tracker import ShopTracker
+from src.apps.shopwatcher.core.socket_handler import ShopWatcherHandler
 from src.connection.websocket_client import WebSocketClient
 
 
