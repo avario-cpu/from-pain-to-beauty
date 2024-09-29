@@ -22,9 +22,31 @@ async def create_connection(db_file: str) -> aiosqlite.Connection | None:
     db_conn = None
     try:
         db_conn = await aiosqlite.connect(db_file)
+
+        # create the slots tables if they do not exist
+        await create_slots_table(db_conn)
+        await create_denied_slots_table(db_conn)
+
+        # Check if the slots table is empty and initialize if necessary
+        async with db_conn.cursor() as cursor:
+            await cursor.execute("SELECT COUNT(*) FROM slots")
+            count = await cursor.fetchone()
+            if count and count[0] == 0:
+                await initialize_slots(db_conn)
+
+        # Check if the denied_slots table is empty and initialize if necessary
+        async with db_conn.cursor() as cursor:
+            await cursor.execute("SELECT COUNT(*) FROM denied_slots")
+            count = await cursor.fetchone()
+            if count and count[0] == 0:
+                await initialize_denied_slots(db_conn)
+
+        return db_conn
+
     except aiosqlite.Error as e:
-        print(e)
-    return db_conn
+        logger.error(f"Error creating database connection: {e}")
+        if db_conn:
+            await db_conn.close()
 
 
 async def create_slots_table(conn: aiosqlite.Connection):
@@ -44,7 +66,7 @@ async def create_slots_table(conn: aiosqlite.Connection):
             await cur.execute(sql)
             await conn.commit()
     except aiosqlite.Error as e:
-        print(e)
+        logger.error(e)
 
 
 async def delete_slots_table(conn: aiosqlite.Connection):
@@ -56,7 +78,7 @@ async def delete_slots_table(conn: aiosqlite.Connection):
             logger.info("The table has been deleted successfully.")
     except aiosqlite.Error as e:
         logger.info("The table has not been deleted successfully.")
-        print(e)
+        logger.error(e)
         await conn.rollback()
 
 
@@ -69,7 +91,7 @@ async def initialize_slots(conn: aiosqlite.Connection):
             await conn.execute(sql, (i, True))
         await conn.commit()
     except aiosqlite.Error as e:
-        print(e)
+        logger.error(e)
         await conn.rollback()
 
 
@@ -85,31 +107,33 @@ async def occupy_slot_with_data(
                 await cur.execute("SELECT is_open FROM slots WHERE id = ?", (slot_id,))
                 row = await cur.fetchone()
 
-                if row and row[0]:
-                    await cur.execute(
-                        "UPDATE slots SET is_open = False WHERE id = ?", (slot_id,)
-                    )
-                    if data is not None:
-                        for i in range(0, len(data)):
-                            name, width, height = data[i]
-                            await cur.execute(
-                                f"UPDATE slots SET name{i}= ?, width{i}=?, "
-                                f"height{i}=? WHERE id = ?",
-                                (
-                                    name,
-                                    width,
-                                    height,
-                                    slot_id,
-                                ),
-                            )
-                    await conn.commit()
-                    logger.info(f"Slot {slot_id} is now occupied.")
-                else:
-                    logger.error(
-                        f"Slot {slot_id} is already occupied or does not exist"
-                    )
+                if not row:
+                    logger.error(f"Slot {slot_id} does not exist.")
+                    return
+                if not row[0]:
+                    logger.warning(f"Slot {slot_id} is already occupied.")
+                    return
+
+                await cur.execute(
+                    "UPDATE slots SET is_open = False WHERE id = ?", (slot_id,)
+                )
+                if data is not None:
+                    for i, (name, width, height) in enumerate(data):
+                        await cur.execute(
+                            f"UPDATE slots SET name{i}= ?, width{i}=?, "
+                            f"height{i}=? WHERE id = ?",
+                            (
+                                name,
+                                width,
+                                height,
+                                slot_id,
+                            ),
+                        )
+                await conn.commit()
+                logger.info(f"Slot {slot_id} is now occupied.")
+
         except aiosqlite.Error as e:
-            print(e)
+            logger.error(e)
             await conn.rollback()
 
 
@@ -125,18 +149,18 @@ async def get_first_free_slot(conn: Optional[aiosqlite.Connection]) -> int | Non
                 await cur.execute("SELECT id FROM slots WHERE is_open = True LIMIT 1")
                 row = await cur.fetchone()
 
-                if row:
-                    slot_id = row[0]
-                    await conn.commit()
-                    logger.info(f"Slot {slot_id} is the first available")
-                    return slot_id
-                else:
+                if not row:
                     print("No free slot available.")
                     await conn.commit()
-                    return None
+                    return
+
+                slot_id = row[0]
+                await conn.commit()
+                logger.info(f"Slot {slot_id} is the first available")
+                return slot_id
+
         except aiosqlite.Error as e:
-            print(e)
-    return slot_id
+            logger.error(e)
 
 
 async def free_slot(conn: aiosqlite.Connection, slot_id: int):
@@ -166,7 +190,7 @@ async def free_slot(conn: aiosqlite.Connection, slot_id: int):
             else:
                 logger.error(f"Slot {slot_id} is already free or does not exist.")
     except aiosqlite.Error as e:
-        print(e)
+        logger.error(e)
         await conn.rollback()
 
 
@@ -195,7 +219,7 @@ def free_slot_by_name_sync(name: str):
     except sqlite3.Error as e:
         if conn:
             conn.rollback()
-        print(e)
+        logger.error(e)
     finally:
         if cursor:
             cursor.close()
@@ -223,7 +247,7 @@ def free_slot_sync(conn: sqlite3.Connection, slot_id: int):
         conn.commit()
     except sqlite3.Error as e:
         conn.rollback()
-        print(e)
+        logger.error(e)
     finally:
         if cursor:
             cursor.close()
@@ -250,15 +274,17 @@ async def free_all_slots(conn: aiosqlite.Connection, verbose: bool = False):
                 print("All slots are now free.")
 
     except aiosqlite.Error as e:
-        print(e)
+        logger.error(e)
         await conn.rollback()
 
 
 async def get_full_data(
     conn: aiosqlite.Connection, slot_id
 ) -> list[tuple[str, int, int]] | None:
-    """Get all the data from a row (window name and size), excludes is_open.
-    Ingres null data."""
+    """
+    Get all the data from a row (window name and size), excludes the is_open
+    field.
+    """
     try:
         async with conn.cursor() as cur:
             fields = ", ".join(
@@ -268,18 +294,19 @@ async def get_full_data(
             await cur.execute(sql, (slot_id,))
             row = await cur.fetchone()
 
-            if row:
-                data = []
-                for i in range(0, len(row), 3):
-                    data_tuple = (row[i], row[i + 1], row[i + 2])
-                    if not all(element is None for element in data_tuple):
-                        data.append(data_tuple)
-                return data
-            else:
+            if not row:
+                logger.error(f"No slot found with the id: {slot_id}")
                 return None
 
+            data = []
+            for i in range(0, len(row), 3):
+                data_tuple = (row[i], row[i + 1], row[i + 2])
+                if not all(element is None for element in data_tuple):
+                    data.append(data_tuple)
+            return data
+
     except aiosqlite.Error as e:
-        print(e)
+        logger.error(e)
         return None
 
 
@@ -289,13 +316,15 @@ async def get_slot_by_main_name(conn: aiosqlite.Connection, name: str) -> int | 
         async with conn.cursor() as cur:
             await cur.execute("SELECT id FROM slots WHERE name0 = ?", (name,))
             row = await cur.fetchone()
-            if row:
-                return row[0]
-            else:
+
+            if not row:
                 logger.error(f"No slot found with the main name: {name}")
                 return None
+
+            return row[0]
+
     except aiosqlite.Error as e:
-        print(e)
+        logger.error(e)
         return None
 
 
@@ -316,26 +345,22 @@ async def get_all_names(conn: aiosqlite.Connection) -> list[str]:
             return names
 
     except aiosqlite.Error as e:
-        print(e)
+        logger.error(e)
         return []
 
 
-async def get_all_occupied_slots(conn: aiosqlite.Connection) -> list[int]:
+async def get_all_occupied_slots(conn: aiosqlite.Connection) -> list:
     """Get a list of all the occupied slots ids"""
     try:
         async with conn.cursor() as cur:
             await cur.execute("SELECT id FROM slots WHERE is_open = False")
             rows = await cur.fetchall()
-            slot_ids = []
-            if rows is not None:
-                for row in rows:
-                    slot_ids.append(row[0])
-                logger.info(f"obtained occupied slots: {slot_ids}")
-                return slot_ids
-            else:
-                logger.info("No occupied slots found")
+            slot_ids = [row[0] for row in rows] if rows else []
+            logger.info(f"obtained occupied slots: {slot_ids}")
+            return slot_ids
+
     except aiosqlite.Error as e:
-        print(e)
+        logger.error(f"Error retrieving occupied slots: {e}")
         return []
 
 
@@ -345,15 +370,12 @@ async def get_all_free_slots(conn: aiosqlite.Connection) -> list[int]:
         async with conn.cursor() as cur:
             await cur.execute("SELECT id FROM slots WHERE is_open = True")
             rows = await cur.fetchall()
-            slot_ids = []
-            if rows is not None:
-                for row in rows:
-                    slot_ids.append(row[0])
-                return slot_ids
-            else:
-                logger.info("No free slots found")
+            slot_ids = [row[0] for row in rows] if rows else []
+            logger.info(f"obtained free slots: {slot_ids}")
+            return slot_ids
+
     except aiosqlite.Error as e:
-        print(e)
+        logger.error(f"Error retrieving free slots: {e}")
         return []
 
 
@@ -368,7 +390,7 @@ async def create_denied_slots_table(conn: aiosqlite.Connection):
             )
             await conn.commit()
     except aiosqlite.Error as e:
-        print(e)
+        logger.error(e)
 
 
 async def initialize_denied_slots(conn: aiosqlite.Connection):
@@ -380,7 +402,7 @@ async def initialize_denied_slots(conn: aiosqlite.Connection):
                 )
             await conn.commit()
     except aiosqlite.Error as e:
-        print(e)
+        logger.error(e)
         await conn.rollback()
 
 
@@ -393,7 +415,7 @@ async def delete_denied_slots_table(conn: aiosqlite.Connection):
             print("The table has been deleted successfully.")
     except aiosqlite.Error as e:
         print("The table has not been deleted successfully.")
-        print(e)
+        logger.error(e)
 
 
 async def occupy_first_free_denied_slot(
@@ -411,23 +433,23 @@ async def occupy_first_free_denied_slot(
                 )
                 row = await cur.fetchone()
 
-                if row:
-                    slot_id = row[0]
-                    await cur.execute(
-                        "UPDATE denied_slots SET is_open = False WHERE id = ?",
-                        (slot_id,),
-                    )
-                    await conn.commit()
-                    print(f"Slot {slot_id} is now populated.")
-                    return slot_id
-                else:
+                if not row:
                     print("No free slot available.")
                     await conn.commit()
                     return None
+
+                slot_id = row[0]
+                await cur.execute(
+                    "UPDATE denied_slots SET is_open = False WHERE id = ?",
+                    (slot_id,),
+                )
+                await conn.commit()
+                print(f"Slot {slot_id} is now populated.")
+                return slot_id
+
         except aiosqlite.Error as e:
-            print(e)
+            logger.error(e)
             await conn.rollback()
-    return slot_id
 
 
 async def free_denied_slot(conn: aiosqlite.Connection, slot_id: int):
@@ -450,7 +472,7 @@ async def free_denied_slot(conn: aiosqlite.Connection, slot_id: int):
             else:
                 print(f"Slot {slot_id} is already free or does not exist.")
     except aiosqlite.Error as e:
-        print(e)
+        logger.error(e)
         await conn.rollback()
 
 
@@ -468,7 +490,7 @@ def free_denied_slot_sync(slot_id: int):
     except sqlite3.Error as e:
         if conn:
             conn.rollback()
-        print(e)
+        logger.error(e)
     finally:
         if cursor:
             cursor.close()
@@ -483,7 +505,7 @@ async def free_all_denied_slots(conn: aiosqlite.Connection):
             await cur.execute("UPDATE denied_slots SET is_open = True")
             await conn.commit()
     except aiosqlite.Error as e:
-        print(e)
+        logger.error(e)
         await conn.rollback()
 
 
