@@ -30,7 +30,7 @@ SCRIPT_NAME = construct_script_name(__file__)
 logger = setup_logger(SCRIPT_NAME, "DEBUG")
 
 PORT = SUBPROCESSES_PORTS["pregame_phase_detector"]
-terminal_window_manager = TerminalWindowManager()
+twm = TerminalWindowManager()
 
 
 async def setup_optional_new_capture_area(
@@ -51,7 +51,7 @@ async def run_main_task(
     main_task = asyncio.create_task(detector.detect_pregame_phase())
 
     await secondary_windows_spawned.wait()
-    await terminal_window_manager.adjust_secondary_windows(slot, SECONDARY_WINDOWS)
+    await twm.adjust_secondary_windows(slot, SECONDARY_WINDOWS)
     mute_ssim_prints.clear()
     await main_task
 

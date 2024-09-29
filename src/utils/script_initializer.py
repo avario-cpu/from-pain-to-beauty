@@ -69,11 +69,9 @@ async def manage_script_startup(
     atexit.register(witness_atexit_execution)  # Lets us tell if cleanup
     # function were called from the atexit module, or from signal.
 
-    terminal_window_manager = TerminalWindowManager()
+    twm = TerminalWindowManager()
 
-    slot, name = await terminal_window_manager.adjust_window(
-        slots_db_conn, window_type, script_name
-    )
+    slot, name = await twm.adjust_window(slots_db_conn, window_type, script_name)
     if window_type == WinType.DENIED:
         register_atexit_func(sdh.free_denied_slot_sync, slot)
         print(f"\n>>> Lock file is present for {script_name} <<<")

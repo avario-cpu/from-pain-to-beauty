@@ -24,14 +24,14 @@ PORT = SUBPROCESSES_PORTS["shop_watcher"]
 SCRIPT_NAME = construct_script_name(__file__)
 
 logger = setup_logger(SCRIPT_NAME, "DEBUG")
-terminal_window_manager = TerminalWindowManager()
+twm = TerminalWindowManager()
 
 
 async def run_main_task(slot: int, shop_watcher: ShopWatcher):
     mute_ssim_prints.set()
     main_task = asyncio.create_task(shop_watcher.scan_for_shop_and_notify())
     await secondary_windows_spawned.wait()
-    await terminal_window_manager.adjust_secondary_windows(slot, SECONDARY_WINDOWS)
+    await twm.adjust_secondary_windows(slot, SECONDARY_WINDOWS)
     mute_ssim_prints.clear()
     await main_task
     return None
