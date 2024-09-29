@@ -40,15 +40,11 @@ async def main(clear_db_slots=False) -> None:
         print("Connection with DB failed to be established.")
         return
 
-    if clear_db_slots:
-        await sdh.free_all_slots(conn)
-        print("Freed slots.")
-
     main_manager = TerminalWindowManager()
     slot, _ = await main_manager.adjust_window(conn, WinType.ACCEPTED, "Example Script")
 
     if slot is None:
-        print("No slot available/error occured.")
+        print("No slot in DB available/error occured.")
         return
 
     secondary_windows = [
@@ -61,6 +57,10 @@ async def main(clear_db_slots=False) -> None:
     await asyncio.sleep(1)  # Give some time for the windows to appear
     await main_manager.adjust_secondary_windows(slot, secondary_windows)
     print("Adjusted.")
+
+    if clear_db_slots:
+        await sdh.free_all_slots(conn)
+        print("Freed slots.")
 
 
 if __name__ == "__main__":
