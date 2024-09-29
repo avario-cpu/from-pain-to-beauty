@@ -4,11 +4,9 @@ from typing import Optional
 
 import aiosqlite
 
-from src.core.terminal_window_manager_v4.core.constants import (
+from src.core.terminal_window_manager_v4 import (
     TERMINAL_WINDOW_SLOTS_DB_FILE_PATH as SLOT_DB,
 )
-
-
 from src.utils.helpers import construct_script_name
 from src.utils.logging_utils import setup_logger
 

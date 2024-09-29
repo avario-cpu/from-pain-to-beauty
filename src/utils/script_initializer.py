@@ -5,9 +5,12 @@ from typing import Optional
 
 import aiosqlite
 
-from src.core import slots_db_handler as sdh
-from src.core import terminal_window_manager_v4 as twm
-from src.core.terminal_window_manager_v4 import SecondaryWindow, WinType
+from src.core.terminal_window_manager_v4 import (
+    TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
+    TerminalWindowManager,
+    WinType,
+    slots_db_handler as sdh,
+)
 from src.utils.helpers import construct_script_name
 from src.utils.lock_file_manager import LockFileManager
 from src.utils.logging_utils import setup_logger
@@ -43,7 +46,7 @@ def signal_module_cleanup():
             logger.error(f"Exception during cleanup: {e}")
 
 
-def signal_handler(sig, _frame):
+def signal_handler(sig, _):
     print(f"Signal {sig} received, calling cleanup.")
     logger.info(f"Signal {sig} received, calling cleanup.")
     signal_module_cleanup()
@@ -57,18 +60,19 @@ def setup_signal_handlers():
 
 
 async def manage_script_startup(
-    slots_db_conn: Optional[aiosqlite.Connection],
+    slots_db_conn: aiosqlite.Connection,
     window_type: WinType,
     script_name: str,
     lock_file_manager: Optional[LockFileManager] = None,
-    secondary_windows: Optional[list[SecondaryWindow]] = None,
 ) -> int | None:
     setup_signal_handlers()
     atexit.register(witness_atexit_execution)  # Lets us tell if cleanup
     # function were called from the atexit module, or from signal.
 
-    slot, name = await twm.manage_window(
-        slots_db_conn, window_type, script_name, secondary_windows
+    terminal_window_manager = TerminalWindowManager()
+
+    slot, name = await terminal_window_manager.adjust_window(
+        slots_db_conn, window_type, script_name
     )
     if window_type == WinType.DENIED:
         register_atexit_func(sdh.free_denied_slot_sync, slot)
@@ -85,11 +89,12 @@ async def manage_script_startup(
 
 async def setup_script(
     script_name: str,
-    slots_db_file_path: str,
-    secondary_windows: Optional[list[SecondaryWindow]] = None,
 ) -> tuple[aiosqlite.Connection | None, int | None]:
     lock_file_manager = LockFileManager(script_name)
-    db_conn = await sdh.create_connection(slots_db_file_path)
+    db_conn = await sdh.create_connection(TERMINAL_WINDOW_SLOTS_DB_FILE_PATH)
+
+    if not db_conn:
+        raise ValueError("Failed to create connection to the slots DB.")
 
     setup_signal_handlers()
     atexit.register(witness_atexit_execution)
@@ -100,7 +105,7 @@ async def setup_script(
         window_type = WinType.ACCEPTED
 
     slot = await manage_script_startup(
-        db_conn, window_type, script_name, lock_file_manager, secondary_windows
+        db_conn, window_type, script_name, lock_file_manager
     )
 
     return db_conn, slot

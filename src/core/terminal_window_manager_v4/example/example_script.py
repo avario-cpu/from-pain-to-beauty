@@ -3,12 +3,12 @@ import asyncio
 import os
 import subprocess
 
-from src.core import slots_db_handler as sdh
-from src.core.constants import TERMINAL_WINDOW_SLOTS_DB_FILE_PATH
 from src.core.terminal_window_manager_v4 import (
+    TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
     SecondaryWindow,
     TerminalWindowManager,
     WinType,
+    slots_db_handler as sdh,
 )
 
 

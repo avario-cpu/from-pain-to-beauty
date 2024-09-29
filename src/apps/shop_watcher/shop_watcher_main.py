@@ -10,13 +10,12 @@ from src.apps.shop_watcher.core.shared_events import (
 from src.apps.shop_watcher.core.shop_watcher import ShopWatcher
 from src.apps.shop_watcher.core.socket_handler import ShopWatcherHandler
 from src.connection.websocket_client import WebSocketClient
-from src.core import terminal_window_manager_v4 as twm
 from src.core.constants import (
     STOP_SUBPROCESS_MESSAGE,
     STREAMERBOT_WS_URL,
     SUBPROCESSES_PORTS,
 )
-from src.core.constants import TERMINAL_WINDOW_SLOTS_DB_FILE_PATH as SLOTS_DB
+from src.core.terminal_window_manager_v4 import TerminalWindowManager
 from src.utils.helpers import construct_script_name, print_countdown
 from src.utils.logging_utils import setup_logger
 from src.utils.script_initializer import setup_script
@@ -25,13 +24,14 @@ PORT = SUBPROCESSES_PORTS["shop_watcher"]
 SCRIPT_NAME = construct_script_name(__file__)
 
 logger = setup_logger(SCRIPT_NAME, "DEBUG")
+terminal_window_manager = TerminalWindowManager()
 
 
 async def run_main_task(slot: int, shop_watcher: ShopWatcher):
     mute_ssim_prints.set()
     main_task = asyncio.create_task(shop_watcher.scan_for_shop_and_notify())
     await secondary_windows_spawned.wait()
-    await twm.manage_secondary_windows(slot, SECONDARY_WINDOWS)
+    await terminal_window_manager.adjust_secondary_windows(slot, SECONDARY_WINDOWS)
     mute_ssim_prints.clear()
     await main_task
     return None
@@ -41,9 +41,7 @@ async def main():
     socket_server_task = None
     slots_db_conn = None
     try:
-        slots_db_conn, slot = await setup_script(
-            SCRIPT_NAME, SLOTS_DB, SECONDARY_WINDOWS
-        )
+        slots_db_conn, slot = await setup_script(SCRIPT_NAME)
         if slot is None:
             logger.error("No slot available, exiting.")
             return

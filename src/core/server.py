@@ -14,19 +14,22 @@ import websockets
 from websockets import WebSocketServerProtocol
 
 from src.config.settings import PROJECT_DIR_PATH, PYTHONPATH
-from src.core import (
-    old as twm,
-    slots_db_handler as sdh,
-)
 from src.core.constants import (
     APPS_DIR_PATH,
     LOCK_FILES_DIR_PATH,
     STOP_SUBPROCESS_MESSAGE,
     SUBPROCESSES_PORTS,
+)
+from src.core.terminal_window_manager_v4 import (
     TERMINAL_WINDOW_SLOTS_DB_FILE_PATH,
+    TerminalWindowManager,
+    WinType,
+    slots_db_handler as sdh,
 )
 from src.utils.helpers import construct_script_name
 from src.utils.logging_utils import setup_logger
+
+twm = TerminalWindowManager()
 
 SCRIPT_NAME = construct_script_name(__file__)
 
@@ -126,7 +129,7 @@ def create_websocket_handler(conn: aiosqlite.Connection):
 
             elif path == "/test":  # Path to test stuff
                 if message == "get windows":
-                    windows_names = await twm.get_all_windows_names(conn)
+                    windows_names = await sdh.get_all_names(conn)
                     print(f"Windows in slot DB: {windows_names}")
 
     return websocket_handler
@@ -157,11 +160,13 @@ async def send_message_to_subprocess_socket(
 async def main():
     print("Welcome to the server, bro. You know what to do.")
     conn = await sdh.create_connection(TERMINAL_WINDOW_SLOTS_DB_FILE_PATH)
-    await twm.manage_window(conn, twm.WinType.SERVER, "SERVER")
-    if conn:
-        websocket_server = await websockets.serve(
-            create_websocket_handler(conn), "localhost", 50000
-        )
+    if conn is None:
+        print("Could not connect to the windows slots database.")
+        return
+    await twm.adjust_window(conn, WinType.SERVER, "SERVER")
+    websocket_server = await websockets.serve(
+        create_websocket_handler(conn), "localhost", 50000
+    )
 
     try:
         await asyncio.Future()

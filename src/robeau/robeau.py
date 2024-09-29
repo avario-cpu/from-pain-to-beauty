@@ -90,7 +90,6 @@ class RobeauHandler:
         print("Waiting for greeting...")
 
     async def handle_message(self, message: str):
-
         if robeau_is_talking.is_set():
             print("Robeau is talking.")
             stop_command, rudeness_points = check_for_stop_command(message)
@@ -179,7 +178,7 @@ async def main():
     update_thread = None
 
     try:
-        db_conn, _ = await setup_script(SCRIPT_NAME, TERMINAL_WINDOW_SLOTS_DB_FILE_PATH)
+        db_conn, _ = await setup_script(SCRIPT_NAME)
         driver, session, conversation_state, stop_event, update_thread, pause_event = (
             initialize()
         )

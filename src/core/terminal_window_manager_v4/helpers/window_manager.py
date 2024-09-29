@@ -3,7 +3,7 @@ from typing import Optional
 
 import aiosqlite
 
-from src.core import slots_db_handler as sdh
+from src.core.terminal_window_manager_v4 import slots_db_handler as sdh
 from src.core.terminal_window_manager_v4.core.constants import (
     MAIN_WINDOW_HEIGHT,
     MAIN_WINDOW_WIDTH,

@@ -3,9 +3,6 @@ import os
 from src.config.settings import PROJECT_DIR_PATH
 
 # General project paths
-TERMINAL_WINDOW_SLOTS_DB_FILE_PATH = os.path.join(
-    PROJECT_DIR_PATH, "src/core/terminal_window_slots.db"
-)
 APPS_DIR_PATH = os.path.join(PROJECT_DIR_PATH, "src/apps")
 
 # Temp project paths
