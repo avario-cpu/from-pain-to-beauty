@@ -39,14 +39,14 @@ class ImageProcessor:
                 break
             await asyncio.sleep(0.1)
 
-    async def capture_window(self, area: dict[str, int]):
+    @staticmethod
+    async def capture_window(area: dict[str, int]):
         with mss.mss() as sct:
             img = sct.grab(area)
         return np.array(img)
 
-    def compare_images(
-        self, image_a: cv.typing.MatLike, image_b: cv.typing.MatLike
-    ) -> float:
+    @staticmethod
+    def compare_images(image_a: cv.typing.MatLike, image_b: cv.typing.MatLike) -> float:
         return ssim(image_a, image_b)
 
     async def capture_and_process_image(
