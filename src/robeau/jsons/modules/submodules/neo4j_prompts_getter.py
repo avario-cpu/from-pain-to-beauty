@@ -60,7 +60,7 @@ def get_data_from_labels(labels):
 
 def write_to_json(data, filename):
     with open(filename, "w") as f:
-        json.dump(data, f, indent=4)
+        json.dump(data, f, indent=2)
 
 
 def main():
@@ -69,14 +69,15 @@ def main():
     data = get_data_from_labels(labels)
 
     print("Data to be written to JSON:", data)
+    json_filepath = os.path.join(
+        PROJECT_DIR_PATH, "src/robeau/jsons/neo4j/neo4j_prompts.json"
+    )
 
-    json_filename = "src/robeau/jsons/raw_from_neo4j/neo4j_prompts.json"
-    write_to_json(data, json_filename)
-
-    if os.path.exists(json_filename):
-        print(f"Data has been written to {os.path.abspath(json_filename)}")
+    if os.path.exists(json_filepath):
+        write_to_json(data, json_filepath)
+        print(f"Data has been written to {os.path.abspath(json_filepath)}")
     else:
-        print(f"Failed to write data to {json_filename}")
+        print(f"{json_filepath} was not found. Data was not written.")
 
 
 if __name__ == "__main__":

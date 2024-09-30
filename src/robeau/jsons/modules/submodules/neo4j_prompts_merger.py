@@ -8,7 +8,7 @@ def read_json(file_path):
 
 def write_json(file_path, content):
     with open(file_path, "w") as file:
-        json.dump(content, file, indent=4)
+        json.dump(content, file, indent=2)
 
 
 def merge_json_with_synonyms(old, new):
@@ -110,7 +110,7 @@ def handle_deletions(key, old_entries):
 
 def main():
     old_file_path = "src/robeau/jsons/processed_for_robeau/robeau_prompts.json"
-    new_file_path = "src/robeau/jsons/raw_from_neo4j/neo4j_prompts.json"
+    new_file_path = "src/robeau/jsons/neo4j/neo4j_prompts.json"
     log_file_path = (
         "src/robeau/jsons/temp/outputs_from_prompts_merge/last_merge_log.txt"
     )

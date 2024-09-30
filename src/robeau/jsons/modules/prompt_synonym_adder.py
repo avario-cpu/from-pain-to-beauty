@@ -32,7 +32,7 @@ class SynonymHandler:
 
     def write_json(self):
         with open(self.json_file_path, "w") as f:
-            json.dump(self.data, f, indent=4)
+            json.dump(self.data, f, indent=2)
 
     async def handle_message(self, message: str):
         synonym = message.strip().lower()
@@ -49,7 +49,6 @@ class SynonymHandler:
     def add_synonym(self, text: str, synonym: str):
         for category in self.data:
             for entry in self.data[category]:
-
                 if entry["text"] != text:
                     continue
                 if "synonyms" not in entry:

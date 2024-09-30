@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 import json
+import os
 from typing import Any
 
 from neo4j import GraphDatabase
 
-from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
+from src.config.settings import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER, PROJECT_DIR_PATH
 
 
 class Neo4jToJson:
@@ -161,23 +162,40 @@ def log_changes(changes: dict[str, dict[str, list[dict]]], log_file_path: str):
         log_file.write("\n".join(log_entries))
 
 
-@dataclass
-class FilePaths:
-    json: str
-    additions: str
-    deletions: str
-    log: str
-    backup: str
+def create_file_paths_class():
+    @dataclass
+    class FilePaths:
+        json: str
+        additions: str
+        deletions: str
+        log: str
+        backup: str
+
+    return FilePaths(
+        json=os.path.join(
+            PROJECT_DIR_PATH, "src/robeau/jsons/neo4j/neo4j_all_data.json"
+        ),
+        additions=os.path.join(
+            PROJECT_DIR_PATH,
+            "src/robeau/jsons/temp/outputs_from_get_data/last_additions.json",
+        ),
+        deletions=os.path.join(
+            PROJECT_DIR_PATH,
+            "src/robeau/jsons/temp/outputs_from_get_data/last_deletions.json",
+        ),
+        log=os.path.join(
+            PROJECT_DIR_PATH,
+            "src/robeau/jsons/temp/outputs_from_get_data/neo4j_changes_log.txt",
+        ),
+        backup=os.path.join(
+            PROJECT_DIR_PATH,
+            "src/robeau/jsons/temp/outputs_from_get_data/OLD_neo4j_all_data.json",
+        ),
+    )
 
 
 def main():
-    file_paths = FilePaths(
-        json="src/robeau/jsons/raw_from_neo4j/neo4j_all_data.json",
-        additions="src/robeau/jsons/temp/outputs_from_get_data/last_additions.json",
-        deletions="src/robeau/jsons/temp/outputs_from_get_data/last_deletions.json",
-        log="src/robeau/jsons/temp/outputs_from_get_data/neo4j_changes_log.txt",
-        backup="src/robeau/jsons/temp/outputs_from_get_data/OLD_neo4j_all_data.json",
-    )
+    file_paths = create_file_paths_class()
 
     neo4j_to_json = Neo4jToJson(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
     nodes, relationships = neo4j_to_json.get_nodes_and_relationships()

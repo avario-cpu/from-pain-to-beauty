@@ -66,13 +66,13 @@ def write_json_data(
     deletions_file_path,
 ):
     with open(merged_file_path, "w") as merged_file:
-        json.dump(merged_data, merged_file, indent=4)
+        json.dump(merged_data, merged_file, indent=2)
 
     with open(additions_file_path, "w") as additions_file:
-        json.dump(additions_data, additions_file, indent=4)
+        json.dump(additions_data, additions_file, indent=2)
 
     with open(deletions_file_path, "w") as deletions_file:
-        json.dump(deletions_data, deletions_file, indent=4)
+        json.dump(deletions_data, deletions_file, indent=2)
 
 
 def write_log_entries(log_entries, log_file_path):
@@ -82,7 +82,7 @@ def write_log_entries(log_entries, log_file_path):
 
 def create_backup(old_data, backup_file_path):
     with open(backup_file_path, "w") as old_backup_file:
-        json.dump(old_data, old_backup_file, indent=4)
+        json.dump(old_data, old_backup_file, indent=2)
 
 
 def merge_json_files(
@@ -121,7 +121,7 @@ def merge_json_files(
 
 def main():
     old_file_path = "src/robeau/jsons/processed_for_robeau/robeau_responses.json"
-    new_file_path = "src/robeau/jsons/raw_from_neo4j/neo4j_responses.json"
+    new_file_path = "src/robeau/jsons/neo4j/neo4j_responses.json"
     additions_file_path = (
         "src/robeau/jsons/temp/outputs_from_responses_merge/last_additions.json"
     )
