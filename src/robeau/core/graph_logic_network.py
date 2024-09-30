@@ -751,18 +751,28 @@ def process_modifications_relationships(
     conversation_state: ConversationState,
 ):
     relationship_methods = {
-        "DELAYS": lambda end_node, labels, data, duration, session: conversation_state.delay_item(
+        "DELAYS": lambda end_node,
+        labels,
+        data,
+        duration,
+        session: conversation_state.delay_item(
             end_node, labels, data, duration
         ),  # Unused right now but may be used in the future
-        "DISABLES": lambda end_node, labels, data, duration, session: conversation_state.disable_item(
-            end_node
-        ),
-        "APPLIES": lambda end_node, labels, data, duration, session: conversation_state.apply_definitions(
-            session, end_node
-        ),
-        "REVERTS": lambda end_node, labels, data, duration, session: conversation_state.revert_definitions(
-            session, end_node
-        ),
+        "DISABLES": lambda end_node,
+        labels,
+        data,
+        duration,
+        session: conversation_state.disable_item(end_node),
+        "APPLIES": lambda end_node,
+        labels,
+        data,
+        duration,
+        session: conversation_state.apply_definitions(session, end_node),
+        "REVERTS": lambda end_node,
+        labels,
+        data,
+        duration,
+        session: conversation_state.revert_definitions(session, end_node),
     }
 
     for relationship, process_method in relationship_methods.items():
