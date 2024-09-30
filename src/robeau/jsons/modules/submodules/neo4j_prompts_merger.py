@@ -109,19 +109,27 @@ def handle_deletions(key, old_entries):
 
 
 def main():
-    old_file_path = "src/robeau/jsons/processed_for_robeau/robeau_prompts.json"
-    new_file_path = "src/robeau/jsons/neo4j/neo4j_prompts.json"
-    log_file_path = (
-        "src/robeau/jsons/temp/outputs_from_prompts_merge/last_merge_log.txt"
+    old_file_path = os.path.join(
+        PROJECT_DIR_PATH, "src/robeau/jsons/robeau/robeau_prompts.json"
     )
-    additions_file_path = (
-        "src/robeau/jsons/temp/outputs_from_prompts_merge/last_additions.json"
+    new_file_path = os.path.join(
+        PROJECT_DIR_PATH, "src/robeau/jsons/neo4j/neo4j_prompts.json"
     )
-    deletions_file_path = (
-        "src/robeau/jsons/temp/outputs_from_prompts_merge/last_deletions.json"
+    log_file_path = os.path.join(
+        PROJECT_DIR_PATH,
+        "src/robeau/jsons/temp/outputs_from_prompts_merge/last_merge_log.txt",
     )
-    backup_file_path = (
-        "src/robeau/jsons/temp/outputs_from_prompts_merge/OLD_robeau_prompts.json"
+    additions_file_path = os.path.join(
+        PROJECT_DIR_PATH,
+        "src/robeau/jsons/temp/outputs_from_prompts_merge/last_additions.json",
+    )
+    deletions_file_path = os.path.join(
+        PROJECT_DIR_PATH,
+        "src/robeau/jsons/temp/outputs_from_prompts_merge/last_deletions.json",
+    )
+    backup_file_path = os.path.join(
+        PROJECT_DIR_PATH,
+        "src/robeau/jsons/temp/outputs_from_prompts_merge/OLD_robeau_prompts.json",
     )
 
     original_json = read_json(old_file_path)

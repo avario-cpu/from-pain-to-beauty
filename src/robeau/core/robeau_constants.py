@@ -5,10 +5,10 @@ from src.config.settings import PROJECT_DIR_PATH
 # Robeau specific paths
 ROBEAU_DIR_PATH = os.path.join(PROJECT_DIR_PATH, "src/robeau")
 ROBEAU_PROMPTS_JSON_FILE_PATH = os.path.join(
-    PROJECT_DIR_PATH, "src/robeau/jsons/processed_for_robeau/robeau_prompts.json"
+    PROJECT_DIR_PATH, "src/robeau/jsons/robeau/robeau_prompts.json"
 )
 ROBEAU_RESPONSES_JSON_FILE_PATH = os.path.join(
-    PROJECT_DIR_PATH, "src/robeau/jsons/processed_for_robeau/robeau_responses.json"
+    PROJECT_DIR_PATH, "src/robeau/jsons/robeau/robeau_responses.json"
 )
 
 # Labels used for different types of nodes in the neo4j database

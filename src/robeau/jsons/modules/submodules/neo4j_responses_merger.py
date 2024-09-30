@@ -120,7 +120,7 @@ def merge_json_files(
 
 
 def main():
-    old_file_path = "src/robeau/jsons/processed_for_robeau/robeau_responses.json"
+    old_file_path = "src/robeau/jsons/robeau/robeau_responses.json"
     new_file_path = "src/robeau/jsons/neo4j/neo4j_responses.json"
     additions_file_path = (
         "src/robeau/jsons/temp/outputs_from_responses_merge/last_additions.json"
