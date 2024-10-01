@@ -1,4 +1,8 @@
 import json
+import os
+from typing import Any
+
+from config.settings import PROJECT_DIR_PATH
 
 
 def read_json(file_path):
@@ -11,7 +15,10 @@ def write_json(file_path, content):
         json.dump(content, file, indent=2)
 
 
-def merge_json_with_synonyms(old, new):
+def merge_json_with_synonyms(
+    robeau_prompts: dict[str, list[dict[str, Any]]],
+    neo4j_prompts: dict[str, list[dict[str, Any]]],
+):
     protected_keys = ["StopCommand", "StopCommandRude", "StopCommandPolite"]
     protected_sub_keys = ["synonyms"]
     merged = {}
@@ -19,93 +26,106 @@ def merge_json_with_synonyms(old, new):
     deletions = []
     log_entries = []
 
-    for key in new.keys():
-        if key in old:
-            original_nodes = {entry["id"]: entry for entry in old[key]}
-            new_nodes = {entry["id"]: entry for entry in new[key]}
-            merged[key], new_additions, new_log_entries = merge_entries(
-                key, original_nodes, new_nodes, protected_sub_keys
+    for label in neo4j_prompts.keys():
+        if label not in robeau_prompts:
+            merged[label] = neo4j_prompts[label]
+            additions.extend(neo4j_prompts[label])
+            log_entries.append(
+                f"Added all new prompts {neo4j_prompts[label]} for new label '{label}'"
             )
-            additions.extend(new_additions)
-            log_entries.extend(new_log_entries)
-        else:
-            merged[key], new_additions, new_log_entries = handle_additions(
-                key, new[key]
+
+        elif label in robeau_prompts:
+            original_prompts: dict[int, dict] = {
+                prompt["id"]: prompt for prompt in robeau_prompts[label]
+            }
+            new_prompts: dict[int, dict] = {
+                prompt["id"]: prompt for prompt in neo4j_prompts[label]
+            }
+            merged[label], new_additions, new_log_entries = merge_entries(
+                label, original_prompts, new_prompts, protected_sub_keys
             )
             additions.extend(new_additions)
             log_entries.extend(new_log_entries)
 
-    for key in old.keys():
-        if key not in new:
-            if key in protected_keys:
-                merged[key] = old[key]
-                log_entries.append(f"Preserved key '{key}'")
+    for label in robeau_prompts.keys():
+        if label not in neo4j_prompts:
+            if label in protected_keys:
+                # do not delete protected keys such as StopCommand, they are only
+                # present in the robeau json
+                merged[label] = robeau_prompts[label]
+                log_entries.append(f"Preserved key '{label}'")
             else:
-                new_deletions, new_log_entries = handle_deletions(key, old[key])
-                deletions.extend(new_deletions)
-                log_entries.extend(new_log_entries)
+                deletions.extend(robeau_prompts[label])
+                log_entries.append(
+                    f"Label '{label}' and all its members "
+                    f"{robeau_prompts[label]} removed"
+                )
 
     return merged, additions, deletions, log_entries
 
 
-def merge_entries(key, original_nodes, new_nodes, protected_sub_keys):
-    merged_list = []
-    additions = []
-    log_entries = []
+def merge_entries(
+    label: str,
+    original_prompts: dict[int, dict[str, Any]],
+    new_prompts: dict[int, dict[str, Any]],
+    protected_sub_keys: list[str],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
+    merged_result: list[dict[str, Any]] = []
+    additions: list[dict[str, Any]] = []
+    log_entries: list[str] = []
 
-    for node_id, new_entry in new_nodes.items():
-        if node_id in original_nodes:
+    for prompt_id, new_prompt in new_prompts.items():
+        if prompt_id not in original_prompts:
+            merged_result.append(new_prompt)
+            additions.append(new_prompt)
+            log_entries.append(f"Added new prompt for label '{label}': {new_prompt}")
+
+        elif prompt_id in original_prompts:
             merged_entry, changes = merge_single_entry(
-                original_nodes[node_id], new_entry, protected_sub_keys
+                original_prompts[prompt_id], new_prompt, protected_sub_keys
             )
             if changes:
                 log_entries.append(
-                    f"Updated entry for key '{key}', id '{node_id}': {', '.join(changes)}"
+                    f"Updated prompt for label {label}: {', '.join(changes)}"
                 )
-            merged_list.append(merged_entry)
-        else:
-            merged_list.append(new_entry)
-            additions.append(new_entry)
-            log_entries.append(
-                f"Added new entry for key '{key}', id '{node_id}': {new_entry}"
-            )
+            merged_result.append(merged_entry)
 
-    return merged_list, additions, log_entries
+    return merged_result, additions, log_entries
 
 
-def merge_single_entry(original_entry, new_entry, protected_sub_keys):
-    merged_entry = new_entry.copy()
-    changes = []
+def merge_single_entry(
+    original_prompt: dict[str, Any],
+    new_prompt: dict[str, Any],
+    protected_sub_keys: list[str],
+) -> tuple[dict[str, Any], list[str]]:
+    """
+    Merges a single prompt entry from the original and new prompt dictionaries.
+
+    Args:
+        original_prompt (dict): The original prompt entry.
+        new_prompt (dict): The new prompt entry.
+        protected_sub_keys (list): A list of sub-keys that should not be overwritten.
+
+    Returns:
+        A tuple containing the merged prompt and an informative list of changes made.
+    """
+    merged_prompt = new_prompt.copy()
+    changes: list[str] = []
 
     for sub_key in protected_sub_keys:
-        if sub_key in original_entry and sub_key not in new_entry:
-            merged_entry[sub_key] = original_entry[sub_key]
+        if sub_key in original_prompt and sub_key not in new_prompt:
+            merged_prompt[sub_key] = original_prompt[sub_key]
 
-    for k, v in original_entry.items():
+    for k, _ in original_prompt.items():
         if k == "id":
             continue
-        if k not in new_entry and k not in protected_sub_keys:
+        if k not in new_prompt and k not in protected_sub_keys:
             changes.append(f"{k} removed")
-        elif k in new_entry and original_entry[k] != new_entry[k]:
-            merged_entry[k] = new_entry[k]
-            changes.append(f"{k} changed from {original_entry[k]} to {new_entry[k]}")
+        elif k in new_prompt and original_prompt[k] != new_prompt[k]:
+            merged_prompt[k] = new_prompt[k]
+            changes.append(f"{k} changed from {original_prompt[k]} to {new_prompt[k]}")
 
-    return merged_entry, changes
-
-
-def handle_additions(key, new_entries):
-    merged_list = new_entries
-    additions = new_entries
-    log_entries = [f"Added all new entries for new key '{key}'"]
-
-    return merged_list, additions, log_entries
-
-
-def handle_deletions(key, old_entries):
-    deletions = old_entries
-    log_entries = [f"Key '{key}' removed"]
-
-    return deletions, log_entries
+    return merged_prompt, changes
 
 
 def main():
@@ -132,14 +152,14 @@ def main():
         "src/robeau/jsons/temp/outputs_from_prompts_merge/OLD_robeau_prompts.json",
     )
 
-    original_json = read_json(old_file_path)
-    new_json = read_json(new_file_path)
+    robeau_prompts = read_json(old_file_path)  # the existing robeau prompts file
+    neo4j_prompts = read_json(new_file_path)  # the new prompts file coming from neo4j
 
     merged_json, additions, deletions, log_entries = merge_json_with_synonyms(
-        original_json, new_json
+        robeau_prompts, neo4j_prompts
     )
 
-    write_json(backup_file_path, original_json)
+    write_json(backup_file_path, robeau_prompts)
     write_json(old_file_path, merged_json)
     write_json(additions_file_path, {"additions": additions})
     write_json(deletions_file_path, {"deletions": deletions})
