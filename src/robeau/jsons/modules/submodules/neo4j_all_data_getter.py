@@ -216,7 +216,7 @@ def main():
         "relationships": changes["removed"]["relationships"],
     }
 
-    json_data = json.dumps(current_state, indent=4)
+    json_data = json.dumps(current_state, ident=2)
     with open(file_paths.json, "w") as f:
         f.write(json_data)
 
@@ -233,7 +233,7 @@ def main():
 
 def write_json(file_path, data):
     with open(file_path, "w") as file:
-        json.dump(data, file, indent=4)
+        json.dump(data, file, ident=2)
 
 
 if __name__ == "__main__":
