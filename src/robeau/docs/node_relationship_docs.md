@@ -1,7 +1,7 @@
 
 # Node Relationship and Activation Documentation
 
-## Activations
+## Activations Relationship
 
 ### CHECKS
 First relation in priority, will always execute unless blocked.
@@ -15,9 +15,9 @@ Simple trigger, will execute unless the node is blocked.
 ### DEFAULTS
 Last in order, will only trigger if all other activations failed.
 
-All these relationships may have a random weight and be pooled into explicitly stated different groups. In those cases, we select one random connection from pool 1, then 2, etc., as many pools as there are. If none are specified, all are in the same default pool.
+>> All these relationships may have a random weight and be pooled into explicitly stated different groups in the DB. A node with such connections to different pools will therefore trigger multiple reactions: In those cases, we elect one connection from pool 1, then 2, etc., as many pools as there are. If none are specified for nodes, they all are in the same default pool.
 
-## Definitions
+## Definitions Relationship
 
 ### ALLOWS
 Allows to utter prompt after greeting Robeau. If Robeau is not greeted there will be no matching attempts with the prompts. These relationships are also stored in the `ConversationState` and will be used as to determine the greet state of Robeau at the stage of voice recognition. If no "allows" are stored, we assume Robeau is not greeted. 
@@ -43,7 +43,7 @@ Like unlock, only it will get deactivated as soon as any activation relation is 
 ### INITIATES
 After a time countdown, will activate the node.
 
-## Modifications
+## Modifications Relationship
 
 ### DISABLES
 Will remove conditions of a particular node f.ex. disable a node that is being listened to, or that is being initiated.
@@ -54,12 +54,12 @@ Unused right now, but the principle is to allow adding time to any condition, as
 ### REVERTS
 Will undo the changes a node had applied to its target nodes with its relationships. For example, if it locked something, it de-locks it; if it had unlocked one, it de-unlocks it, etc. This is really a "DISABLES" but for all of a node possibly multiple influenced targets rather than just one target one.
 
-## Logics Checks
+## Logic Gate Nodes
 
 ### IF
 Will gather all connections of the target logic gate node and resolve them to be either true or false. It will then trigger or not accordingly the "then" relationship if the gate is true, activating another nodes.
 
-## Logics Relationships
+## Logic Relationships
 
 ### IS_ATTRIBUTE
 Will check if the attribute is being kept track off in the `ConversationState` class (`locks`, `unlocks`, etc.).
