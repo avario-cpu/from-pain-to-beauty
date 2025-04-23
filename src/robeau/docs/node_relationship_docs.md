@@ -54,15 +54,15 @@ Unused right now, but the principle is to allow adding time to any condition, as
 ### REVERTS
 Will undo the changes a node had applied to its target nodes with its relationships. For example, if it locked something, it de-locks it; if it had unlocked one, it de-unlocks it, etc. This is really a "DISABLES" but for all of a node possibly multiple influenced targets rather than just one target one.
 
-## Logic Gate Nodes
+## Logic ACTIVATION Relationships
 
 ### IF
-Will gather all connections of the target logic gate node and resolve them to be either true or false. It will then trigger, or not, accordingly, the "then" relationship if the gate resolves to true, activating another nodes.
+Will prompt a gather of all connections emanating from the target logic gate node and resolve them to be either true or false. It will then trigger, or not, accordingly, the "then" relationship if the gate resolves to true, activating (a)nother node(s).
 
-## Logic Relationships
+## Logic EVALUATION Relationships
 
 ### IS_ATTRIBUTE
-Will check if the attribute is being kept track off in the `ConversationState` class (`locks`, `unlocks`, etc.).
+Will check if the attribute is being kept track off in the `ConversationState` class (`locks`, `unlocks`, etc.). Examples :`IS_LOCKED`, `IS_NOT_INTIATED`
 
 ### AND_IS_ATTRIBUTE
-Will check if all the attributes connected are being kept track off (including the original one: IS_ATTRIBUTE).
+Will check if all the attributes connected are being kept track off (including the original one: IS_ATTRIBUTE). F.ex. `AND_IS_LOCKED` etc..
