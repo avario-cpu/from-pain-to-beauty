@@ -1,20 +1,18 @@
-[tool.pyright]
-executionEnvironments = [{ root = "src" }]
-ignore = ["**/venv/**"]                    # prevent pyright from raisisng errors on venv
-reportUndefinedVariable = false
+[tool.basedpyright]
+ignore = ["**/venv/**"]
 reportUnusedImport = false
-reportUnusedVariable = false
+# reportUndefinedVariable = false
 
 [tool.pylint.main]
 extension-pkg-allow-list = ["cv2", "win32gui"]
 load-plugins = ["pylint.extensions.no_self_use"]
-# Start only use pylint in the src directory
+# Start of only use pylint in the src directory
 ignore = ["*"]
 ignore-patterns = []
 ignore-paths = ["^((?!src).)*$"]
 recursive = true
 source-roots = ["src"]
-# End only use pylint in the src directory
+# End of only use pylint in the src directory
 
 [tool.pylint.messages_control]
 disable = [
@@ -36,34 +34,20 @@ disable = [
   "no-name-in-module",   # (HBOL)
 
 ]
-
 enable = [
-  "no-self-use", # enable this to enforce no self use
+  "no-self-use", # requires the no_self_use plugin, flags possibly static methods
 ]
 
-
-[tool.mypy]
-disallow_untyped_defs = true
-disallow_untyped_calls = true
-disallow_untyped_decorators = true
-show_error_codes = true
-ignore_missing_imports = true
-disable_error_code = "name-defined"
 
 [tool.ruff]
+src = ["src"]
 line-length = 88
-select = [
-  "E", # pycodestyle errors
-  "W", # pycodestyle warnings
-  "F", # pyflakes
-  "I", # isort
-  "C", # flake8-comprehensions
-  "B", # flake8-bugbear
-]
+select = ["ALL"]
 ignore = [
-  "F401", # unused imports, would rather disable this in pyright but seems impossible
+  "G004", # logging-f-string. REASON: We can use (if __debug__:) instead when needed. We like fstring logging ok ??
+  "T201", # print. REASON: We use print my guy.
 ]
-fixable = ["A", "B", "C", "D", "E", "F", "I"]
+fixable = ["ALL"]
 unfixable = []
 exclude = [
   ".bzr",
@@ -94,8 +78,7 @@ target-version = "py312"
 max-complexity = 10
 
 [tool.ruff.isort]
-# Use parentheses for imports that span multiple lines
-force-wrap-aliases = true
+force-wrap-aliases = true # Use parentheses for imports that span multiple lines
 
 # Prefer vertical hanging indent style, like Black
 combine-as-imports = true
