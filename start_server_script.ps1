@@ -1,19 +1,10 @@
-# This script sets the PYTHONPATH environment variable to the project directory
-# then runs the server using the venv python.exe
+# Read the PROJECT_DIR_PATH location from .env
+$PROJECT_DIR_PATH = (Get-Content .env | Where-Object { $_ -match '^PROJECT_DIR_PATH=' }) -replace '^PROJECT_DIR_PATH=', '' -replace '"', ''
 
-# We assume that the PYTHONPATH and the project dir path are the same. (For now
-# it seems to me to be the most flexible and practical way to go about this...)
-$env:PYTHONPATH = "C:\Users\ville\MyMegaScript"
-$serverScriptPath = "C:\Users\ville\MyMegaScript\src\core\server.py"
+$env:PYTHONPATH = $PROJECT_DIR_PATH
+$serverScriptPath = "$PROJECT_DIR_PATH/src/core/server.py"
 
-# Go to PYTHONPATH
 Set-Location $env:PYTHONPATH
-
-# Acivate venv
 & .\venv\Scripts\Activate.ps1
-
-# Run server.py
 py $serverScriptPath
-
-
 
