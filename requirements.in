@@ -1,34 +1,32 @@
-types-pywin32
-types-pyaudio
 aiosqlite
-google-cloud-speech
-mss
-numpy
 black
+google-cloud-speech
+gtts
+keyboard
+mss
+neo4j
+numpy
+# onnx (for local ML work)
+# onnxruntime (for local ML work)
 opencv-python
 opencv-python-headless
 pip-tools
-pyaudio
-neo4j
-python-dotenv
-pygetwindow
-pywin32
-gtts
 prompt_toolkit
+pyaudio
 pydub
 pydub-stubs
-scikit-image
-websockets
-sentence-transformers
-onnx
-onnxruntime
-simpleaudio
 pygame
-keyboard
+pygetwindow; sys_platform == "win32"
+python-dotenv
+pywin32; sys_platform == "win32"
+scikit-image
+# sentence-transformers (for local ML work)
+simpleaudio
 types-keyboard
-rope
---index-url https://download.pytorch.org/whl/cu121
-
-torch
-torchaudio
-torchvision
+types-pyaudio
+types-pywin32
+websockets
+# --index-url https://download.pytorch.org/whl/cu121 # not needed right now tbh
+# torch (for local ML work)
+# torchaudio (for local ML work)
+# torchvision (for local ML work)
