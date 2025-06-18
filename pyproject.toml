@@ -1,5 +1,4 @@
 [tool.basedpyright]
-ignore = ["**/venv/**"]
 reportUnusedImport = false
 # reportUndefinedVariable = false
 
@@ -49,28 +48,6 @@ ignore = [
 ]
 fixable = ["ALL"]
 unfixable = []
-exclude = [
-  ".bzr",
-  ".direnv",
-  ".eggs",
-  ".git",
-  ".hg",
-  ".mypy_cache",
-  ".nox",
-  ".pants.d",
-  ".pytype",
-  ".ruff_cache",
-  ".svn",
-  ".tox",
-  ".venv",
-  "__pypackages__",
-  "_build",
-  "buck-out",
-  "build",
-  "dist",
-  "node_modules",
-  "venv",
-]
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 target-version = "py312"
 
