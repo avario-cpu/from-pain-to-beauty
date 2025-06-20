@@ -1,0 +1,11 @@
+{
+  "request": "DoAction",
+  "action": {
+    "id": "bd02530a-65f6-4dc1-b92f-4ca7b09cd06b",
+    "name": "Brb buying milk text - Hide"
+  },
+  "args": {
+    "key": "value"
+  },
+  "id": "<id>"
+}
