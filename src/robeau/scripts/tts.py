@@ -11,7 +11,7 @@ text = (
 tts = gTTS(text=text, lang="en", slow=False)
 
 # Saving the speech to a file
-output_file = "data\\robeau\\voice_lines\\long_sentence.mp3"
+output_file = "data\\robeau\\audio\\voice_lines\\long_sentence.mp3"
 tts.save(output_file)
 
 print(f"Robotic 'Hello' voice file saved as {output_file}")
