@@ -1,8 +1,0 @@
-
-[flake8]
-# Ignore specific warnings and errors to avoid overlap with pylint
-ignore =
-    E501,  # Line length (handled by pylint)
-    W503,  # Line break before binary operator (black formats this way)
-    F821   # Undefined name (handled by pylint or mypy)
-
