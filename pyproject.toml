@@ -1,5 +1,14 @@
+[project]
+name = "woertsposzibllen4me"
+version = "0.0.0"
+
+[project.optional-dependencies]
+dev = ["ruff"]
+
 [tool.basedpyright]
-reportUnusedImport = false
+# reportUnusedImport = false
+reportImplicitStringConcatenation = false # Prefer ruff's implicit enforcement
+reportUnusedCallResult = false            # Can't see the use ...
 # reportUndefinedVariable = false
 
 [tool.pylint.main]
@@ -31,36 +40,40 @@ disable = [
   "trailing-whitespace", # (HBOL)
   "trailing-newlines",   # (tends to trigger in empty __init__.py files)
   "no-name-in-module",   # (HBOL)
-
 ]
 enable = [
   "no-self-use", # requires the no_self_use plugin, flags possibly static methods
 ]
 
-
 [tool.ruff]
 src = ["src"]
 line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-  "G004", # logging-f-string. REASON: We can use (if __debug__:) instead when needed. We like fstring logging ok ??
-  "T201", # print. REASON: We use print my guy.
+  "G004",   # logging-f-string - We can use (if __debug__:) instead when needed. We like fstring logging ok ??
+  "T201",   # print - We use print my guy.
+  "COM812", # trailing-comma-missing - conflicts with formatter
+  "D203",   # blank-line-before-class - conflicts with D211
+  "D213",   # multi-line-summary-second-line - conflicts with D212
 ]
 fixable = ["ALL"]
 unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-target-version = "py312"
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 10
 
-[tool.ruff.isort]
-force-wrap-aliases = true # Use parentheses for imports that span multiple lines
-
+[tool.ruff.lint.isort]
 # Prefer vertical hanging indent style, like Black
-combine-as-imports = true
-force-sort-within-sections = true
-split-on-trailing-comma = true
+# disabling the below settings as recommended by ruff to test
+# force-wrap-aliases = true # Use parentheses for imports that span multiple lines
+# split-on-trailing-comma = true
+# not recommended by ruff, but testing without
+# combine-as-imports = true
+# force-sort-within-sections = true
 
 [tool.black]
 line-length = 88
