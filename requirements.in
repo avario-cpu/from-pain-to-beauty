@@ -1,4 +1,5 @@
 aiosqlite
+aiofiles
 black
 google-cloud-speech
 gtts
